@@ -1,0 +1,15 @@
+{
+  "compilerOptions": {
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "types": []
+  },
+  "include": ["src", "tests", "smoke", "vite.config.ts", "vite.homey.config.ts", "vite.server.config.ts", "playwright.config.ts", "playwright.perf.config.ts", "playwright.homey.config.ts"]
+}

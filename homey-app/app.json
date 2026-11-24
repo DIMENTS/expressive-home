@@ -1,0 +1,124 @@
+{
+  "id": "app.expressive.home",
+  "version": "1.0.0",
+  "compatibility": ">=12.2.0",
+  "sdk": 3,
+  "runtime": "nodejs",
+  "platforms": [
+    "local"
+  ],
+  "name": {
+    "en": "Expressive Home",
+    "nl": "Expressive Home"
+  },
+  "description": {
+    "en": "A beautiful dashboard for your tablet, laptop and phone",
+    "nl": "Een mooi dashboard voor je tablet, laptop en telefoon"
+  },
+  "tags": {
+    "en": ["dashboard", "tablet", "wall", "panel", "screen"],
+    "nl": ["dashboard", "tablet", "muur", "paneel", "scherm"]
+  },
+  "category": "tools",
+  "permissions": [
+    "homey:manager:api"
+  ],
+  "brandColor": "#3B6939",
+  "images": {
+    "small": "/assets/images/small.png",
+    "large": "/assets/images/large.png",
+    "xlarge": "/assets/images/xlarge.png"
+  },
+  "author": {
+    "name": "DIMENTS"
+  },
+  "flow": {
+    "triggers": [
+      {
+        "id": "dashboard_button",
+        "title": {
+          "en": "A dashboard button was pressed",
+          "nl": "Er is op een dashboardknop gedrukt"
+        },
+        "titleFormatted": {
+          "en": "Dashboard button [[button]] was pressed",
+          "nl": "Er is op de dashboardknop [[button]] gedrukt"
+        },
+        "hint": {
+          "en": "Choose a name for the button. It appears on the dashboard by itself, with the other flows. Every flow with the same name starts.",
+          "nl": "Kies een naam voor de knop. Hij verschijnt vanzelf op het dashboard, bij de andere flows. Elke flow met dezelfde naam start."
+        },
+        "args": [
+          {
+            "type": "text",
+            "name": "button",
+            "title": {
+              "en": "Name of the button",
+              "nl": "Naam van de knop"
+            },
+            "placeholder": {
+              "en": "Watch a film",
+              "nl": "Film kijken"
+            }
+          }
+        ],
+        "tokens": [
+          {
+            "name": "device",
+            "type": "string",
+            "title": {
+              "en": "Device with the dashboard",
+              "nl": "Apparaat met het dashboard"
+            },
+            "example": {
+              "en": "Kitchen tablet",
+              "nl": "Tablet in de keuken"
+            }
+          }
+        ]
+      }
+    ],
+    "actions": [
+      {
+        "id": "night_on",
+        "title": {
+          "en": "Switch the wall tablets to night",
+          "nl": "Zet de wandtablets op nacht"
+        }
+      },
+      {
+        "id": "night_off",
+        "title": {
+          "en": "End the night on the wall tablets",
+          "nl": "Haal de wandtablets uit de nacht"
+        }
+      }
+    ]
+  },
+  "api": {
+    "getState": {
+      "method": "GET",
+      "path": "/state"
+    },
+    "getCode": {
+      "method": "POST",
+      "path": "/code"
+    },
+    "setRole": {
+      "method": "PUT",
+      "path": "/devices/:id"
+    },
+    "removeDevice": {
+      "method": "DELETE",
+      "path": "/devices/:id"
+    },
+    "setFlowKey": {
+      "method": "POST",
+      "path": "/flow-key"
+    },
+    "removeFlowKey": {
+      "method": "DELETE",
+      "path": "/flow-key"
+    }
+  }
+}

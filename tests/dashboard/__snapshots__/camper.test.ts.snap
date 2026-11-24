@@ -1,0 +1,328 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`the camper dashboard matches the stored snapshot 1`] = `
+{
+  "hero": {
+    "deviceIds": [
+      "device-9",
+      "device-22",
+    ],
+    "kind": "battery",
+    "primary": {
+      "capabilityId": "measure_battery",
+      "deviceId": "device-9",
+    },
+    "stats": [
+      {
+        "ref": {
+          "capabilityId": "measure_power",
+          "deviceId": "device-22",
+        },
+        "role": "solar",
+      },
+      {
+        "ref": {
+          "capabilityId": "measure_power",
+          "deviceId": "device-23",
+        },
+        "role": "consumption",
+      },
+      {
+        "ref": {
+          "capabilityId": "ac_input_source",
+          "deviceId": "device-23",
+        },
+        "role": "shore",
+      },
+      {
+        "role": "net",
+      },
+    ],
+    "timeToGo": {
+      "capabilityId": "time_to_go",
+      "deviceId": "device-9",
+    },
+  },
+  "sections": [
+    {
+      "id": "type:lights",
+      "kind": "lights",
+      "tiles": [
+        {
+          "deviceId": "device-1",
+          "dimCapabilityId": "dim",
+          "id": "device-1:light",
+          "kind": "light",
+          "onoffCapabilityId": "onoff",
+          "size": "wide",
+        },
+        {
+          "deviceId": "device-2",
+          "dimCapabilityId": "dim",
+          "id": "device-2:light",
+          "kind": "light",
+          "onoffCapabilityId": "onoff",
+          "size": "wide",
+        },
+        {
+          "deviceId": "device-5",
+          "dimCapabilityId": "dim",
+          "id": "device-5:light",
+          "kind": "light",
+          "onoffCapabilityId": "onoff",
+          "size": "wide",
+        },
+        {
+          "deviceId": "device-10",
+          "dimCapabilityId": "dim",
+          "id": "device-10:light",
+          "kind": "light",
+          "onoffCapabilityId": "onoff",
+          "size": "wide",
+        },
+        {
+          "deviceId": "device-19",
+          "dimCapabilityId": "dim",
+          "id": "device-19:light",
+          "kind": "light",
+          "onoffCapabilityId": "onoff",
+          "size": "wide",
+        },
+        {
+          "deviceId": "device-21",
+          "dimCapabilityId": "dim",
+          "id": "device-21:light",
+          "kind": "light",
+          "onoffCapabilityId": "onoff",
+          "size": "wide",
+        },
+        {
+          "deviceId": "device-26",
+          "dimCapabilityId": "dim",
+          "id": "device-26:light",
+          "kind": "light",
+          "onoffCapabilityId": "onoff",
+          "size": "wide",
+        },
+        {
+          "deviceId": "device-27",
+          "dimCapabilityId": "dim",
+          "id": "device-27:light",
+          "kind": "light",
+          "onoffCapabilityId": "onoff",
+          "size": "wide",
+        },
+      ],
+      "titleKey": "section.lights",
+    },
+    {
+      "id": "type:switches",
+      "kind": "switches",
+      "tiles": [
+        {
+          "detailCapabilityId": null,
+          "deviceId": "device-8",
+          "id": "device-8:switch",
+          "kind": "switch",
+          "onoffCapabilityId": "onoff",
+          "size": "single",
+        },
+        {
+          "detailCapabilityId": null,
+          "deviceId": "device-12",
+          "id": "device-12:switch",
+          "kind": "switch",
+          "onoffCapabilityId": "onoff",
+          "size": "single",
+        },
+        {
+          "detailCapabilityId": null,
+          "deviceId": "device-14",
+          "id": "device-14:switch",
+          "kind": "switch",
+          "onoffCapabilityId": "onoff",
+          "size": "single",
+        },
+        {
+          "detailCapabilityId": "measure_temperature",
+          "deviceId": "device-15",
+          "id": "device-15:switch",
+          "kind": "switch",
+          "onoffCapabilityId": "onoff",
+          "size": "single",
+        },
+        {
+          "detailCapabilityId": "measure_temperature",
+          "deviceId": "device-16",
+          "id": "device-16:switch",
+          "kind": "switch",
+          "onoffCapabilityId": "onoff",
+          "size": "single",
+        },
+        {
+          "detailCapabilityId": "measure_temperature",
+          "deviceId": "device-18",
+          "id": "device-18:switch",
+          "kind": "switch",
+          "onoffCapabilityId": "onoff",
+          "size": "single",
+        },
+        {
+          "detailCapabilityId": null,
+          "deviceId": "device-20",
+          "id": "device-20:switch",
+          "kind": "switch",
+          "onoffCapabilityId": "onoff",
+          "size": "single",
+        },
+      ],
+      "titleKey": "section.switches",
+    },
+    {
+      "id": "type:climate",
+      "kind": "climate",
+      "tiles": [
+        {
+          "capabilityId": "measure_temperature",
+          "deviceId": "device-13",
+          "id": "device-13:measure_temperature",
+          "kind": "sensor",
+          "showCapabilityTitle": true,
+          "size": "single",
+        },
+        {
+          "capabilityId": "measure_humidity",
+          "deviceId": "device-13",
+          "id": "device-13:measure_humidity",
+          "kind": "sensor",
+          "showCapabilityTitle": true,
+          "size": "single",
+        },
+      ],
+      "titleKey": "section.climate",
+    },
+    {
+      "id": "type:water",
+      "kind": "water",
+      "tiles": [
+        {
+          "capacityCapabilityId": "tank_capacity",
+          "deviceId": "device-4",
+          "id": "device-4:tank",
+          "kind": "tank",
+          "levelCapabilityId": "tank_level",
+          "size": "single",
+          "volumeCapabilityId": "measure_content_volume",
+        },
+        {
+          "capacityCapabilityId": "tank_capacity",
+          "deviceId": "device-24",
+          "id": "device-24:tank",
+          "kind": "tank",
+          "levelCapabilityId": "tank_level",
+          "size": "single",
+          "volumeCapabilityId": "measure_content_volume",
+        },
+      ],
+      "titleKey": "section.water",
+    },
+    {
+      "id": "type:security",
+      "kind": "security",
+      "tiles": [
+        {
+          "capabilityId": "presence",
+          "deviceId": "device-6",
+          "id": "device-6:generic",
+          "kind": "generic",
+          "size": "single",
+        },
+        {
+          "capabilityId": "presence",
+          "deviceId": "device-17",
+          "id": "device-17:generic",
+          "kind": "generic",
+          "size": "single",
+        },
+      ],
+      "titleKey": "section.security",
+    },
+    {
+      "id": "type:other",
+      "kind": "other",
+      "tiles": [
+        {
+          "capabilityIds": [
+            "battery_soc",
+            "measure_power",
+            "measure_power.battery",
+          ],
+          "deviceId": "device-23",
+          "id": "device-23:multi",
+          "kind": "multi",
+          "size": "wide",
+        },
+        {
+          "capabilityIds": [
+            "measure_power",
+            "battery_soc",
+            "measure_frequency.in",
+          ],
+          "deviceId": "device-25",
+          "id": "device-25:multi",
+          "kind": "multi",
+          "size": "wide",
+        },
+        {
+          "capabilityIds": [
+            "measure_starlink_download",
+            "measure_starlink_upload",
+            "measure_starlink_latency",
+          ],
+          "deviceId": "device-3",
+          "id": "device-3:multi",
+          "kind": "multi",
+          "size": "wide",
+        },
+        {
+          "capabilityId": null,
+          "deviceId": "device-7",
+          "id": "device-7:generic",
+          "kind": "generic",
+          "size": "single",
+        },
+        {
+          "capabilityId": "viewers",
+          "deviceId": "device-11",
+          "id": "device-11:viewers",
+          "kind": "sensor",
+          "showCapabilityTitle": false,
+          "size": "single",
+        },
+      ],
+      "titleKey": "section.other",
+    },
+    {
+      "id": "type:flows",
+      "kind": "flows",
+      "tiles": [
+        {
+          "flowId": "flow-1",
+          "flowKind": "flow",
+          "id": "flow:flow-1",
+          "kind": "flow",
+          "size": "single",
+        },
+        {
+          "flowId": "flow-2",
+          "flowKind": "flow",
+          "id": "flow:flow-2",
+          "kind": "flow",
+          "size": "single",
+        },
+      ],
+      "titleKey": "section.flows",
+    },
+  ],
+}
+`;

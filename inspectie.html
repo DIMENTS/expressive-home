@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Inspectie</title>
+  <script src="./vendor/homey-api.js"></script>
+  <script type="module" src="./src/inspect/main.ts"></script>
+</head>
+<body>
+  <header>
+    <h1>Inspectie</h1>
+    <p id="source"></p>
+    <p id="reason"></p>
+    <p id="status"></p>
+    <p id="rate"></p>
+    <p id="address-shape"></p>
+    <p id="notice"></p>
+    <p id="message"></p>
+  </header>
+
+  <section>
+    <h2>Verbinden</h2>
+    <form id="connect-form">
+      <label>Adres (adres van de Homey-webapp, Homey-ID of IP) <input id="address" type="text" size="50" autocomplete="off"></label>
+      <label>Sleutel <input id="key" type="password" autocomplete="off"></label>
+      <button id="connect-submit" type="submit">Verbind met Homey</button>
+    </form>
+    <button id="disconnect" type="button">Verbinding verbreken</button>
+  </section>
+
+  <section>
+    <h2>Thema</h2>
+    <label>Basiskleur <input id="seed" type="text" size="9" spellcheck="false"></label>
+    <label>Modus
+      <select id="mode">
+        <option value="auto">automatisch</option>
+        <option value="light">licht</option>
+        <option value="dark">donker</option>
+      </select>
+    </label>
+    <label>Dichtheid
+      <select id="density">
+        <option value="comfortable">ruim</option>
+        <option value="compact">compact</option>
+      </select>
+    </label>
+    <div id="roles"></div>
+  </section>
+
+  <section>
+    <h2>Dashboard</h2>
+    <div id="dashboard"></div>
+  </section>
+
+  <section>
+    <h2>Routewissels</h2>
+    <p id="route-log-empty">Nog geen routewissels.</p>
+    <ol id="route-log"></ol>
+  </section>
+
+  <section>
+    <h2>Kopieer structuur</h2>
+    <button id="copy" type="button">Kopieer structuur</button>
+    <button id="measure-insights" type="button">Insights meten</button>
+    <textarea id="structure" readonly rows="12" cols="60"></textarea>
+  </section>
+</body>
+</html>

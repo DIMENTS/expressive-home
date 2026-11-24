@@ -1,0 +1,440 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script type="text/javascript" src="/homey.js" data-origin="settings"></script>
+  <style>
+    .steps { margin: 0 0 16px; padding: 0 0 0 22px; }
+    .steps li { padding: 4px 0 4px 4px; }
+    .qr { display: block; box-sizing: border-box; width: 100%; max-width: 260px; margin: 0 auto; border-radius: 16px; border: 1px solid rgba(128, 128, 128, .3); background: #fff; }
+    .until { text-align: center; }
+    .roles { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 0 0 12px; padding: 0; border: 0; min-width: 0; }
+    .roles legend { padding: 0; margin-bottom: 6px; }
+    .roles label { display: flex; align-items: center; gap: 8px; min-height: 48px; box-sizing: border-box; padding: 6px 12px; border: 1px solid rgba(128, 128, 128, .4); border-radius: 12px; }
+    .roles label:has(input:checked) { border-color: currentColor; box-shadow: inset 0 0 0 1px currentColor; }
+    .roles input { flex: none; margin: 0; width: 20px; height: 20px; }
+    .typed { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 6px 14px; align-items: baseline; margin: 0; }
+    .typed dt { opacity: .7; }
+    .typed dd { margin: 0; font-weight: 700; user-select: all; overflow-wrap: anywhere; }
+    .typed .code { font-size: 28px; letter-spacing: 4px; }
+    .device { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 12px 0; border-bottom: 1px solid rgba(128, 128, 128, .3); }
+    .device div { flex: 1 1 140px; min-width: 0; overflow-wrap: anywhere; }
+    .device small { display: block; opacity: .7; }
+    .device select { flex: 0 1 auto; width: auto; min-height: 44px; max-width: 100%; }
+    .device button { min-height: 44px; }
+    .wide { box-sizing: border-box; width: 100%; min-height: 44px; }
+    .message { font-weight: 700; }
+    .message:empty { margin: 0; }
+    details > summary { cursor: pointer; padding: 12px 0; font-weight: 700; min-height: 24px; }
+    .names { overflow-wrap: anywhere; }
+    .link { display: inline-block; padding: 10px 0; }
+    [hidden] { display: none !important; }
+  </style>
+</head>
+<body>
+  <header class="homey-header"><h1 class="homey-title" data-i18n="settings.title"></h1></header>
+  <p id="problem" hidden></p>
+  <div id="content" hidden>
+    <p class="message" id="state"></p>
+    <p class="message" id="paired" role="status"></p>
+    <p id="addRow" hidden><button class="homey-button-primary-full" id="add" data-i18n="settings.add"></button></p>
+
+    <section id="pair" hidden>
+      <p id="intro" data-i18n="settings.intro"></p>
+      <ol class="steps"><li data-i18n="settings.step1"></li><li id="step2"></li></ol>
+      <div id="made" hidden>
+        <svg class="qr" id="qr" role="img" xmlns="http://www.w3.org/2000/svg"></svg>
+        <p class="until" id="until"></p>
+        <fieldset class="roles">
+          <legend data-i18n="settings.role"></legend>
+          <label><input type="radio" name="role" value="edit"><span data-i18n="settings.edit"></span></label>
+          <label><input type="radio" name="role" value="use"><span data-i18n="settings.use"></span></label>
+        </fieldset>
+      </div>
+      <p class="message" id="expired" role="status"></p>
+      <p><button class="homey-button-secondary-shadow wide" id="fresh" data-i18n="settings.fresh"></button></p>
+      <fieldset class="homey-form-fieldset" id="typedRow" hidden>
+        <legend class="homey-form-legend" data-i18n="settings.noCamera"></legend>
+        <p id="noCameraText" data-i18n="settings.noCameraText"></p>
+        <p id="noAddress" data-i18n="settings.noAddress" hidden></p>
+        <dl class="typed">
+          <dt id="addressLabel" data-i18n="settings.address"></dt><dd id="address"></dd>
+          <dt data-i18n="settings.code"></dt><dd class="code" id="code"></dd>
+        </dl>
+      </fieldset>
+    </section>
+
+    <fieldset class="homey-form-fieldset" id="devicesRow">
+      <legend class="homey-form-legend" data-i18n="settings.devices"></legend>
+      <div id="devices"></div>
+    </fieldset>
+
+    <fieldset class="homey-form-fieldset">
+      <legend class="homey-form-legend" data-i18n="settings.here"></legend>
+      <p data-i18n="settings.hereText"></p>
+      <p><button class="homey-button-secondary-shadow wide" id="here" data-i18n="settings.hereOpen"></button></p>
+      <p id="hereRow" hidden><a class="link" id="hereLink" target="_blank" rel="noreferrer" data-i18n="settings.hereLink"></a></p>
+    </fieldset>
+
+    <fieldset class="homey-form-fieldset">
+      <legend class="homey-form-legend" data-i18n="settings.flows"></legend>
+      <p data-i18n="settings.flowsCard"></p>
+      <p class="names" id="buttons" hidden></p>
+    </fieldset>
+
+    <details id="more">
+      <summary data-i18n="settings.more"></summary>
+      <fieldset class="homey-form-fieldset">
+        <legend class="homey-form-legend" data-i18n="settings.allFlows"></legend>
+        <p id="keyState" aria-live="polite"></p>
+        <div id="keyHelp">
+          <p data-i18n="settings.flowsWhy"></p>
+          <ol>
+            <li data-i18n="settings.flowsStep1"></li>
+            <li data-i18n="settings.flowsStep2"></li>
+            <li data-i18n="settings.flowsStep3"></li>
+          </ol>
+        </div>
+        <label class="homey-form-label" for="key" data-i18n="settings.flowsKey"></label>
+        <input class="homey-form-input" id="key" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" aria-describedby="keyResult" aria-invalid="false">
+        <p class="message" id="keyResult" role="status"></p>
+        <p><button class="homey-button-primary-full" id="keep" data-i18n="settings.flowsKeep"></button></p>
+        <p><button class="homey-button-danger-shadow" id="forget" data-i18n="settings.flowsForget" hidden></button></p>
+      </fieldset>
+      <fieldset class="homey-form-fieldset">
+        <legend class="homey-form-legend" data-i18n="settings.night"></legend>
+        <p data-i18n="settings.nightText"></p>
+      </fieldset>
+    </details>
+    <p data-i18n="settings.plain"></p>
+  </div>
+  <script type="text/javascript">
+    function onHomeyReady(Homey) {
+      var $ = function (id) { return document.getElementById(id); };
+      var t = function (key, tokens) { return Homey.__('settings.' + key, tokens); };
+      var call = function (method, path, body) {
+        return new Promise(function (done, fail) { Homey.api(method, path, body || null, function (error, result) { if (error) fail(error); else done(result); }); });
+      };
+      var failed = function () { Homey.alert(t('failed')); };
+      var clock = function (at) { return new Date(at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); };
+      /** Puts a text somewhere only when it is another one, so it is read out once. */
+      var say = function (id, text) { if ($(id).textContent !== text) $(id).textContent = text; };
+
+      /** The code on the screen, and the one behind the link to this device. */
+      var made = null;
+      var here = null;
+      /** Asking for a code, and what has to be asked after it; what was read of the app before it came says nothing about it. */
+      var asking = false;
+      var next = null;
+      var turn = 0;
+      /** The last code of each kind that was used, as far as is known. */
+      var used = null;
+      /** Somebody chose to add another device. */
+      var adding = false;
+      /** The first time a code comes by itself, once. */
+      var began = false;
+      var devices = [];
+      var keyState = '';
+
+      // ----- the code -----
+
+      function draw(rows) {
+        var svg = $('qr');
+        svg.replaceChildren();
+        // nothing to scan without an address
+        svg.toggleAttribute('hidden', !rows);
+        if (!rows) return;
+        var edge = 4;
+        svg.setAttribute('viewBox', [-edge, -edge, rows.length + 2 * edge, rows.length + 2 * edge].join(' '));
+        svg.setAttribute('shape-rendering', 'crispEdges');
+        svg.setAttribute('aria-label', t('qrName'));
+        var path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        var squares = '';
+        rows.forEach(function (row, y) {
+          for (var x = 0; x < row.length; x += 1) if (row[x] === '1') squares += 'M' + x + ' ' + y + 'h1v1h-1z';
+        });
+        path.setAttribute('d', squares);
+        path.setAttribute('fill', '#000');
+        svg.appendChild(path);
+      }
+
+      /** The right of the code that is on the screen. */
+      function showRole() {
+        document.querySelectorAll('input[name=role]').forEach(function (radio) { radio.checked = !!made && radio.value === made.role; });
+      }
+
+      function showCode(code) {
+        // the focus goes on where the next one can be added
+        var lost = !code && $('pair').contains(document.activeElement);
+        made = code;
+        $('made').hidden = !code;
+        $('typedRow').hidden = !code;
+        if (!code) {
+          draw(null);
+          $('code').textContent = '';
+          places();
+          if (lost) onward();
+          return;
+        }
+        say('expired', '');
+        draw(code.qr);
+        say('until', t('until', { time: clock(code.expiresAt) }));
+        say('step2', t(code.qr ? 'step2' : 'step2Type'));
+        showRole();
+        $('noAddress').hidden = !!code.address;
+        $('noCameraText').hidden = !code.address;
+        $('addressLabel').hidden = !code.address;
+        $('address').hidden = !code.address;
+        $('address').textContent = code.address || '';
+        $('code').textContent = code.code.slice(0, 3) + ' ' + code.code.slice(3);
+      }
+
+      function ask(wish) {
+        // one at a time; of what is asked meanwhile the last one counts
+        if (asking) { next = wish; return; }
+        asking = true;
+        call('POST', '/code', wish).then(function (code) {
+          turn += 1;
+          showCode(code);
+        }, function () {
+          if (!made) { say('expired', t('failed')); return; }
+          // the code is as it was
+          showRole();
+          failed();
+        }).then(function () {
+          asking = false;
+          var wanted = next;
+          next = null;
+          if (wanted) ask(wanted);
+        });
+      }
+
+      /** A device that paired since the settings were opened. */
+      function followUsed(codes) {
+        var serials = { scan: codes.scan.used && codes.scan.used.serial, here: codes.here.used && codes.here.used.serial };
+        ['here', 'scan'].forEach(function (slot) {
+          if (!used || !codes[slot].used || used[slot] === serials[slot]) return;
+          say('paired', t('paired', { name: codes[slot].used.name }));
+          if (slot === 'here') return;
+          adding = false;
+          showCode(null);
+        });
+        used = serials;
+      }
+
+      /** What became of the code on the screen. */
+      function follow(code) {
+        if (!made || asking) return;
+        if (!code.open) {
+          showCode(null);
+          say('expired', t('expired'));
+        } else if (code.open.serial !== made.serial || code.open.role !== made.role) {
+          // on another phone another code was made, or another right was chosen
+          ask({ slot: 'scan' });
+        }
+      }
+
+      $('add').onclick = function () {
+        adding = true;
+        say('paired', '');
+        say('expired', '');
+        ask({ slot: 'scan' });
+        places();
+        $('fresh').focus({ preventScroll: true });
+      };
+
+      /** Where somebody goes on whose place is gone. */
+      function onward() { $($('addRow').hidden ? 'fresh' : 'add').focus({ preventScroll: true }); }
+      $('fresh').onclick = function () { say('paired', ''); ask({ slot: 'scan', fresh: true }); };
+      document.querySelectorAll('input[name=role]').forEach(function (radio) {
+        radio.onchange = function () { ask({ slot: 'scan', role: radio.value }); };
+      });
+
+      // ----- the dashboard where the settings are open -----
+
+      var opening = false;
+      $('here').onclick = function () {
+        if (opening) return;
+        opening = true;
+        // on a phone nobody arranges it; on anything else the first one has to be able to
+        var small = Math.min(window.screen.width, window.screen.height) < 600;
+        var arranged = devices.some(function (device) { return device.role === 'edit'; });
+        call('POST', '/code', { slot: 'here', role: small || arranged ? 'use' : 'edit' }).then(function (code) {
+          if (!code.link) { Homey.alert(t('noAddress')); return; }
+          turn += 1;
+          here = code;
+          $('hereLink').href = code.link;
+          $('hereRow').hidden = false;
+          Homey.openURL(code.link);
+        }, failed).then(function () { opening = false; });
+      };
+
+      function followHere(code) {
+        if (!here || code.serials.indexOf(here.serial) >= 0) return;
+        var lost = document.activeElement === $('hereLink');
+        here = null;
+        $('hereRow').hidden = true;
+        $('hereLink').removeAttribute('href');
+        if (lost) $('here').focus({ preventScroll: true });
+      }
+
+      // ----- the devices -----
+
+      /** The rows on the screen by their device: they stay, so the focus and an open list stay too. */
+      var rows = {};
+
+      function row(id) {
+        var element = document.createElement('div');
+        element.className = 'device';
+        var text = document.createElement('div');
+        var name = document.createElement('span');
+        var small = document.createElement('small');
+        text.append(name, small);
+        var role = document.createElement('select');
+        role.className = 'homey-form-select';
+        ['edit', 'use'].forEach(function (value) {
+          var option = document.createElement('option');
+          option.value = value;
+          option.textContent = t(value);
+          role.appendChild(option);
+        });
+        var button = document.createElement('button');
+        button.className = 'homey-button-small';
+        button.textContent = t('remove');
+        element.append(text, role, button);
+        var device = null;
+        /** The right that is being set; the app does not know it yet. */
+        var setting = 0;
+        role.onchange = function () {
+          setting += 1;
+          call('PUT', '/devices/' + encodeURIComponent(id), { role: role.value }).then(function () { setting -= 1; return refresh(); }, function () {
+            setting -= 1;
+            role.value = device.role;
+            failed();
+          });
+        };
+        button.onclick = function () {
+          Homey.confirm(t('confirm', { name: device.name }), null, function (error, yes) {
+            if (!error && yes) call('DELETE', '/devices/' + encodeURIComponent(id)).then(refresh, failed);
+          });
+        };
+        return {
+          element: element,
+          show: function (now) {
+            var other = !device || device.name !== now.name;
+            device = now;
+            if (other) {
+              name.textContent = now.name;
+              role.setAttribute('aria-label', t('roleOf', { name: now.name }));
+              button.setAttribute('aria-label', t('removeName', { name: now.name }));
+            }
+            var seen = t('seen') + ' ' + new Date(now.lastSeen).toLocaleString();
+            if (small.textContent !== seen) small.textContent = seen;
+            if (setting === 0 && role.value !== now.role) role.value = now.role;
+          },
+        };
+      }
+
+      function showDevices() {
+        var gone = false;
+        Object.keys(rows).forEach(function (id) {
+          if (devices.some(function (device) { return device.id === id; })) return;
+          gone = gone || rows[id].element.contains(document.activeElement);
+          rows[id].element.remove();
+          delete rows[id];
+        });
+        devices.forEach(function (device) {
+          if (!Object.prototype.hasOwnProperty.call(rows, device.id)) {
+            rows[device.id] = row(device.id);
+            $('devices').appendChild(rows[device.id].element);
+          }
+          rows[device.id].show(device);
+        });
+        if (gone) onward();
+      }
+
+      /** What stands where: the first time the code, afterwards the devices with a button to add one. */
+      function places() {
+        var first = devices.length === 0;
+        $('pair').hidden = !first && !adding;
+        $('intro').hidden = !first;
+        $('addRow').hidden = first || adding;
+        $('devicesRow').hidden = first;
+      }
+
+      function show(state, fresh) {
+        $('problem').hidden = state.running;
+        $('content').hidden = !state.running;
+        if (!state.running) { $('problem').textContent = t(state.problem === 'port' ? 'problemPort' : 'problemStart'); return; }
+        say('state', state.connected ? '' : t('notConnected'));
+        devices = state.devices;
+        followUsed(state.codes);
+        if (fresh) {
+          follow(state.codes.scan);
+          followHere(state.codes.here);
+        }
+        places();
+        if (devices.length > 0) began = false;
+        else if (!began) {
+          began = true;
+          say('paired', '');
+          ask({ slot: 'scan' });
+        }
+        showDevices();
+        say('buttons', state.buttons.length === 0 ? '' : t('buttonsNow', { names: state.buttons.join(', ') }));
+        $('buttons').hidden = state.buttons.length === 0;
+        if (state.flowKey !== keyState) {
+          keyState = state.flowKey;
+          $('keyState').textContent = t('flowKey-' + keyState);
+          $('keyHelp').hidden = keyState === 'works';
+          $('forget').hidden = keyState === 'none';
+          // something has to be done about it
+          if (keyState === 'refused') $('more').open = true;
+        }
+      }
+      function refresh() {
+        var mark = turn;
+        return call('GET', '/state').then(function (state) { show(state, mark === turn); }, function () {});
+      }
+
+      // ----- the key for flows -----
+
+      // one at a time; the button keeps the focus
+      var keeping = false;
+      function keep() {
+        if (keeping) return;
+        keeping = true;
+        $('keyResult').textContent = '';
+        call('POST', '/flow-key', { key: $('key').value }).then(function (answer) {
+          var kept = answer.result === 'works' || answer.result === 'wide';
+          if (kept) $('key').value = '';
+          $('key').setAttribute('aria-invalid', kept ? 'false' : 'true');
+          $('keyResult').textContent = kept ? t('flowKeySaved') : t('flowKeyFailed-' + answer.result);
+          return refresh();
+        }, failed).then(function () { keeping = false; });
+      }
+      $('keep').onclick = keep;
+      $('key').onkeydown = function (event) {
+        if (event.key === 'Enter') { event.preventDefault(); keep(); }
+      };
+      $('forget').onclick = function () {
+        Homey.confirm(t('flowsConfirm'), null, function (error, yes) {
+          if (error || !yes) return;
+          call('DELETE', '/flow-key').then(refresh).then(function () {
+            // its button is gone
+            $('keyResult').textContent = '';
+            $('key').setAttribute('aria-invalid', 'false');
+            $('key').focus();
+          }, failed);
+        });
+      };
+
+      say('step2', t('step2'));
+      // Homey shows the page when there is something on it
+      refresh().then(function () { Homey.ready(); });
+      setInterval(refresh, 3000);
+    }
+  </script>
+</body>
+</html>

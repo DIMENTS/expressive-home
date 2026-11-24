@@ -1,0 +1,306 @@
+{
+  "homeyId": "mock-homey",
+  "softwareVersion": "13.5.5",
+  "scopes": [
+    "homey"
+  ],
+  "devices": {
+    "device-1": {
+      "id": "device-1",
+      "name": "Lamp 1",
+      "zone": "zone-1",
+      "class": "light",
+      "driverId": "homey:app:mock:bulb",
+      "available": true,
+      "capabilities": [
+        "onoff",
+        "dim"
+      ],
+      "capabilitiesObj": {
+        "onoff": {
+          "id": "onoff",
+          "title": "Aan",
+          "type": "boolean",
+          "getable": true,
+          "setable": true,
+          "value": true
+        },
+        "dim": {
+          "id": "dim",
+          "title": "Dimmen",
+          "type": "number",
+          "getable": true,
+          "setable": true,
+          "value": 0.8,
+          "min": 0,
+          "max": 1,
+          "step": 0.01,
+          "decimals": 2
+        }
+      }
+    },
+    "device-2": {
+      "id": "device-2",
+      "name": "Stekker 1",
+      "zone": "zone-1",
+      "class": "socket",
+      "driverId": "homey:app:mock:plug",
+      "available": true,
+      "capabilities": [
+        "onoff",
+        "measure_power"
+      ],
+      "capabilitiesObj": {
+        "onoff": {
+          "id": "onoff",
+          "title": "Aan",
+          "type": "boolean",
+          "getable": true,
+          "setable": true,
+          "value": true
+        },
+        "measure_power": {
+          "id": "measure_power",
+          "title": "Vermogen",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "value": 45,
+          "units": "W"
+        }
+      }
+    },
+    "device-3": {
+      "id": "device-3",
+      "name": "Sensor 1",
+      "zone": "zone-1",
+      "class": "sensor",
+      "driverId": "homey:app:mock:climate",
+      "available": true,
+      "capabilities": [
+        "measure_temperature",
+        "measure_humidity",
+        "measure_battery"
+      ],
+      "capabilitiesObj": {
+        "measure_temperature": {
+          "id": "measure_temperature",
+          "title": "Temperatuur",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "value": 20.5,
+          "units": "°C"
+        },
+        "measure_humidity": {
+          "id": "measure_humidity",
+          "title": "Luchtvochtigheid",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "value": 52,
+          "units": "%"
+        },
+        "measure_battery": {
+          "id": "measure_battery",
+          "title": "Batterij",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "value": 12,
+          "units": "%"
+        }
+      }
+    },
+    "device-4": {
+      "id": "device-4",
+      "name": "Thuisaccu",
+      "zone": "zone-1",
+      "class": "other",
+      "driverId": "homey:app:mock:battery",
+      "available": true,
+      "capabilities": [
+        "battery_soc",
+        "time_to_go",
+        "measure_power"
+      ],
+      "capabilitiesObj": {
+        "battery_soc": {
+          "id": "battery_soc",
+          "title": "Laadniveau",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "value": 78,
+          "units": "%"
+        },
+        "time_to_go": {
+          "id": "time_to_go",
+          "title": "Resterende tijd",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "value": 3120,
+          "units": "s"
+        },
+        "measure_power": {
+          "id": "measure_power",
+          "title": "Vermogen",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "value": -186,
+          "units": "W"
+        }
+      }
+    },
+    "device-5": {
+      "id": "device-5",
+      "name": "Zonnepaneel",
+      "zone": "zone-1",
+      "class": "solarpanel",
+      "driverId": "homey:app:mock:solar",
+      "available": true,
+      "capabilities": [
+        "measure_power"
+      ],
+      "capabilitiesObj": {
+        "measure_power": {
+          "id": "measure_power",
+          "title": "Vermogen",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "value": 412,
+          "units": "W"
+        }
+      }
+    },
+    "device-6": {
+      "id": "device-6",
+      "name": "Watertank",
+      "zone": "zone-1",
+      "class": "other",
+      "driverId": "homey:app:mock:tank",
+      "available": true,
+      "capabilities": [
+        "tank_level",
+        "tank_capacity",
+        "measure_content_volume"
+      ],
+      "capabilitiesObj": {
+        "tank_level": {
+          "id": "tank_level",
+          "title": "Vulniveau",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "value": 64,
+          "units": "%"
+        },
+        "tank_capacity": {
+          "id": "tank_capacity",
+          "title": "Capaciteit",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "value": 90,
+          "units": "L"
+        },
+        "measure_content_volume": {
+          "id": "measure_content_volume",
+          "title": "Inhoud",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "value": 58,
+          "units": "L"
+        }
+      }
+    },
+    "device-7": {
+      "id": "device-7",
+      "name": "Internetschotel",
+      "zone": "zone-1",
+      "class": "other",
+      "driverId": "homey:app:mock:dish",
+      "available": true,
+      "capabilities": [
+        "measure_download",
+        "measure_upload",
+        "measure_latency",
+        "measure_obstruction",
+        "alarm_connectivity"
+      ],
+      "capabilitiesObj": {
+        "measure_download": {
+          "id": "measure_download",
+          "title": "Download",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "value": 182,
+          "units": "Mbps"
+        },
+        "measure_upload": {
+          "id": "measure_upload",
+          "title": "Upload",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "value": 21,
+          "units": "Mbps"
+        },
+        "measure_latency": {
+          "id": "measure_latency",
+          "title": "Latentie",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "value": 34,
+          "units": "ms"
+        },
+        "measure_obstruction": {
+          "id": "measure_obstruction",
+          "title": "Obstructie",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "value": 0.4,
+          "units": "%"
+        },
+        "alarm_connectivity": {
+          "id": "alarm_connectivity",
+          "title": "Verbindingsalarm",
+          "type": "boolean",
+          "getable": true,
+          "setable": false,
+          "value": false
+        }
+      }
+    }
+  },
+  "zones": {
+    "zone-1": {
+      "id": "zone-1",
+      "name": "Zone 1",
+      "parent": null
+    }
+  },
+  "flows": {
+    "flow-1": {
+      "id": "flow-1",
+      "name": "Alles uit",
+      "enabled": true,
+      "triggerable": true
+    }
+  },
+  "advancedFlows": {
+    "advanced-1": {
+      "id": "advanced-1",
+      "name": "Slaapstand",
+      "enabled": true,
+      "triggerable": true
+    }
+  }
+}

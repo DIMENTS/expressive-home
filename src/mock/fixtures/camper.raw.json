@@ -1,0 +1,4389 @@
+{
+  "homeyId": "mock-homey",
+  "softwareVersion": "13.5.5",
+  "scopes": [
+    "homey"
+  ],
+  "devices": {
+    "device-1": {
+      "id": "device-1",
+      "name": "Lamp 1",
+      "zone": "zone-6",
+      "class": "light",
+      "virtualClass": null,
+      "available": true,
+      "capabilities": [
+        "onoff",
+        "dim",
+        "dim.white",
+        "light_hue",
+        "light_saturation",
+        "measure_power",
+        "meter_power",
+        "measure_voltage",
+        "measure_current",
+        "onoff.whitemode",
+        "measure_temperature",
+        "rssi",
+        "button.enable_ble_script",
+        "button.disable_ble_script",
+        "actionEvents",
+        "deviceGen2",
+        "multiInputs"
+      ],
+      "energyObj": {
+        "W": 0.5,
+        "batteries": null,
+        "cumulative": null,
+        "cumulativeImportedCapability": null,
+        "cumulativeExportedCapability": null,
+        "homeBattery": null,
+        "homeBatteryVirtual": null,
+        "electricCar": null,
+        "evCharger": null,
+        "evChargerVirtual": null,
+        "meterPowerImportedCapability": null,
+        "meterPowerExportedCapability": null,
+        "generator": null,
+        "approximated": null,
+        "approximation": null
+      },
+      "driverId": "homey:app:app-1:shelly",
+      "unavailableMessage": null,
+      "capabilitiesObj": {
+        "onoff": {
+          "id": "onoff",
+          "title": "Aangezet",
+          "type": "boolean",
+          "getable": true,
+          "setable": true,
+          "value": true
+        },
+        "dim": {
+          "id": "dim",
+          "title": "Dim niveau",
+          "type": "number",
+          "getable": true,
+          "setable": true,
+          "units": "%",
+          "min": 0,
+          "max": 1,
+          "decimals": 2,
+          "value": 0.1
+        },
+        "dim.white": {
+          "id": "dim.white",
+          "title": "Dim niveau wit",
+          "type": "number",
+          "getable": true,
+          "setable": true,
+          "units": "%",
+          "min": 0,
+          "max": 1,
+          "decimals": 2,
+          "value": 0
+        },
+        "light_hue": {
+          "id": "light_hue",
+          "title": "Tint",
+          "type": "number",
+          "getable": true,
+          "setable": true,
+          "units": null,
+          "min": 0,
+          "max": 1,
+          "decimals": 2,
+          "value": 0.14
+        },
+        "light_saturation": {
+          "id": "light_saturation",
+          "title": "Kleurverzadiging",
+          "type": "number",
+          "getable": true,
+          "setable": true,
+          "units": null,
+          "min": 0,
+          "max": 1,
+          "decimals": 2,
+          "value": 0.15
+        },
+        "measure_power": {
+          "id": "measure_power",
+          "title": "Vermogen",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "units": "W",
+          "decimals": 2,
+          "value": 0.5
+        },
+        "meter_power": {
+          "id": "meter_power",
+          "title": "Energie",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "units": "kWh",
+          "decimals": 3,
+          "value": 2.541
+        },
+        "measure_voltage": {
+          "id": "measure_voltage",
+          "title": "Voltage",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "units": "V",
+          "decimals": 2,
+          "value": 13.8
+        },
+        "measure_current": {
+          "id": "measure_current",
+          "title": "Stroom",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "units": "A",
+          "decimals": 2,
+          "value": 0.04
+        },
+        "onoff.whitemode": {
+          "id": "onoff.whitemode",
+          "title": "Wit modus schakelen",
+          "type": "boolean",
+          "getable": true,
+          "setable": true,
+          "value": false
+        },
+        "measure_temperature": {
+          "id": "measure_temperature",
+          "title": "Apparaattemperatuur",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "units": "°C",
+          "decimals": 1,
+          "value": 28.1
+        },
+        "rssi": {
+          "id": "rssi",
+          "title": "Signaal",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "units": "RSSI",
+          "value": -64
+        },
+        "button.enable_ble_script": {
+          "id": "button.enable_ble_script",
+          "title": "Start BLE Proxy",
+          "type": "boolean",
+          "getable": false,
+          "setable": true,
+          "value": null
+        },
+        "button.disable_ble_script": {
+          "id": "button.disable_ble_script",
+          "title": "Stop BLE Proxy",
+          "type": "boolean",
+          "getable": false,
+          "setable": true,
+          "value": null
+        },
+        "actionEvents": {
+          "id": "actionEvents",
+          "title": "Action Events",
+          "type": "string",
+          "getable": false,
+          "setable": false,
+          "value": null
+        },
+        "deviceGen2": {
+          "id": "deviceGen2",
+          "title": "Device Generation 2",
+          "type": "string",
+          "getable": false,
+          "setable": false,
+          "value": null
+        },
+        "multiInputs": {
+          "id": "multiInputs",
+          "title": "Multi Inputs",
+          "type": "string",
+          "getable": false,
+          "setable": false,
+          "value": null
+        }
+      }
+    },
+    "device-2": {
+      "id": "device-2",
+      "name": "Lamp 2",
+      "zone": "zone-2",
+      "class": "light",
+      "virtualClass": null,
+      "available": true,
+      "capabilities": [
+        "onoff",
+        "dim",
+        "dim.white",
+        "light_hue",
+        "light_saturation",
+        "measure_power",
+        "meter_power",
+        "measure_voltage",
+        "measure_current",
+        "onoff.whitemode",
+        "measure_temperature",
+        "rssi",
+        "button.enable_ble_script",
+        "button.disable_ble_script",
+        "actionEvents",
+        "deviceGen2",
+        "multiInputs"
+      ],
+      "energyObj": {
+        "W": 0.3,
+        "batteries": null,
+        "cumulative": null,
+        "cumulativeImportedCapability": null,
+        "cumulativeExportedCapability": null,
+        "homeBattery": null,
+        "homeBatteryVirtual": null,
+        "electricCar": null,
+        "evCharger": null,
+        "evChargerVirtual": null,
+        "meterPowerImportedCapability": null,
+        "meterPowerExportedCapability": null,
+        "generator": null,
+        "approximated": null,
+        "approximation": null
+      },
+      "driverId": "homey:app:app-1:shelly",
+      "unavailableMessage": null,
+      "capabilitiesObj": {
+        "onoff": {
+          "id": "onoff",
+          "title": "Aangezet",
+          "type": "boolean",
+          "getable": true,
+          "setable": true,
+          "value": true
+        },
+        "dim": {
+          "id": "dim",
+          "title": "Dim niveau",
+          "type": "number",
+          "getable": true,
+          "setable": true,
+          "units": "%",
+          "min": 0,
+          "max": 1,
+          "decimals": 2,
+          "value": 0.03
+        },
+        "dim.white": {
+          "id": "dim.white",
+          "title": "Dim niveau wit",
+          "type": "number",
+          "getable": true,
+          "setable": true,
+          "units": "%",
+          "min": 0,
+          "max": 1,
+          "decimals": 2,
+          "value": 0.01
+        },
+        "light_hue": {
+          "id": "light_hue",
+          "title": "Tint",
+          "type": "number",
+          "getable": true,
+          "setable": true,
+          "units": null,
+          "min": 0,
+          "max": 1,
+          "decimals": 2,
+          "value": 0.5
+        },
+        "light_saturation": {
+          "id": "light_saturation",
+          "title": "Kleurverzadiging",
+          "type": "number",
+          "getable": true,
+          "setable": true,
+          "units": null,
+          "min": 0,
+          "max": 1,
+          "decimals": 2,
+          "value": 0.13
+        },
+        "measure_power": {
+          "id": "measure_power",
+          "title": "Vermogen",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "units": "W",
+          "decimals": 2,
+          "value": 0.3
+        },
+        "meter_power": {
+          "id": "meter_power",
+          "title": "Energie",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "units": "kWh",
+          "decimals": 3,
+          "value": 1.289
+        },
+        "measure_voltage": {
+          "id": "measure_voltage",
+          "title": "Voltage",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "units": "V",
+          "decimals": 2,
+          "value": 13.9
+        },
+        "measure_current": {
+          "id": "measure_current",
+          "title": "Stroom",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "units": "A",
+          "decimals": 2,
+          "value": 0.02
+        },
+        "onoff.whitemode": {
+          "id": "onoff.whitemode",
+          "title": "Wit modus schakelen",
+          "type": "boolean",
+          "getable": true,
+          "setable": true,
+          "value": false
+        },
+        "measure_temperature": {
+          "id": "measure_temperature",
+          "title": "Apparaattemperatuur",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "units": "°C",
+          "decimals": 1,
+          "value": 45.3
+        },
+        "rssi": {
+          "id": "rssi",
+          "title": "Signaal",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "units": "RSSI",
+          "value": -38
+        },
+        "button.enable_ble_script": {
+          "id": "button.enable_ble_script",
+          "title": "Start BLE Proxy",
+          "type": "boolean",
+          "getable": false,
+          "setable": true,
+          "value": null
+        },
+        "button.disable_ble_script": {
+          "id": "button.disable_ble_script",
+          "title": "Stop BLE Proxy",
+          "type": "boolean",
+          "getable": false,
+          "setable": true,
+          "value": null
+        },
+        "actionEvents": {
+          "id": "actionEvents",
+          "title": "Action Events",
+          "type": "string",
+          "getable": false,
+          "setable": false,
+          "value": null
+        },
+        "deviceGen2": {
+          "id": "deviceGen2",
+          "title": "Device Generation 2",
+          "type": "string",
+          "getable": false,
+          "setable": false,
+          "value": null
+        },
+        "multiInputs": {
+          "id": "multiInputs",
+          "title": "Multi Inputs",
+          "type": "string",
+          "getable": false,
+          "setable": false,
+          "value": null
+        }
+      }
+    },
+    "device-3": {
+      "id": "device-3",
+      "name": "Sensor 1",
+      "zone": "zone-3",
+      "class": "sensor",
+      "virtualClass": null,
+      "available": true,
+      "capabilities": [
+        "starlink_state",
+        "measure_starlink_download",
+        "measure_starlink_upload",
+        "measure_starlink_latency",
+        "measure_starlink_ping_drop",
+        "measure_starlink_obstruction",
+        "measure_starlink_obstruction_24h",
+        "measure_starlink_azimuth",
+        "measure_starlink_elevation",
+        "measure_starlink_tilt",
+        "measure_starlink_altitude",
+        "measure_starlink_gps_sats",
+        "measure_starlink_eth_speed",
+        "measure_starlink_uptime",
+        "starlink_alerts",
+        "alarm_starlink_obstructed",
+        "alarm_starlink_heating",
+        "alarm_starlink_thermal_throttle",
+        "alarm_starlink_thermal_shutdown",
+        "alarm_starlink_slow_ethernet",
+        "alarm_starlink_roaming",
+        "alarm_starlink_unexpected_location",
+        "alarm_starlink_low_snr",
+        "alarm_starlink_no_gps",
+        "alarm_starlink_update_pending",
+        "button.stow",
+        "button.unstow",
+        "button.reboot",
+        "button.clear_obstruction_map",
+        "alarm_connectivity"
+      ],
+      "energyObj": {
+        "W": 20,
+        "batteries": null,
+        "cumulative": null,
+        "cumulativeImportedCapability": null,
+        "cumulativeExportedCapability": null,
+        "homeBattery": null,
+        "homeBatteryVirtual": null,
+        "electricCar": null,
+        "evCharger": null,
+        "evChargerVirtual": null,
+        "meterPowerImportedCapability": null,
+        "meterPowerExportedCapability": null,
+        "generator": null,
+        "approximated": null,
+        "approximation": null
+      },
+      "driverId": "homey:app:app-2:dish",
+      "unavailableMessage": null,
+      "capabilitiesObj": {
+        "starlink_state": {
+          "id": "starlink_state",
+          "title": "Status schotel",
+          "type": "enum",
+          "getable": true,
+          "setable": false,
+          "values": [
+            {
+              "id": "connected",
+              "title": "Verbonden"
+            },
+            {
+              "id": "booting",
+              "title": "Opstarten"
+            },
+            {
+              "id": "searching",
+              "title": "Zoeken"
+            },
+            {
+              "id": "obstructed",
+              "title": "Geblokkeerd"
+            },
+            {
+              "id": "stowed",
+              "title": "Ingeklapt"
+            },
+            {
+              "id": "thermal_shutdown",
+              "title": "Thermische stop"
+            },
+            {
+              "id": "no_satellites",
+              "title": "Geen satellieten"
+            },
+            {
+              "id": "no_downlink",
+              "title": "Geen downlink"
+            },
+            {
+              "id": "no_pings",
+              "title": "Geen pings"
+            },
+            {
+              "id": "actuator_activity",
+              "title": "Beweegt"
+            },
+            {
+              "id": "cable_test",
+              "title": "Kabeltest"
+            },
+            {
+              "id": "sleeping",
+              "title": "Slaapstand"
+            },
+            {
+              "id": "moving_too_fast",
+              "title": "Te snel"
+            },
+            {
+              "id": "mast_not_vertical",
+              "title": "Mast niet recht"
+            },
+            {
+              "id": "unexpected_location",
+              "title": "Onverwachte locatie"
+            },
+            {
+              "id": "slow_ethernet",
+              "title": "Traag Ethernet"
+            },
+            {
+              "id": "updating",
+              "title": "Updaten"
+            },
+            {
+              "id": "disabled",
+              "title": "Uitgeschakeld"
+            },
+            {
+              "id": "offline",
+              "title": "Onbereikbaar"
+            },
+            {
+              "id": "unknown",
+              "title": "Onbekend"
+            }
+          ],
+          "value": "connected"
+        },
+        "measure_starlink_download": {
+          "id": "measure_starlink_download",
+          "title": "Download",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "units": "Mbit/s",
+          "min": 0,
+          "decimals": 1,
+          "value": 51.2
+        },
+        "measure_starlink_upload": {
+          "id": "measure_starlink_upload",
+          "title": "Upload",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "units": "Mbit/s",
+          "min": 0,
+          "decimals": 1,
+          "value": 0.6
+        },
+        "measure_starlink_latency": {
+          "id": "measure_starlink_latency",
+          "title": "Latency",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "units": "ms",
+          "min": 0,
+          "decimals": 0,
+          "value": 26
+        },
+        "measure_starlink_ping_drop": {
+          "id": "measure_starlink_ping_drop",
+          "title": "Pakketverlies",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "units": "%",
+          "min": 0,
+          "max": 100,
+          "decimals": 2,
+          "value": 0
+        },
+        "measure_starlink_obstruction": {
+          "id": "measure_starlink_obstruction",
+          "title": "Obstructie",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "units": "%",
+          "min": 0,
+          "max": 100,
+          "decimals": 2,
+          "value": 4.37
+        },
+        "measure_starlink_obstruction_24h": {
+          "id": "measure_starlink_obstruction_24h",
+          "title": "Geblokkeerd in 24u",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "units": "min",
+          "min": 0,
+          "decimals": 1,
+          "value": null
+        },
+        "measure_starlink_azimuth": {
+          "id": "measure_starlink_azimuth",
+          "title": "Azimut",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "units": "°",
+          "decimals": 1,
+          "value": 9.6
+        },
+        "measure_starlink_elevation": {
+          "id": "measure_starlink_elevation",
+          "title": "Elevatie",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "units": "°",
+          "decimals": 1,
+          "value": 80.3
+        },
+        "measure_starlink_tilt": {
+          "id": "measure_starlink_tilt",
+          "title": "Kanteling",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "units": "°",
+          "decimals": 1,
+          "value": 10.7
+        },
+        "measure_starlink_altitude": {
+          "id": "measure_starlink_altitude",
+          "title": "Hoogte",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "units": "m",
+          "decimals": 0,
+          "value": null
+        },
+        "measure_starlink_gps_sats": {
+          "id": "measure_starlink_gps_sats",
+          "title": "GPS-satellieten",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "units": null,
+          "min": 0,
+          "decimals": 0,
+          "value": 17
+        },
+        "measure_starlink_eth_speed": {
+          "id": "measure_starlink_eth_speed",
+          "title": "Ethernet-link",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "units": "Mbit/s",
+          "min": 0,
+          "decimals": 0,
+          "value": 1000
+        },
+        "measure_starlink_uptime": {
+          "id": "measure_starlink_uptime",
+          "title": "Uptime",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "units": "h",
+          "min": 0,
+          "decimals": 1,
+          "value": 20.7
+        },
+        "starlink_alerts": {
+          "id": "starlink_alerts",
+          "title": "Actieve meldingen",
+          "type": "string",
+          "getable": true,
+          "setable": false,
+          "value": "voorbeeld"
+        },
+        "alarm_starlink_obstructed": {
+          "id": "alarm_starlink_obstructed",
+          "title": "Geblokkeerd",
+          "type": "boolean",
+          "getable": true,
+          "setable": false,
+          "value": false
+        },
+        "alarm_starlink_heating": {
+          "id": "alarm_starlink_heating",
+          "title": "Verwarmen",
+          "type": "boolean",
+          "getable": true,
+          "setable": false,
+          "value": false
+        },
+        "alarm_starlink_thermal_throttle": {
+          "id": "alarm_starlink_thermal_throttle",
+          "title": "Thermisch afknijpen",
+          "type": "boolean",
+          "getable": true,
+          "setable": false,
+          "value": false
+        },
+        "alarm_starlink_thermal_shutdown": {
+          "id": "alarm_starlink_thermal_shutdown",
+          "title": "Thermische stop",
+          "type": "boolean",
+          "getable": true,
+          "setable": false,
+          "value": false
+        },
+        "alarm_starlink_slow_ethernet": {
+          "id": "alarm_starlink_slow_ethernet",
+          "title": "Traag Ethernet",
+          "type": "boolean",
+          "getable": true,
+          "setable": false,
+          "value": false
+        },
+        "alarm_starlink_roaming": {
+          "id": "alarm_starlink_roaming",
+          "title": "Roaming",
+          "type": "boolean",
+          "getable": true,
+          "setable": false,
+          "value": false
+        },
+        "alarm_starlink_unexpected_location": {
+          "id": "alarm_starlink_unexpected_location",
+          "title": "Onverwachte locatie",
+          "type": "boolean",
+          "getable": true,
+          "setable": false,
+          "value": false
+        },
+        "alarm_starlink_low_snr": {
+          "id": "alarm_starlink_low_snr",
+          "title": "Zwak signaal",
+          "type": "boolean",
+          "getable": true,
+          "setable": false,
+          "value": false
+        },
+        "alarm_starlink_no_gps": {
+          "id": "alarm_starlink_no_gps",
+          "title": "Geen GPS-fix",
+          "type": "boolean",
+          "getable": true,
+          "setable": false,
+          "value": false
+        },
+        "alarm_starlink_update_pending": {
+          "id": "alarm_starlink_update_pending",
+          "title": "Update wacht",
+          "type": "boolean",
+          "getable": true,
+          "setable": false,
+          "value": false
+        },
+        "button.stow": {
+          "id": "button.stow",
+          "title": "Schotel inklappen",
+          "type": "boolean",
+          "getable": false,
+          "setable": true,
+          "value": null
+        },
+        "button.unstow": {
+          "id": "button.unstow",
+          "title": "Schotel uitklappen",
+          "type": "boolean",
+          "getable": false,
+          "setable": true,
+          "value": null
+        },
+        "button.reboot": {
+          "id": "button.reboot",
+          "title": "Schotel herstarten",
+          "type": "boolean",
+          "getable": false,
+          "setable": true,
+          "value": null
+        },
+        "button.clear_obstruction_map": {
+          "id": "button.clear_obstruction_map",
+          "title": "Obstructiekaart wissen",
+          "type": "boolean",
+          "getable": false,
+          "setable": true,
+          "value": null
+        },
+        "alarm_connectivity": {
+          "id": "alarm_connectivity",
+          "title": "Verbindingswaarschuwing",
+          "type": "boolean",
+          "getable": true,
+          "setable": false,
+          "value": false
+        }
+      }
+    },
+    "device-4": {
+      "id": "device-4",
+      "name": "Sensor 2",
+      "zone": "zone-5",
+      "class": "sensor",
+      "virtualClass": null,
+      "available": true,
+      "capabilities": [
+        "tank_level",
+        "fluid_type",
+        "alarm_tank_missing",
+        "victron_error",
+        "measure_content_volume",
+        "tank_capacity"
+      ],
+      "energyObj": {
+        "W": 0,
+        "batteries": null,
+        "cumulative": null,
+        "cumulativeImportedCapability": null,
+        "cumulativeExportedCapability": null,
+        "homeBattery": null,
+        "homeBatteryVirtual": null,
+        "electricCar": null,
+        "evCharger": null,
+        "evChargerVirtual": null,
+        "meterPowerImportedCapability": null,
+        "meterPowerExportedCapability": null,
+        "generator": null,
+        "approximated": null,
+        "approximation": null
+      },
+      "driverId": "homey:app:app-3:tank",
+      "unavailableMessage": null,
+      "capabilitiesObj": {
+        "tank_level": {
+          "id": "tank_level",
+          "title": "Niveau",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "units": "%",
+          "min": 0,
+          "max": 100,
+          "decimals": 0,
+          "value": 48
+        },
+        "fluid_type": {
+          "id": "fluid_type",
+          "title": "Vloeistoftype",
+          "type": "enum",
+          "getable": true,
+          "setable": false,
+          "values": [
+            {
+              "id": "fuel",
+              "title": "Brandstof"
+            },
+            {
+              "id": "fresh_water",
+              "title": "Schoon water"
+            },
+            {
+              "id": "waste_water",
+              "title": "Grijs water"
+            },
+            {
+              "id": "live_well",
+              "title": "Visbun"
+            },
+            {
+              "id": "oil",
+              "title": "Olie"
+            },
+            {
+              "id": "black_water",
+              "title": "Zwart water"
+            },
+            {
+              "id": "gasoline",
+              "title": "Benzine"
+            },
+            {
+              "id": "diesel",
+              "title": "Diesel"
+            },
+            {
+              "id": "lpg",
+              "title": "LPG"
+            },
+            {
+              "id": "lng",
+              "title": "LNG"
+            },
+            {
+              "id": "hydraulic_oil",
+              "title": "Hydraulische olie"
+            },
+            {
+              "id": "raw_water",
+              "title": "Ruw water"
+            },
+            {
+              "id": "other",
+              "title": "Overig"
+            }
+          ],
+          "value": "waste_water"
+        },
+        "alarm_tank_missing": {
+          "id": "alarm_tank_missing",
+          "title": "Waarschuwing voor ontbrekende tank",
+          "type": "boolean",
+          "getable": true,
+          "setable": false,
+          "value": false
+        },
+        "victron_error": {
+          "id": "victron_error",
+          "title": "Fout",
+          "type": "string",
+          "getable": true,
+          "setable": false,
+          "value": "voorbeeld"
+        },
+        "measure_content_volume": {
+          "id": "measure_content_volume",
+          "title": "Volume",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "units": "L",
+          "decimals": 2,
+          "value": 39
+        },
+        "tank_capacity": {
+          "id": "tank_capacity",
+          "title": "Inhoud",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "units": "L",
+          "decimals": 1,
+          "value": 80
+        }
+      }
+    },
+    "device-5": {
+      "id": "device-5",
+      "name": "Lamp 3",
+      "zone": "zone-6",
+      "class": "light",
+      "virtualClass": null,
+      "available": true,
+      "capabilities": [
+        "onoff",
+        "dim",
+        "dim.white",
+        "light_hue",
+        "light_saturation",
+        "measure_power",
+        "meter_power",
+        "measure_voltage",
+        "measure_current",
+        "onoff.whitemode",
+        "measure_temperature",
+        "rssi",
+        "button.enable_ble_script",
+        "button.disable_ble_script",
+        "actionEvents",
+        "deviceGen2",
+        "multiInputs"
+      ],
+      "energyObj": {
+        "W": 4.6,
+        "batteries": null,
+        "cumulative": null,
+        "cumulativeImportedCapability": null,
+        "cumulativeExportedCapability": null,
+        "homeBattery": null,
+        "homeBatteryVirtual": null,
+        "electricCar": null,
+        "evCharger": null,
+        "evChargerVirtual": null,
+        "meterPowerImportedCapability": null,
+        "meterPowerExportedCapability": null,
+        "generator": null,
+        "approximated": null,
+        "approximation": null
+      },
+      "driverId": "homey:app:app-1:shelly",
+      "unavailableMessage": null,
+      "capabilitiesObj": {
+        "onoff": {
+          "id": "onoff",
+          "title": "Aangezet",
+          "type": "boolean",
+          "getable": true,
+          "setable": true,
+          "value": true
+        },
+        "dim": {
+          "id": "dim",
+          "title": "Dim niveau",
+          "type": "number",
+          "getable": true,
+          "setable": true,
+          "units": "%",
+          "min": 0,
+          "max": 1,
+          "decimals": 2,
+          "value": 0.1
+        },
+        "dim.white": {
+          "id": "dim.white",
+          "title": "Dim niveau wit",
+          "type": "number",
+          "getable": true,
+          "setable": true,
+          "units": "%",
+          "min": 0,
+          "max": 1,
+          "decimals": 2,
+          "value": 0
+        },
+        "light_hue": {
+          "id": "light_hue",
+          "title": "Tint",
+          "type": "number",
+          "getable": true,
+          "setable": true,
+          "units": null,
+          "min": 0,
+          "max": 1,
+          "decimals": 2,
+          "value": 0.04
+        },
+        "light_saturation": {
+          "id": "light_saturation",
+          "title": "Kleurverzadiging",
+          "type": "number",
+          "getable": true,
+          "setable": true,
+          "units": null,
+          "min": 0,
+          "max": 1,
+          "decimals": 2,
+          "value": 0.29
+        },
+        "measure_power": {
+          "id": "measure_power",
+          "title": "Vermogen",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "units": "W",
+          "decimals": 2,
+          "value": 4.6
+        },
+        "meter_power": {
+          "id": "meter_power",
+          "title": "Energie",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "units": "kWh",
+          "decimals": 3,
+          "value": 3.602
+        },
+        "measure_voltage": {
+          "id": "measure_voltage",
+          "title": "Voltage",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "units": "V",
+          "decimals": 2,
+          "value": 13.8
+        },
+        "measure_current": {
+          "id": "measure_current",
+          "title": "Stroom",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "units": "A",
+          "decimals": 2,
+          "value": 0.33
+        },
+        "onoff.whitemode": {
+          "id": "onoff.whitemode",
+          "title": "Wit modus schakelen",
+          "type": "boolean",
+          "getable": true,
+          "setable": true,
+          "value": false
+        },
+        "measure_temperature": {
+          "id": "measure_temperature",
+          "title": "Apparaattemperatuur",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "units": "°C",
+          "decimals": 1,
+          "value": 26.6
+        },
+        "rssi": {
+          "id": "rssi",
+          "title": "Signaal",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "units": "RSSI",
+          "value": -72
+        },
+        "button.enable_ble_script": {
+          "id": "button.enable_ble_script",
+          "title": "Start BLE Proxy",
+          "type": "boolean",
+          "getable": false,
+          "setable": true,
+          "value": null
+        },
+        "button.disable_ble_script": {
+          "id": "button.disable_ble_script",
+          "title": "Stop BLE Proxy",
+          "type": "boolean",
+          "getable": false,
+          "setable": true,
+          "value": null
+        },
+        "actionEvents": {
+          "id": "actionEvents",
+          "title": "Action Events",
+          "type": "string",
+          "getable": false,
+          "setable": false,
+          "value": null
+        },
+        "deviceGen2": {
+          "id": "deviceGen2",
+          "title": "Device Generation 2",
+          "type": "string",
+          "getable": false,
+          "setable": false,
+          "value": null
+        },
+        "multiInputs": {
+          "id": "multiInputs",
+          "title": "Multi Inputs",
+          "type": "string",
+          "getable": false,
+          "setable": false,
+          "value": null
+        }
+      }
+    },
+    "device-6": {
+      "id": "device-6",
+      "name": "Sensor 3",
+      "zone": "zone-4",
+      "class": "sensor",
+      "virtualClass": null,
+      "available": true,
+      "capabilities": [
+        "presence",
+        "presence_mode",
+        "measure_presence_override_remaining",
+        "lastseen_date",
+        "lastseen_time",
+        "lastseen_datetime",
+        "device_type"
+      ],
+      "energyObj": {
+        "W": null,
+        "batteries": null,
+        "cumulative": null,
+        "cumulativeImportedCapability": null,
+        "cumulativeExportedCapability": null,
+        "homeBattery": null,
+        "homeBatteryVirtual": null,
+        "electricCar": null,
+        "evCharger": null,
+        "evChargerVirtual": null,
+        "meterPowerImportedCapability": null,
+        "meterPowerExportedCapability": null,
+        "generator": null,
+        "approximated": null,
+        "approximation": null
+      },
+      "driverId": "homey:app:app-4:smart_presence",
+      "unavailableMessage": null,
+      "capabilitiesObj": {
+        "presence": {
+          "id": "presence",
+          "title": "Aanwezigheid detectie",
+          "type": "boolean",
+          "getable": true,
+          "setable": true,
+          "value": false
+        },
+        "presence_mode": {
+          "id": "presence_mode",
+          "title": "Aanwezigheidsmodus",
+          "type": "enum",
+          "getable": true,
+          "setable": true,
+          "values": [
+            {
+              "id": "automatic",
+              "title": "Automatisch"
+            },
+            {
+              "id": "present",
+              "title": "Aanwezig gehouden"
+            },
+            {
+              "id": "away",
+              "title": "Afwezig gehouden"
+            }
+          ],
+          "value": "automatic"
+        },
+        "measure_presence_override_remaining": {
+          "id": "measure_presence_override_remaining",
+          "title": "Resterende override",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "units": "min",
+          "min": 0,
+          "decimals": 0,
+          "value": null
+        },
+        "lastseen_date": {
+          "id": "lastseen_date",
+          "title": "Date seen",
+          "type": "string",
+          "getable": true,
+          "setable": false,
+          "value": "voorbeeld"
+        },
+        "lastseen_time": {
+          "id": "lastseen_time",
+          "title": "Time seen",
+          "type": "string",
+          "getable": true,
+          "setable": false,
+          "value": "voorbeeld"
+        },
+        "lastseen_datetime": {
+          "id": "lastseen_datetime",
+          "title": "Last seen (date/time)",
+          "type": "string",
+          "getable": true,
+          "setable": false,
+          "value": "voorbeeld"
+        },
+        "device_type": {
+          "id": "device_type",
+          "title": "Device type",
+          "type": "string",
+          "getable": true,
+          "setable": false,
+          "value": "voorbeeld"
+        }
+      }
+    },
+    "device-7": {
+      "id": "device-7",
+      "name": "Knop 1",
+      "zone": "zone-3",
+      "class": "button",
+      "virtualClass": null,
+      "available": true,
+      "capabilities": [
+        "measure_battery"
+      ],
+      "energyObj": {
+        "W": null,
+        "batteries": [
+          "CR2450"
+        ],
+        "cumulative": null,
+        "cumulativeImportedCapability": null,
+        "cumulativeExportedCapability": null,
+        "homeBattery": null,
+        "homeBatteryVirtual": null,
+        "electricCar": null,
+        "evCharger": null,
+        "evChargerVirtual": null,
+        "meterPowerImportedCapability": null,
+        "meterPowerExportedCapability": null,
+        "generator": null,
+        "approximated": null,
+        "approximation": null
+      },
+      "driverId": "homey:app:app-5:ZB_WallController_4",
+      "unavailableMessage": null,
+      "capabilitiesObj": {
+        "measure_battery": {
+          "id": "measure_battery",
+          "title": "Accuniveau",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "units": "%",
+          "min": 0,
+          "max": 100,
+          "decimals": 2,
+          "value": 37
+        }
+      }
+    },
+    "device-8": {
+      "id": "device-8",
+      "name": "Stekker 1",
+      "zone": "zone-3",
+      "class": "socket",
+      "virtualClass": null,
+      "available": true,
+      "capabilities": [
+        "onoff"
+      ],
+      "energyObj": {
+        "W": null,
+        "batteries": null,
+        "cumulative": null,
+        "cumulativeImportedCapability": null,
+        "cumulativeExportedCapability": null,
+        "homeBattery": null,
+        "homeBatteryVirtual": null,
+        "electricCar": null,
+        "evCharger": null,
+        "evChargerVirtual": null,
+        "meterPowerImportedCapability": null,
+        "meterPowerExportedCapability": null,
+        "generator": null,
+        "approximated": null,
+        "approximation": null
+      },
+      "driverId": "homey:app:app-6:channel",
+      "unavailableMessage": null,
+      "capabilitiesObj": {
+        "onoff": {
+          "id": "onoff",
+          "title": "Aangezet",
+          "type": "boolean",
+          "getable": true,
+          "setable": true,
+          "value": false
+        }
+      }
+    },
+    "device-9": {
+      "id": "device-9",
+      "name": "Accu 1",
+      "zone": "zone-5",
+      "class": "battery",
+      "virtualClass": null,
+      "available": true,
+      "capabilities": [
+        "measure_battery",
+        "measure_voltage",
+        "measure_current",
+        "measure_power",
+        "time_to_go",
+        "alarm_generic",
+        "alarm_battery",
+        "meter_power.discharged",
+        "consumed_ah.deepest",
+        "consumed_ah",
+        "charge_cycles",
+        "meter_power.charged"
+      ],
+      "energyObj": {
+        "W": -1,
+        "batteries": null,
+        "cumulative": null,
+        "cumulativeImportedCapability": null,
+        "cumulativeExportedCapability": null,
+        "homeBattery": true,
+        "homeBatteryVirtual": null,
+        "electricCar": null,
+        "evCharger": null,
+        "evChargerVirtual": null,
+        "meterPowerImportedCapability": "meter_power.charged",
+        "meterPowerExportedCapability": "meter_power.discharged",
+        "generator": null,
+        "approximated": null,
+        "approximation": null
+      },
+      "driverId": "homey:app:app-3:battery",
+      "unavailableMessage": null,
+      "capabilitiesObj": {
+        "measure_battery": {
+          "id": "measure_battery",
+          "title": "Accuniveau",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "units": "%",
+          "min": 0,
+          "max": 100,
+          "decimals": 2,
+          "value": 99.5
+        },
+        "measure_voltage": {
+          "id": "measure_voltage",
+          "title": "Voltage",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "units": "V",
+          "decimals": 2,
+          "value": 13.48
+        },
+        "measure_current": {
+          "id": "measure_current",
+          "title": "Stroom",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "units": "A",
+          "decimals": 2,
+          "value": -0.1
+        },
+        "measure_power": {
+          "id": "measure_power",
+          "title": "Vermogen",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "units": "W",
+          "decimals": 2,
+          "value": -1
+        },
+        "time_to_go": {
+          "id": "time_to_go",
+          "title": "Resterende tijd",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "units": "min",
+          "decimals": 0,
+          "value": null
+        },
+        "alarm_generic": {
+          "id": "alarm_generic",
+          "title": "Algemeen alarm",
+          "type": "boolean",
+          "getable": true,
+          "setable": false,
+          "value": false
+        },
+        "alarm_battery": {
+          "id": "alarm_battery",
+          "title": "Batterij-alarm",
+          "type": "boolean",
+          "getable": true,
+          "setable": false,
+          "value": false
+        },
+        "meter_power.discharged": {
+          "id": "meter_power.discharged",
+          "title": "Ontladen energie",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "units": "kWh",
+          "decimals": 3,
+          "value": 410.97
+        },
+        "consumed_ah.deepest": {
+          "id": "consumed_ah.deepest",
+          "title": "Diepste ontlading",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "units": "Ah",
+          "decimals": 1,
+          "value": -300
+        },
+        "consumed_ah": {
+          "id": "consumed_ah",
+          "title": "Verbruikt",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "units": "Ah",
+          "decimals": 1,
+          "value": -1.7
+        },
+        "charge_cycles": {
+          "id": "charge_cycles",
+          "title": "Laadcycli",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "units": null,
+          "decimals": 0,
+          "value": 68
+        },
+        "meter_power.charged": {
+          "id": "meter_power.charged",
+          "title": "Geladen energie",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "units": "kWh",
+          "decimals": 3,
+          "value": 423.1
+        }
+      }
+    },
+    "device-10": {
+      "id": "device-10",
+      "name": "Lamp 4",
+      "zone": "zone-4",
+      "class": "light",
+      "virtualClass": null,
+      "available": true,
+      "capabilities": [
+        "onoff",
+        "dim",
+        "light_hue",
+        "light_saturation",
+        "measure_power",
+        "meter_power"
+      ],
+      "energyObj": {
+        "W": 0.6,
+        "batteries": null,
+        "cumulative": null,
+        "cumulativeImportedCapability": null,
+        "cumulativeExportedCapability": null,
+        "homeBattery": null,
+        "homeBatteryVirtual": null,
+        "electricCar": null,
+        "evCharger": null,
+        "evChargerVirtual": null,
+        "meterPowerImportedCapability": null,
+        "meterPowerExportedCapability": null,
+        "generator": null,
+        "approximated": null,
+        "approximation": null
+      },
+      "driverId": "homey:app:app-7:light",
+      "unavailableMessage": null,
+      "capabilitiesObj": {
+        "onoff": {
+          "id": "onoff",
+          "title": "Aangezet",
+          "type": "boolean",
+          "getable": true,
+          "setable": true,
+          "value": true
+        },
+        "dim": {
+          "id": "dim",
+          "title": "Dim niveau",
+          "type": "number",
+          "getable": true,
+          "setable": true,
+          "units": "%",
+          "min": 0,
+          "max": 1,
+          "decimals": 2,
+          "value": 0.03
+        },
+        "light_hue": {
+          "id": "light_hue",
+          "title": "Tint",
+          "type": "number",
+          "getable": true,
+          "setable": true,
+          "units": null,
+          "min": 0,
+          "max": 1,
+          "decimals": 2,
+          "value": 0.5
+        },
+        "light_saturation": {
+          "id": "light_saturation",
+          "title": "Kleurverzadiging",
+          "type": "number",
+          "getable": true,
+          "setable": true,
+          "units": null,
+          "min": 0,
+          "max": 1,
+          "decimals": 2,
+          "value": 0.13
+        },
+        "measure_power": {
+          "id": "measure_power",
+          "title": "Vermogen",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "units": "W",
+          "decimals": 2,
+          "value": 0.6
+        },
+        "meter_power": {
+          "id": "meter_power",
+          "title": "Energie",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "units": "kWh",
+          "decimals": 3,
+          "value": 2.814
+        }
+      }
+    },
+    "device-11": {
+      "id": "device-11",
+      "name": "Sensor 4",
+      "zone": "zone-3",
+      "class": "sensor",
+      "virtualClass": null,
+      "available": true,
+      "capabilities": [
+        "alarm_live",
+        "viewers",
+        "category"
+      ],
+      "energyObj": {
+        "W": 0,
+        "batteries": null,
+        "cumulative": null,
+        "cumulativeImportedCapability": null,
+        "cumulativeExportedCapability": null,
+        "homeBattery": null,
+        "homeBatteryVirtual": null,
+        "electricCar": null,
+        "evCharger": null,
+        "evChargerVirtual": null,
+        "meterPowerImportedCapability": null,
+        "meterPowerExportedCapability": null,
+        "generator": null,
+        "approximated": null,
+        "approximation": {
+          "usageConstant": 0
+        }
+      },
+      "driverId": "homey:app:app-8:twitch-channel",
+      "unavailableMessage": null,
+      "capabilitiesObj": {
+        "alarm_live": {
+          "id": "alarm_live",
+          "title": "Channel Online",
+          "type": "boolean",
+          "getable": true,
+          "setable": false,
+          "value": false
+        },
+        "viewers": {
+          "id": "viewers",
+          "title": "Viewers",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "units": null,
+          "min": 0,
+          "value": 0
+        },
+        "category": {
+          "id": "category",
+          "title": "Category",
+          "type": "string",
+          "getable": true,
+          "setable": false,
+          "value": "voorbeeld"
+        }
+      }
+    },
+    "device-12": {
+      "id": "device-12",
+      "name": "Stekker 2",
+      "zone": "zone-3",
+      "class": "socket",
+      "virtualClass": null,
+      "available": true,
+      "capabilities": [
+        "onoff"
+      ],
+      "energyObj": {
+        "W": 0,
+        "batteries": null,
+        "cumulative": null,
+        "cumulativeImportedCapability": null,
+        "cumulativeExportedCapability": null,
+        "homeBattery": null,
+        "homeBatteryVirtual": null,
+        "electricCar": null,
+        "evCharger": null,
+        "evChargerVirtual": null,
+        "meterPowerImportedCapability": null,
+        "meterPowerExportedCapability": null,
+        "generator": null,
+        "approximated": null,
+        "approximation": null
+      },
+      "driverId": "homey:app:app-6:channel",
+      "unavailableMessage": null,
+      "capabilitiesObj": {
+        "onoff": {
+          "id": "onoff",
+          "title": "Aangezet",
+          "type": "boolean",
+          "getable": true,
+          "setable": true,
+          "value": false
+        }
+      }
+    },
+    "device-13": {
+      "id": "device-13",
+      "name": "Sensor 5",
+      "zone": "zone-3",
+      "class": "sensor",
+      "virtualClass": null,
+      "available": true,
+      "capabilities": [
+        "measure_battery",
+        "button.identify",
+        "measure_temperature",
+        "measure_humidity"
+      ],
+      "energyObj": {
+        "W": null,
+        "batteries": [
+          "AAA",
+          "AAA"
+        ],
+        "cumulative": null,
+        "cumulativeImportedCapability": null,
+        "cumulativeExportedCapability": null,
+        "homeBattery": null,
+        "homeBatteryVirtual": null,
+        "electricCar": null,
+        "evCharger": null,
+        "evChargerVirtual": null,
+        "meterPowerImportedCapability": null,
+        "meterPowerExportedCapability": null,
+        "generator": null,
+        "approximated": null,
+        "approximation": null
+      },
+      "driverId": "homey:app:app-9:matter_timmerflotte",
+      "unavailableMessage": null,
+      "capabilitiesObj": {
+        "measure_battery": {
+          "id": "measure_battery",
+          "title": "Accuniveau",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "units": "%",
+          "min": 0,
+          "max": 100,
+          "decimals": 2,
+          "value": 58
+        },
+        "button.identify": {
+          "id": "button.identify",
+          "title": "Identificeren",
+          "type": "boolean",
+          "getable": false,
+          "setable": true,
+          "value": null
+        },
+        "measure_temperature": {
+          "id": "measure_temperature",
+          "title": "Temperatuur",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "units": "°C",
+          "decimals": 1,
+          "value": 22.4
+        },
+        "measure_humidity": {
+          "id": "measure_humidity",
+          "title": "Luchtvochtigheid",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "units": "%",
+          "decimals": 2,
+          "value": 33.25
+        }
+      }
+    },
+    "device-14": {
+      "id": "device-14",
+      "name": "Stekker 3",
+      "zone": "zone-3",
+      "class": "socket",
+      "virtualClass": null,
+      "available": true,
+      "capabilities": [
+        "onoff"
+      ],
+      "energyObj": {
+        "W": null,
+        "batteries": null,
+        "cumulative": null,
+        "cumulativeImportedCapability": null,
+        "cumulativeExportedCapability": null,
+        "homeBattery": null,
+        "homeBatteryVirtual": null,
+        "electricCar": null,
+        "evCharger": null,
+        "evChargerVirtual": null,
+        "meterPowerImportedCapability": null,
+        "meterPowerExportedCapability": null,
+        "generator": null,
+        "approximated": null,
+        "approximation": null
+      },
+      "driverId": "homey:app:app-6:channel",
+      "unavailableMessage": null,
+      "capabilitiesObj": {
+        "onoff": {
+          "id": "onoff",
+          "title": "Aangezet",
+          "type": "boolean",
+          "getable": true,
+          "setable": true,
+          "value": false
+        }
+      }
+    },
+    "device-15": {
+      "id": "device-15",
+      "name": "Stekker 4",
+      "zone": "zone-5",
+      "class": "socket",
+      "virtualClass": null,
+      "available": true,
+      "capabilities": [
+        "onoff",
+        "measure_temperature",
+        "input_1",
+        "rssi",
+        "button.enable_ble_script",
+        "button.disable_ble_script",
+        "actionEvents",
+        "deviceGen4"
+      ],
+      "energyObj": {
+        "W": null,
+        "batteries": null,
+        "cumulative": null,
+        "cumulativeImportedCapability": null,
+        "cumulativeExportedCapability": null,
+        "homeBattery": null,
+        "homeBatteryVirtual": null,
+        "electricCar": null,
+        "evCharger": null,
+        "evChargerVirtual": null,
+        "meterPowerImportedCapability": null,
+        "meterPowerExportedCapability": null,
+        "generator": null,
+        "approximated": null,
+        "approximation": null
+      },
+      "driverId": "homey:app:app-1:shelly",
+      "unavailableMessage": null,
+      "capabilitiesObj": {
+        "onoff": {
+          "id": "onoff",
+          "title": "Aangezet",
+          "type": "boolean",
+          "getable": true,
+          "setable": true,
+          "value": false
+        },
+        "measure_temperature": {
+          "id": "measure_temperature",
+          "title": "Apparaattemperatuur",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "units": "°C",
+          "decimals": 1,
+          "value": 27.2
+        },
+        "input_1": {
+          "id": "input_1",
+          "title": "Status van input 1",
+          "type": "boolean",
+          "getable": true,
+          "setable": false,
+          "value": false
+        },
+        "rssi": {
+          "id": "rssi",
+          "title": "Signaal",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "units": "RSSI",
+          "value": -63
+        },
+        "button.enable_ble_script": {
+          "id": "button.enable_ble_script",
+          "title": "Start BLE Proxy",
+          "type": "boolean",
+          "getable": false,
+          "setable": true,
+          "value": null
+        },
+        "button.disable_ble_script": {
+          "id": "button.disable_ble_script",
+          "title": "Stop BLE Proxy",
+          "type": "boolean",
+          "getable": false,
+          "setable": true,
+          "value": null
+        },
+        "actionEvents": {
+          "id": "actionEvents",
+          "title": "Action Events",
+          "type": "string",
+          "getable": false,
+          "setable": false,
+          "value": null
+        },
+        "deviceGen4": {
+          "id": "deviceGen4",
+          "title": "Device Generation 4",
+          "type": "string",
+          "getable": false,
+          "setable": false,
+          "value": null
+        }
+      }
+    },
+    "device-16": {
+      "id": "device-16",
+      "name": "Stekker 5",
+      "zone": "zone-6",
+      "class": "socket",
+      "virtualClass": null,
+      "available": true,
+      "capabilities": [
+        "onoff",
+        "measure_temperature",
+        "input_1",
+        "rssi",
+        "button.enable_ble_script",
+        "button.disable_ble_script",
+        "actionEvents",
+        "deviceGen4"
+      ],
+      "energyObj": {
+        "W": null,
+        "batteries": null,
+        "cumulative": null,
+        "cumulativeImportedCapability": null,
+        "cumulativeExportedCapability": null,
+        "homeBattery": null,
+        "homeBatteryVirtual": null,
+        "electricCar": null,
+        "evCharger": null,
+        "evChargerVirtual": null,
+        "meterPowerImportedCapability": null,
+        "meterPowerExportedCapability": null,
+        "generator": null,
+        "approximated": null,
+        "approximation": null
+      },
+      "driverId": "homey:app:app-1:shelly",
+      "unavailableMessage": null,
+      "capabilitiesObj": {
+        "onoff": {
+          "id": "onoff",
+          "title": "Aangezet",
+          "type": "boolean",
+          "getable": true,
+          "setable": true,
+          "value": false
+        },
+        "measure_temperature": {
+          "id": "measure_temperature",
+          "title": "Apparaattemperatuur",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "units": "°C",
+          "decimals": 1,
+          "value": 25.2
+        },
+        "input_1": {
+          "id": "input_1",
+          "title": "Status van input 1",
+          "type": "boolean",
+          "getable": true,
+          "setable": false,
+          "value": false
+        },
+        "rssi": {
+          "id": "rssi",
+          "title": "Signaal",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "units": "RSSI",
+          "value": -69
+        },
+        "button.enable_ble_script": {
+          "id": "button.enable_ble_script",
+          "title": "Start BLE Proxy",
+          "type": "boolean",
+          "getable": false,
+          "setable": true,
+          "value": null
+        },
+        "button.disable_ble_script": {
+          "id": "button.disable_ble_script",
+          "title": "Stop BLE Proxy",
+          "type": "boolean",
+          "getable": false,
+          "setable": true,
+          "value": null
+        },
+        "actionEvents": {
+          "id": "actionEvents",
+          "title": "Action Events",
+          "type": "string",
+          "getable": false,
+          "setable": false,
+          "value": null
+        },
+        "deviceGen4": {
+          "id": "deviceGen4",
+          "title": "Device Generation 4",
+          "type": "string",
+          "getable": false,
+          "setable": false,
+          "value": null
+        }
+      }
+    },
+    "device-17": {
+      "id": "device-17",
+      "name": "Sensor 6",
+      "zone": "zone-4",
+      "class": "sensor",
+      "virtualClass": null,
+      "available": true,
+      "capabilities": [
+        "presence",
+        "presence_mode",
+        "measure_presence_override_remaining",
+        "lastseen_date",
+        "lastseen_time",
+        "lastseen_datetime",
+        "device_type"
+      ],
+      "energyObj": {
+        "W": 0,
+        "batteries": null,
+        "cumulative": null,
+        "cumulativeImportedCapability": null,
+        "cumulativeExportedCapability": null,
+        "homeBattery": null,
+        "homeBatteryVirtual": null,
+        "electricCar": null,
+        "evCharger": null,
+        "evChargerVirtual": null,
+        "meterPowerImportedCapability": null,
+        "meterPowerExportedCapability": null,
+        "generator": null,
+        "approximated": null,
+        "approximation": null
+      },
+      "driverId": "homey:app:app-4:smart_presence",
+      "unavailableMessage": null,
+      "capabilitiesObj": {
+        "presence": {
+          "id": "presence",
+          "title": "Aanwezigheid detectie",
+          "type": "boolean",
+          "getable": true,
+          "setable": true,
+          "value": false
+        },
+        "presence_mode": {
+          "id": "presence_mode",
+          "title": "Aanwezigheidsmodus",
+          "type": "enum",
+          "getable": true,
+          "setable": true,
+          "values": [
+            {
+              "id": "automatic",
+              "title": "Automatisch"
+            },
+            {
+              "id": "present",
+              "title": "Aanwezig gehouden"
+            },
+            {
+              "id": "away",
+              "title": "Afwezig gehouden"
+            }
+          ],
+          "value": "automatic"
+        },
+        "measure_presence_override_remaining": {
+          "id": "measure_presence_override_remaining",
+          "title": "Resterende override",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "units": "min",
+          "min": 0,
+          "decimals": 0,
+          "value": null
+        },
+        "lastseen_date": {
+          "id": "lastseen_date",
+          "title": "Date seen",
+          "type": "string",
+          "getable": true,
+          "setable": false,
+          "value": "voorbeeld"
+        },
+        "lastseen_time": {
+          "id": "lastseen_time",
+          "title": "Time seen",
+          "type": "string",
+          "getable": true,
+          "setable": false,
+          "value": "voorbeeld"
+        },
+        "lastseen_datetime": {
+          "id": "lastseen_datetime",
+          "title": "Last seen (date/time)",
+          "type": "string",
+          "getable": true,
+          "setable": false,
+          "value": "voorbeeld"
+        },
+        "device_type": {
+          "id": "device_type",
+          "title": "Device type",
+          "type": "string",
+          "getable": true,
+          "setable": false,
+          "value": "voorbeeld"
+        }
+      }
+    },
+    "device-18": {
+      "id": "device-18",
+      "name": "Stekker 6",
+      "zone": "zone-6",
+      "class": "socket",
+      "virtualClass": null,
+      "available": true,
+      "capabilities": [
+        "onoff",
+        "measure_temperature",
+        "input_1",
+        "rssi",
+        "button.enable_ble_script",
+        "button.disable_ble_script",
+        "actionEvents",
+        "deviceGen4"
+      ],
+      "energyObj": {
+        "W": null,
+        "batteries": null,
+        "cumulative": null,
+        "cumulativeImportedCapability": null,
+        "cumulativeExportedCapability": null,
+        "homeBattery": null,
+        "homeBatteryVirtual": null,
+        "electricCar": null,
+        "evCharger": null,
+        "evChargerVirtual": null,
+        "meterPowerImportedCapability": null,
+        "meterPowerExportedCapability": null,
+        "generator": null,
+        "approximated": null,
+        "approximation": null
+      },
+      "driverId": "homey:app:app-1:shelly",
+      "unavailableMessage": null,
+      "capabilitiesObj": {
+        "onoff": {
+          "id": "onoff",
+          "title": "Aangezet",
+          "type": "boolean",
+          "getable": true,
+          "setable": true,
+          "value": false
+        },
+        "measure_temperature": {
+          "id": "measure_temperature",
+          "title": "Apparaattemperatuur",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "units": "°C",
+          "decimals": 1,
+          "value": 22.4
+        },
+        "input_1": {
+          "id": "input_1",
+          "title": "Status van input 1",
+          "type": "boolean",
+          "getable": true,
+          "setable": false,
+          "value": false
+        },
+        "rssi": {
+          "id": "rssi",
+          "title": "Signaal",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "units": "RSSI",
+          "value": -66
+        },
+        "button.enable_ble_script": {
+          "id": "button.enable_ble_script",
+          "title": "Start BLE Proxy",
+          "type": "boolean",
+          "getable": false,
+          "setable": true,
+          "value": null
+        },
+        "button.disable_ble_script": {
+          "id": "button.disable_ble_script",
+          "title": "Stop BLE Proxy",
+          "type": "boolean",
+          "getable": false,
+          "setable": true,
+          "value": null
+        },
+        "actionEvents": {
+          "id": "actionEvents",
+          "title": "Action Events",
+          "type": "string",
+          "getable": false,
+          "setable": false,
+          "value": null
+        },
+        "deviceGen4": {
+          "id": "deviceGen4",
+          "title": "Device Generation 4",
+          "type": "string",
+          "getable": false,
+          "setable": false,
+          "value": null
+        }
+      }
+    },
+    "device-19": {
+      "id": "device-19",
+      "name": "Lamp 5",
+      "zone": "zone-4",
+      "class": "light",
+      "virtualClass": null,
+      "available": true,
+      "capabilities": [
+        "onoff",
+        "dim",
+        "light_hue",
+        "light_saturation",
+        "measure_power",
+        "meter_power"
+      ],
+      "energyObj": {
+        "W": 6.4,
+        "batteries": null,
+        "cumulative": null,
+        "cumulativeImportedCapability": null,
+        "cumulativeExportedCapability": null,
+        "homeBattery": null,
+        "homeBatteryVirtual": null,
+        "electricCar": null,
+        "evCharger": null,
+        "evChargerVirtual": null,
+        "meterPowerImportedCapability": null,
+        "meterPowerExportedCapability": null,
+        "generator": null,
+        "approximated": null,
+        "approximation": null
+      },
+      "driverId": "homey:app:app-7:light",
+      "unavailableMessage": null,
+      "capabilitiesObj": {
+        "onoff": {
+          "id": "onoff",
+          "title": "Aangezet",
+          "type": "boolean",
+          "getable": true,
+          "setable": true,
+          "value": true
+        },
+        "dim": {
+          "id": "dim",
+          "title": "Dim niveau",
+          "type": "number",
+          "getable": true,
+          "setable": true,
+          "units": "%",
+          "min": 0,
+          "max": 1,
+          "decimals": 2,
+          "value": 0.08
+        },
+        "light_hue": {
+          "id": "light_hue",
+          "title": "Tint",
+          "type": "number",
+          "getable": true,
+          "setable": true,
+          "units": null,
+          "min": 0,
+          "max": 1,
+          "decimals": 2,
+          "value": 0.11
+        },
+        "light_saturation": {
+          "id": "light_saturation",
+          "title": "Kleurverzadiging",
+          "type": "number",
+          "getable": true,
+          "setable": true,
+          "units": null,
+          "min": 0,
+          "max": 1,
+          "decimals": 2,
+          "value": 0.2
+        },
+        "measure_power": {
+          "id": "measure_power",
+          "title": "Vermogen",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "units": "W",
+          "decimals": 2,
+          "value": 6.4
+        },
+        "meter_power": {
+          "id": "meter_power",
+          "title": "Energie",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "units": "kWh",
+          "decimals": 3,
+          "value": 6.62
+        }
+      }
+    },
+    "device-20": {
+      "id": "device-20",
+      "name": "Stekker 7",
+      "zone": "zone-3",
+      "class": "socket",
+      "virtualClass": null,
+      "available": true,
+      "capabilities": [
+        "onoff"
+      ],
+      "energyObj": {
+        "W": null,
+        "batteries": null,
+        "cumulative": null,
+        "cumulativeImportedCapability": null,
+        "cumulativeExportedCapability": null,
+        "homeBattery": null,
+        "homeBatteryVirtual": null,
+        "electricCar": null,
+        "evCharger": null,
+        "evChargerVirtual": null,
+        "meterPowerImportedCapability": null,
+        "meterPowerExportedCapability": null,
+        "generator": null,
+        "approximated": null,
+        "approximation": null
+      },
+      "driverId": "homey:app:app-6:channel",
+      "unavailableMessage": null,
+      "capabilitiesObj": {
+        "onoff": {
+          "id": "onoff",
+          "title": "Aangezet",
+          "type": "boolean",
+          "getable": true,
+          "setable": true,
+          "value": false
+        }
+      }
+    },
+    "device-21": {
+      "id": "device-21",
+      "name": "Lamp 6",
+      "zone": "zone-1",
+      "class": "light",
+      "virtualClass": null,
+      "available": true,
+      "capabilities": [
+        "onoff",
+        "dim",
+        "dim.white",
+        "light_hue",
+        "light_saturation",
+        "measure_power",
+        "meter_power",
+        "measure_voltage",
+        "measure_current",
+        "onoff.whitemode",
+        "measure_temperature",
+        "rssi",
+        "button.enable_ble_script",
+        "button.disable_ble_script",
+        "actionEvents",
+        "deviceGen2",
+        "multiInputs"
+      ],
+      "energyObj": {
+        "W": 0,
+        "batteries": null,
+        "cumulative": null,
+        "cumulativeImportedCapability": null,
+        "cumulativeExportedCapability": null,
+        "homeBattery": null,
+        "homeBatteryVirtual": null,
+        "electricCar": null,
+        "evCharger": null,
+        "evChargerVirtual": null,
+        "meterPowerImportedCapability": null,
+        "meterPowerExportedCapability": null,
+        "generator": null,
+        "approximated": null,
+        "approximation": null
+      },
+      "driverId": "homey:app:app-1:shelly",
+      "unavailableMessage": null,
+      "capabilitiesObj": {
+        "onoff": {
+          "id": "onoff",
+          "title": "Aangezet",
+          "type": "boolean",
+          "getable": true,
+          "setable": true,
+          "value": false
+        },
+        "dim": {
+          "id": "dim",
+          "title": "Dim niveau",
+          "type": "number",
+          "getable": true,
+          "setable": true,
+          "units": "%",
+          "min": 0,
+          "max": 1,
+          "decimals": 2,
+          "value": 0.05
+        },
+        "dim.white": {
+          "id": "dim.white",
+          "title": "Dim niveau wit",
+          "type": "number",
+          "getable": true,
+          "setable": true,
+          "units": "%",
+          "min": 0,
+          "max": 1,
+          "decimals": 2,
+          "value": 0
+        },
+        "light_hue": {
+          "id": "light_hue",
+          "title": "Tint",
+          "type": "number",
+          "getable": true,
+          "setable": true,
+          "units": null,
+          "min": 0,
+          "max": 1,
+          "decimals": 2,
+          "value": 0.15
+        },
+        "light_saturation": {
+          "id": "light_saturation",
+          "title": "Kleurverzadiging",
+          "type": "number",
+          "getable": true,
+          "setable": true,
+          "units": null,
+          "min": 0,
+          "max": 1,
+          "decimals": 2,
+          "value": 0.15
+        },
+        "measure_power": {
+          "id": "measure_power",
+          "title": "Vermogen",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "units": "W",
+          "decimals": 2,
+          "value": 0
+        },
+        "meter_power": {
+          "id": "meter_power",
+          "title": "Energie",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "units": "kWh",
+          "decimals": 3,
+          "value": 0.172
+        },
+        "measure_voltage": {
+          "id": "measure_voltage",
+          "title": "Voltage",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "units": "V",
+          "decimals": 2,
+          "value": 14.1
+        },
+        "measure_current": {
+          "id": "measure_current",
+          "title": "Stroom",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "units": "A",
+          "decimals": 2,
+          "value": 0
+        },
+        "onoff.whitemode": {
+          "id": "onoff.whitemode",
+          "title": "Wit modus schakelen",
+          "type": "boolean",
+          "getable": true,
+          "setable": true,
+          "value": false
+        },
+        "measure_temperature": {
+          "id": "measure_temperature",
+          "title": "Apparaattemperatuur",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "units": "°C",
+          "decimals": 1,
+          "value": 37
+        },
+        "rssi": {
+          "id": "rssi",
+          "title": "Signaal",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "units": "RSSI",
+          "value": -57
+        },
+        "button.enable_ble_script": {
+          "id": "button.enable_ble_script",
+          "title": "Start BLE Proxy",
+          "type": "boolean",
+          "getable": false,
+          "setable": true,
+          "value": null
+        },
+        "button.disable_ble_script": {
+          "id": "button.disable_ble_script",
+          "title": "Stop BLE Proxy",
+          "type": "boolean",
+          "getable": false,
+          "setable": true,
+          "value": null
+        },
+        "actionEvents": {
+          "id": "actionEvents",
+          "title": "Action Events",
+          "type": "string",
+          "getable": false,
+          "setable": false,
+          "value": null
+        },
+        "deviceGen2": {
+          "id": "deviceGen2",
+          "title": "Device Generation 2",
+          "type": "string",
+          "getable": false,
+          "setable": false,
+          "value": null
+        },
+        "multiInputs": {
+          "id": "multiInputs",
+          "title": "Multi Inputs",
+          "type": "string",
+          "getable": false,
+          "setable": false,
+          "value": null
+        }
+      }
+    },
+    "device-22": {
+      "id": "device-22",
+      "name": "Zonnepaneel 1",
+      "zone": "zone-5",
+      "class": "solarpanel",
+      "virtualClass": null,
+      "available": true,
+      "capabilities": [
+        "measure_power",
+        "meter_power",
+        "measure_voltage",
+        "measure_current",
+        "victron_state",
+        "victron_mode",
+        "measure_power.max_today",
+        "meter_power.today",
+        "victron_error",
+        "alarm_generic",
+        "measure_current.limit",
+        "measure_voltage.pv1"
+      ],
+      "energyObj": {
+        "W": 0,
+        "batteries": null,
+        "cumulative": null,
+        "cumulativeImportedCapability": null,
+        "cumulativeExportedCapability": null,
+        "homeBattery": null,
+        "homeBatteryVirtual": null,
+        "electricCar": null,
+        "evCharger": null,
+        "evChargerVirtual": null,
+        "meterPowerImportedCapability": null,
+        "meterPowerExportedCapability": null,
+        "generator": true,
+        "approximated": null,
+        "approximation": null
+      },
+      "driverId": "homey:app:app-3:solarcharger",
+      "unavailableMessage": null,
+      "capabilitiesObj": {
+        "measure_power": {
+          "id": "measure_power",
+          "title": "Vermogen",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "units": "W",
+          "decimals": 2,
+          "value": 0
+        },
+        "meter_power": {
+          "id": "meter_power",
+          "title": "Energie",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "units": "kWh",
+          "decimals": 3,
+          "value": 473.6
+        },
+        "measure_voltage": {
+          "id": "measure_voltage",
+          "title": "Voltage",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "units": "V",
+          "decimals": 2,
+          "value": 13.51
+        },
+        "measure_current": {
+          "id": "measure_current",
+          "title": "Stroom",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "units": "A",
+          "decimals": 2,
+          "value": 0
+        },
+        "victron_state": {
+          "id": "victron_state",
+          "title": "Status",
+          "type": "enum",
+          "getable": true,
+          "setable": false,
+          "values": [
+            {
+              "id": "off",
+              "title": "Uit"
+            },
+            {
+              "id": "low_power",
+              "title": "Laag vermogen"
+            },
+            {
+              "id": "fault",
+              "title": "Storing"
+            },
+            {
+              "id": "bulk",
+              "title": "Bulk"
+            },
+            {
+              "id": "absorption",
+              "title": "Absorptie"
+            },
+            {
+              "id": "float",
+              "title": "Float"
+            },
+            {
+              "id": "storage",
+              "title": "Opslag"
+            },
+            {
+              "id": "equalize",
+              "title": "Egaliseren"
+            },
+            {
+              "id": "repeated_absorption",
+              "title": "Herhaalde absorptie"
+            },
+            {
+              "id": "auto_equalize",
+              "title": "Automatisch egaliseren"
+            },
+            {
+              "id": "battery_safe",
+              "title": "BatterySafe"
+            },
+            {
+              "id": "passthru",
+              "title": "Doorlussen"
+            },
+            {
+              "id": "inverting",
+              "title": "Omvormen"
+            },
+            {
+              "id": "assisting",
+              "title": "Power assist"
+            },
+            {
+              "id": "power_supply",
+              "title": "Voeding"
+            },
+            {
+              "id": "psu",
+              "title": "PSU-modus"
+            },
+            {
+              "id": "sustain",
+              "title": "Sustain"
+            },
+            {
+              "id": "battery_sustain",
+              "title": "Batterij sustain"
+            },
+            {
+              "id": "discharging",
+              "title": "Ontladen"
+            },
+            {
+              "id": "recharge",
+              "title": "Herladen"
+            },
+            {
+              "id": "scheduled_recharge",
+              "title": "Geplande herlading"
+            },
+            {
+              "id": "wakeup",
+              "title": "Opstarten"
+            },
+            {
+              "id": "blocked",
+              "title": "Geblokkeerd"
+            },
+            {
+              "id": "external",
+              "title": "Externe besturing"
+            },
+            {
+              "id": "standby",
+              "title": "Stand-by"
+            },
+            {
+              "id": "startup",
+              "title": "Starten"
+            },
+            {
+              "id": "running",
+              "title": "Draait"
+            },
+            {
+              "id": "stopping",
+              "title": "Stoppen"
+            },
+            {
+              "id": "error",
+              "title": "Fout"
+            },
+            {
+              "id": "other",
+              "title": "Overig"
+            }
+          ],
+          "value": "off"
+        },
+        "victron_mode": {
+          "id": "victron_mode",
+          "title": "Modus",
+          "type": "enum",
+          "getable": true,
+          "setable": true,
+          "values": [
+            {
+              "id": "on",
+              "title": "Aan"
+            },
+            {
+              "id": "off",
+              "title": "Uit"
+            },
+            {
+              "id": "charger_only",
+              "title": "Alleen lader"
+            },
+            {
+              "id": "inverter_only",
+              "title": "Alleen Apparaat 2"
+            },
+            {
+              "id": "eco",
+              "title": "Eco"
+            },
+            {
+              "id": "passthrough",
+              "title": "Doorlussen"
+            },
+            {
+              "id": "standby",
+              "title": "Stand-by"
+            },
+            {
+              "id": "hibernate",
+              "title": "Slaapstand"
+            }
+          ],
+          "value": "on"
+        },
+        "measure_power.max_today": {
+          "id": "measure_power.max_today",
+          "title": "Max. vermogen vandaag",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "units": "W",
+          "decimals": 2,
+          "value": 0
+        },
+        "meter_power.today": {
+          "id": "meter_power.today",
+          "title": "Opbrengst vandaag",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "units": "kWh",
+          "decimals": 3,
+          "value": 0
+        },
+        "victron_error": {
+          "id": "victron_error",
+          "title": "Fout",
+          "type": "string",
+          "getable": true,
+          "setable": false,
+          "value": "voorbeeld"
+        },
+        "alarm_generic": {
+          "id": "alarm_generic",
+          "title": "Algemeen alarm",
+          "type": "boolean",
+          "getable": true,
+          "setable": false,
+          "value": false
+        },
+        "measure_current.limit": {
+          "id": "measure_current.limit",
+          "title": "Laadstroomlimiet",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "units": "A",
+          "decimals": 2,
+          "value": 45
+        },
+        "measure_voltage.pv1": {
+          "id": "measure_voltage.pv1",
+          "title": "PV-spanning 1",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "units": "V",
+          "decimals": 2,
+          "value": 0
+        }
+      }
+    },
+    "device-23": {
+      "id": "device-23",
+      "name": "Apparaat 1",
+      "zone": "zone-5",
+      "class": "other",
+      "virtualClass": null,
+      "available": true,
+      "capabilities": [
+        "victron_state",
+        "battery_soc",
+        "measure_power",
+        "ac_input_source",
+        "measure_power.battery",
+        "measure_power.grid",
+        "alarm_generic",
+        "onoff.relay2",
+        "engine_hours.inverter",
+        "measure_power.solar",
+        "measure_current",
+        "measure_power.dc_system",
+        "measure_voltage",
+        "engine_hours.grid",
+        "consumed_ah",
+        "onoff",
+        "time_to_go"
+      ],
+      "energyObj": {
+        "W": 1145,
+        "batteries": null,
+        "cumulative": null,
+        "cumulativeImportedCapability": null,
+        "cumulativeExportedCapability": null,
+        "homeBattery": null,
+        "homeBatteryVirtual": null,
+        "electricCar": null,
+        "evCharger": null,
+        "evChargerVirtual": null,
+        "meterPowerImportedCapability": null,
+        "meterPowerExportedCapability": null,
+        "generator": null,
+        "approximated": null,
+        "approximation": null
+      },
+      "driverId": "homey:app:app-3:system",
+      "unavailableMessage": null,
+      "capabilitiesObj": {
+        "victron_state": {
+          "id": "victron_state",
+          "title": "Status",
+          "type": "enum",
+          "getable": true,
+          "setable": false,
+          "values": [
+            {
+              "id": "off",
+              "title": "Uit"
+            },
+            {
+              "id": "low_power",
+              "title": "Laag vermogen"
+            },
+            {
+              "id": "fault",
+              "title": "Storing"
+            },
+            {
+              "id": "bulk",
+              "title": "Bulk"
+            },
+            {
+              "id": "absorption",
+              "title": "Absorptie"
+            },
+            {
+              "id": "float",
+              "title": "Float"
+            },
+            {
+              "id": "storage",
+              "title": "Opslag"
+            },
+            {
+              "id": "equalize",
+              "title": "Egaliseren"
+            },
+            {
+              "id": "repeated_absorption",
+              "title": "Herhaalde absorptie"
+            },
+            {
+              "id": "auto_equalize",
+              "title": "Automatisch egaliseren"
+            },
+            {
+              "id": "battery_safe",
+              "title": "BatterySafe"
+            },
+            {
+              "id": "passthru",
+              "title": "Doorlussen"
+            },
+            {
+              "id": "inverting",
+              "title": "Omvormen"
+            },
+            {
+              "id": "assisting",
+              "title": "Power assist"
+            },
+            {
+              "id": "power_supply",
+              "title": "Voeding"
+            },
+            {
+              "id": "psu",
+              "title": "PSU-modus"
+            },
+            {
+              "id": "sustain",
+              "title": "Sustain"
+            },
+            {
+              "id": "battery_sustain",
+              "title": "Batterij sustain"
+            },
+            {
+              "id": "discharging",
+              "title": "Ontladen"
+            },
+            {
+              "id": "recharge",
+              "title": "Herladen"
+            },
+            {
+              "id": "scheduled_recharge",
+              "title": "Geplande herlading"
+            },
+            {
+              "id": "wakeup",
+              "title": "Opstarten"
+            },
+            {
+              "id": "blocked",
+              "title": "Geblokkeerd"
+            },
+            {
+              "id": "external",
+              "title": "Externe besturing"
+            },
+            {
+              "id": "standby",
+              "title": "Stand-by"
+            },
+            {
+              "id": "startup",
+              "title": "Starten"
+            },
+            {
+              "id": "running",
+              "title": "Draait"
+            },
+            {
+              "id": "stopping",
+              "title": "Stoppen"
+            },
+            {
+              "id": "error",
+              "title": "Fout"
+            },
+            {
+              "id": "other",
+              "title": "Overig"
+            }
+          ],
+          "value": "storage"
+        },
+        "battery_soc": {
+          "id": "battery_soc",
+          "title": "Laadtoestand",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "units": "%",
+          "min": 0,
+          "max": 100,
+          "decimals": 1,
+          "value": null
+        },
+        "measure_power": {
+          "id": "measure_power",
+          "title": "Vermogen",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "units": "W",
+          "decimals": 2,
+          "value": 1145
+        },
+        "ac_input_source": {
+          "id": "ac_input_source",
+          "title": "Actieve AC-ingang",
+          "type": "enum",
+          "getable": true,
+          "setable": false,
+          "values": [
+            {
+              "id": "none",
+              "title": "Niet aangesloten"
+            },
+            {
+              "id": "grid",
+              "title": "Net"
+            },
+            {
+              "id": "generator",
+              "title": "Generator"
+            },
+            {
+              "id": "shore",
+              "title": "Landstroom"
+            },
+            {
+              "id": "inverting",
+              "title": "Omvormen (eiland)"
+            },
+            {
+              "id": "other",
+              "title": "Overig"
+            }
+          ],
+          "value": "grid"
+        },
+        "measure_power.battery": {
+          "id": "measure_power.battery",
+          "title": "Batterijvermogen",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "units": "W",
+          "decimals": 2,
+          "value": null
+        },
+        "measure_power.grid": {
+          "id": "measure_power.grid",
+          "title": "Netvermogen",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "units": "W",
+          "decimals": 2,
+          "value": 1201
+        },
+        "alarm_generic": {
+          "id": "alarm_generic",
+          "title": "Algemeen alarm",
+          "type": "boolean",
+          "getable": true,
+          "setable": false,
+          "value": false
+        },
+        "onoff.relay2": {
+          "id": "onoff.relay2",
+          "title": "Relais 2",
+          "type": "boolean",
+          "getable": true,
+          "setable": true,
+          "value": false
+        },
+        "engine_hours.inverter": {
+          "id": "engine_hours.inverter",
+          "title": "Tijd op Apparaat 2",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "units": "u",
+          "decimals": 1,
+          "value": 337.6
+        },
+        "measure_power.solar": {
+          "id": "measure_power.solar",
+          "title": "Zonvermogen (DC)",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "units": "W",
+          "decimals": 2,
+          "value": 0
+        },
+        "measure_current": {
+          "id": "measure_current",
+          "title": "Stroom",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "units": "A",
+          "decimals": 2,
+          "value": null
+        },
+        "measure_power.dc_system": {
+          "id": "measure_power.dc_system",
+          "title": "DC-systeemvermogen",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "units": "W",
+          "decimals": 2,
+          "value": 0
+        },
+        "measure_voltage": {
+          "id": "measure_voltage",
+          "title": "Voltage",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "units": "V",
+          "decimals": 2,
+          "value": 13.53
+        },
+        "engine_hours.grid": {
+          "id": "engine_hours.grid",
+          "title": "Tijd op netstroom",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "units": "u",
+          "decimals": 1,
+          "value": 419.7
+        },
+        "consumed_ah": {
+          "id": "consumed_ah",
+          "title": "Verbruikt",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "units": "Ah",
+          "decimals": 1,
+          "value": null
+        },
+        "onoff": {
+          "id": "onoff",
+          "title": "Relais 1",
+          "type": "boolean",
+          "getable": true,
+          "setable": true,
+          "value": false
+        },
+        "time_to_go": {
+          "id": "time_to_go",
+          "title": "Resterende tijd",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "units": "min",
+          "decimals": 0,
+          "value": null
+        }
+      }
+    },
+    "device-24": {
+      "id": "device-24",
+      "name": "Sensor 7",
+      "zone": "zone-5",
+      "class": "sensor",
+      "virtualClass": null,
+      "available": true,
+      "capabilities": [
+        "tank_level",
+        "fluid_type",
+        "alarm_tank_missing",
+        "victron_error",
+        "measure_content_volume",
+        "tank_capacity"
+      ],
+      "energyObj": {
+        "W": 0,
+        "batteries": null,
+        "cumulative": null,
+        "cumulativeImportedCapability": null,
+        "cumulativeExportedCapability": null,
+        "homeBattery": null,
+        "homeBatteryVirtual": null,
+        "electricCar": null,
+        "evCharger": null,
+        "evChargerVirtual": null,
+        "meterPowerImportedCapability": null,
+        "meterPowerExportedCapability": null,
+        "generator": null,
+        "approximated": null,
+        "approximation": null
+      },
+      "driverId": "homey:app:app-3:tank",
+      "unavailableMessage": null,
+      "capabilitiesObj": {
+        "tank_level": {
+          "id": "tank_level",
+          "title": "Niveau",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "units": "%",
+          "min": 0,
+          "max": 100,
+          "decimals": 0,
+          "value": 13
+        },
+        "fluid_type": {
+          "id": "fluid_type",
+          "title": "Vloeistoftype",
+          "type": "enum",
+          "getable": true,
+          "setable": false,
+          "values": [
+            {
+              "id": "fuel",
+              "title": "Brandstof"
+            },
+            {
+              "id": "fresh_water",
+              "title": "Schoon water"
+            },
+            {
+              "id": "waste_water",
+              "title": "Grijs water"
+            },
+            {
+              "id": "live_well",
+              "title": "Visbun"
+            },
+            {
+              "id": "oil",
+              "title": "Olie"
+            },
+            {
+              "id": "black_water",
+              "title": "Zwart water"
+            },
+            {
+              "id": "gasoline",
+              "title": "Benzine"
+            },
+            {
+              "id": "diesel",
+              "title": "Diesel"
+            },
+            {
+              "id": "lpg",
+              "title": "LPG"
+            },
+            {
+              "id": "lng",
+              "title": "LNG"
+            },
+            {
+              "id": "hydraulic_oil",
+              "title": "Hydraulische olie"
+            },
+            {
+              "id": "raw_water",
+              "title": "Ruw water"
+            },
+            {
+              "id": "other",
+              "title": "Overig"
+            }
+          ],
+          "value": "fresh_water"
+        },
+        "alarm_tank_missing": {
+          "id": "alarm_tank_missing",
+          "title": "Waarschuwing voor ontbrekende tank",
+          "type": "boolean",
+          "getable": true,
+          "setable": false,
+          "value": false
+        },
+        "victron_error": {
+          "id": "victron_error",
+          "title": "Fout",
+          "type": "string",
+          "getable": true,
+          "setable": false,
+          "value": "voorbeeld"
+        },
+        "measure_content_volume": {
+          "id": "measure_content_volume",
+          "title": "Volume",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "units": "L",
+          "decimals": 2,
+          "value": 15.7
+        },
+        "tank_capacity": {
+          "id": "tank_capacity",
+          "title": "Inhoud",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "units": "L",
+          "decimals": 1,
+          "value": 120
+        }
+      }
+    },
+    "device-25": {
+      "id": "device-25",
+      "name": "Apparaat 2",
+      "zone": "zone-5",
+      "class": "other",
+      "virtualClass": null,
+      "available": true,
+      "capabilities": [
+        "victron_mode",
+        "victron_state",
+        "measure_power",
+        "battery_soc",
+        "alarm_generic",
+        "measure_frequency.in",
+        "alarm_battery",
+        "measure_power.ac_in",
+        "alarm_power.mains",
+        "measure_current.out_l1",
+        "measure_power.out_l1",
+        "measure_current.limit",
+        "measure_power.in_l1",
+        "measure_power.dc",
+        "measure_voltage.in_l1",
+        "measure_voltage",
+        "measure_temperature",
+        "measure_current.in_l1",
+        "measure_current",
+        "measure_voltage.out_l1",
+        "measure_frequency.out"
+      ],
+      "energyObj": {
+        "W": 1145,
+        "batteries": null,
+        "cumulative": null,
+        "cumulativeImportedCapability": null,
+        "cumulativeExportedCapability": null,
+        "homeBattery": null,
+        "homeBatteryVirtual": null,
+        "electricCar": null,
+        "evCharger": null,
+        "evChargerVirtual": null,
+        "meterPowerImportedCapability": null,
+        "meterPowerExportedCapability": null,
+        "generator": null,
+        "approximated": null,
+        "approximation": null
+      },
+      "driverId": "homey:app:app-3:vebus",
+      "unavailableMessage": null,
+      "capabilitiesObj": {
+        "victron_mode": {
+          "id": "victron_mode",
+          "title": "Modus",
+          "type": "enum",
+          "getable": true,
+          "setable": true,
+          "values": [
+            {
+              "id": "on",
+              "title": "Aan"
+            },
+            {
+              "id": "off",
+              "title": "Uit"
+            },
+            {
+              "id": "charger_only",
+              "title": "Alleen lader"
+            },
+            {
+              "id": "inverter_only",
+              "title": "Alleen Apparaat 2"
+            },
+            {
+              "id": "eco",
+              "title": "Eco"
+            },
+            {
+              "id": "passthrough",
+              "title": "Doorlussen"
+            },
+            {
+              "id": "standby",
+              "title": "Stand-by"
+            },
+            {
+              "id": "hibernate",
+              "title": "Slaapstand"
+            }
+          ],
+          "value": "charger_only"
+        },
+        "victron_state": {
+          "id": "victron_state",
+          "title": "Status",
+          "type": "enum",
+          "getable": true,
+          "setable": false,
+          "values": [
+            {
+              "id": "off",
+              "title": "Uit"
+            },
+            {
+              "id": "low_power",
+              "title": "Laag vermogen"
+            },
+            {
+              "id": "fault",
+              "title": "Storing"
+            },
+            {
+              "id": "bulk",
+              "title": "Bulk"
+            },
+            {
+              "id": "absorption",
+              "title": "Absorptie"
+            },
+            {
+              "id": "float",
+              "title": "Float"
+            },
+            {
+              "id": "storage",
+              "title": "Opslag"
+            },
+            {
+              "id": "equalize",
+              "title": "Egaliseren"
+            },
+            {
+              "id": "repeated_absorption",
+              "title": "Herhaalde absorptie"
+            },
+            {
+              "id": "auto_equalize",
+              "title": "Automatisch egaliseren"
+            },
+            {
+              "id": "battery_safe",
+              "title": "BatterySafe"
+            },
+            {
+              "id": "passthru",
+              "title": "Doorlussen"
+            },
+            {
+              "id": "inverting",
+              "title": "Omvormen"
+            },
+            {
+              "id": "assisting",
+              "title": "Power assist"
+            },
+            {
+              "id": "power_supply",
+              "title": "Voeding"
+            },
+            {
+              "id": "psu",
+              "title": "PSU-modus"
+            },
+            {
+              "id": "sustain",
+              "title": "Sustain"
+            },
+            {
+              "id": "battery_sustain",
+              "title": "Batterij sustain"
+            },
+            {
+              "id": "discharging",
+              "title": "Ontladen"
+            },
+            {
+              "id": "recharge",
+              "title": "Herladen"
+            },
+            {
+              "id": "scheduled_recharge",
+              "title": "Geplande herlading"
+            },
+            {
+              "id": "wakeup",
+              "title": "Opstarten"
+            },
+            {
+              "id": "blocked",
+              "title": "Geblokkeerd"
+            },
+            {
+              "id": "external",
+              "title": "Externe besturing"
+            },
+            {
+              "id": "standby",
+              "title": "Stand-by"
+            },
+            {
+              "id": "startup",
+              "title": "Starten"
+            },
+            {
+              "id": "running",
+              "title": "Draait"
+            },
+            {
+              "id": "stopping",
+              "title": "Stoppen"
+            },
+            {
+              "id": "error",
+              "title": "Fout"
+            },
+            {
+              "id": "other",
+              "title": "Overig"
+            }
+          ],
+          "value": "storage"
+        },
+        "measure_power": {
+          "id": "measure_power",
+          "title": "Vermogen",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "units": "W",
+          "decimals": 2,
+          "value": 1145
+        },
+        "battery_soc": {
+          "id": "battery_soc",
+          "title": "Laadtoestand",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "units": "%",
+          "min": 0,
+          "max": 100,
+          "decimals": 1,
+          "value": null
+        },
+        "alarm_generic": {
+          "id": "alarm_generic",
+          "title": "Algemeen alarm",
+          "type": "boolean",
+          "getable": true,
+          "setable": false,
+          "value": false
+        },
+        "measure_frequency.in": {
+          "id": "measure_frequency.in",
+          "title": "AC-ingangsfrequentie",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "units": "Hz",
+          "decimals": 2,
+          "value": 50.1
+        },
+        "alarm_battery": {
+          "id": "alarm_battery",
+          "title": "Batterij-alarm",
+          "type": "boolean",
+          "getable": true,
+          "setable": false,
+          "value": false
+        },
+        "measure_power.ac_in": {
+          "id": "measure_power.ac_in",
+          "title": "AC-ingangsvermogen",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "units": "W",
+          "decimals": 2,
+          "value": 1201
+        },
+        "alarm_power.mains": {
+          "id": "alarm_power.mains",
+          "title": "Geen AC-ingang",
+          "type": "boolean",
+          "getable": true,
+          "setable": false,
+          "value": false
+        },
+        "measure_current.out_l1": {
+          "id": "measure_current.out_l1",
+          "title": "AC-uit stroom L1",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "units": "A",
+          "decimals": 2,
+          "value": 4.8
+        },
+        "measure_power.out_l1": {
+          "id": "measure_power.out_l1",
+          "title": "AC-uit vermogen L1",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "units": "W",
+          "decimals": 2,
+          "value": 1145
+        },
+        "measure_current.limit": {
+          "id": "measure_current.limit",
+          "title": "AC-ingangsstroomlimiet",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "units": "A",
+          "decimals": 2,
+          "value": 16
+        },
+        "measure_power.in_l1": {
+          "id": "measure_power.in_l1",
+          "title": "AC-in vermogen L1",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "units": "W",
+          "decimals": 2,
+          "value": 1201
+        },
+        "measure_power.dc": {
+          "id": "measure_power.dc",
+          "title": "DC-vermogen",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "units": "W",
+          "decimals": 2,
+          "value": 56
+        },
+        "measure_voltage.in_l1": {
+          "id": "measure_voltage.in_l1",
+          "title": "AC-in spanning L1",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "units": "V",
+          "decimals": 2,
+          "value": 232.3
+        },
+        "measure_voltage": {
+          "id": "measure_voltage",
+          "title": "Voltage",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "units": "V",
+          "decimals": 2,
+          "value": 13.53
+        },
+        "measure_temperature": {
+          "id": "measure_temperature",
+          "title": "Temperatuur",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "units": "°C",
+          "decimals": 1,
+          "value": 6
+        },
+        "measure_current.in_l1": {
+          "id": "measure_current.in_l1",
+          "title": "AC-in stroom L1",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "units": "A",
+          "decimals": 2,
+          "value": 5.2
+        },
+        "measure_current": {
+          "id": "measure_current",
+          "title": "Stroom",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "units": "A",
+          "decimals": 2,
+          "value": 3.4
+        },
+        "measure_voltage.out_l1": {
+          "id": "measure_voltage.out_l1",
+          "title": "AC-uit spanning L1",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "units": "V",
+          "decimals": 2,
+          "value": 232.3
+        },
+        "measure_frequency.out": {
+          "id": "measure_frequency.out",
+          "title": "AC-uitgangsfrequentie",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "units": "Hz",
+          "decimals": 2,
+          "value": 49.9
+        }
+      }
+    },
+    "device-26": {
+      "id": "device-26",
+      "name": "Lamp 7",
+      "zone": "zone-2",
+      "class": "light",
+      "virtualClass": null,
+      "available": true,
+      "capabilities": [
+        "onoff",
+        "dim",
+        "dim.white",
+        "light_hue",
+        "light_saturation",
+        "measure_power",
+        "meter_power",
+        "measure_voltage",
+        "measure_current",
+        "onoff.whitemode",
+        "measure_temperature",
+        "rssi",
+        "button.enable_ble_script",
+        "button.disable_ble_script",
+        "actionEvents",
+        "deviceGen2",
+        "multiInputs"
+      ],
+      "energyObj": {
+        "W": 0.3,
+        "batteries": null,
+        "cumulative": null,
+        "cumulativeImportedCapability": null,
+        "cumulativeExportedCapability": null,
+        "homeBattery": null,
+        "homeBatteryVirtual": null,
+        "electricCar": null,
+        "evCharger": null,
+        "evChargerVirtual": null,
+        "meterPowerImportedCapability": null,
+        "meterPowerExportedCapability": null,
+        "generator": null,
+        "approximated": null,
+        "approximation": null
+      },
+      "driverId": "homey:app:app-1:shelly",
+      "unavailableMessage": null,
+      "capabilitiesObj": {
+        "onoff": {
+          "id": "onoff",
+          "title": "Aangezet",
+          "type": "boolean",
+          "getable": true,
+          "setable": true,
+          "value": true
+        },
+        "dim": {
+          "id": "dim",
+          "title": "Dim niveau",
+          "type": "number",
+          "getable": true,
+          "setable": true,
+          "units": "%",
+          "min": 0,
+          "max": 1,
+          "decimals": 2,
+          "value": 0.03
+        },
+        "dim.white": {
+          "id": "dim.white",
+          "title": "Dim niveau wit",
+          "type": "number",
+          "getable": true,
+          "setable": true,
+          "units": "%",
+          "min": 0,
+          "max": 1,
+          "decimals": 2,
+          "value": 0.01
+        },
+        "light_hue": {
+          "id": "light_hue",
+          "title": "Tint",
+          "type": "number",
+          "getable": true,
+          "setable": true,
+          "units": null,
+          "min": 0,
+          "max": 1,
+          "decimals": 2,
+          "value": 0.5
+        },
+        "light_saturation": {
+          "id": "light_saturation",
+          "title": "Kleurverzadiging",
+          "type": "number",
+          "getable": true,
+          "setable": true,
+          "units": null,
+          "min": 0,
+          "max": 1,
+          "decimals": 2,
+          "value": 0.13
+        },
+        "measure_power": {
+          "id": "measure_power",
+          "title": "Vermogen",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "units": "W",
+          "decimals": 2,
+          "value": 0.3
+        },
+        "meter_power": {
+          "id": "meter_power",
+          "title": "Energie",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "units": "kWh",
+          "decimals": 3,
+          "value": 1.525
+        },
+        "measure_voltage": {
+          "id": "measure_voltage",
+          "title": "Voltage",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "units": "V",
+          "decimals": 2,
+          "value": 13.9
+        },
+        "measure_current": {
+          "id": "measure_current",
+          "title": "Stroom",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "units": "A",
+          "decimals": 2,
+          "value": 0.02
+        },
+        "onoff.whitemode": {
+          "id": "onoff.whitemode",
+          "title": "Wit modus schakelen",
+          "type": "boolean",
+          "getable": true,
+          "setable": true,
+          "value": false
+        },
+        "measure_temperature": {
+          "id": "measure_temperature",
+          "title": "Apparaattemperatuur",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "units": "°C",
+          "decimals": 1,
+          "value": 45.9
+        },
+        "rssi": {
+          "id": "rssi",
+          "title": "Signaal",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "units": "RSSI",
+          "value": -49
+        },
+        "button.enable_ble_script": {
+          "id": "button.enable_ble_script",
+          "title": "Start BLE Proxy",
+          "type": "boolean",
+          "getable": false,
+          "setable": true,
+          "value": null
+        },
+        "button.disable_ble_script": {
+          "id": "button.disable_ble_script",
+          "title": "Stop BLE Proxy",
+          "type": "boolean",
+          "getable": false,
+          "setable": true,
+          "value": null
+        },
+        "actionEvents": {
+          "id": "actionEvents",
+          "title": "Action Events",
+          "type": "string",
+          "getable": false,
+          "setable": false,
+          "value": null
+        },
+        "deviceGen2": {
+          "id": "deviceGen2",
+          "title": "Device Generation 2",
+          "type": "string",
+          "getable": false,
+          "setable": false,
+          "value": null
+        },
+        "multiInputs": {
+          "id": "multiInputs",
+          "title": "Multi Inputs",
+          "type": "string",
+          "getable": false,
+          "setable": false,
+          "value": null
+        }
+      }
+    },
+    "device-27": {
+      "id": "device-27",
+      "name": "Lamp 8",
+      "zone": "zone-6",
+      "class": "light",
+      "virtualClass": null,
+      "available": true,
+      "capabilities": [
+        "onoff",
+        "dim",
+        "dim.white",
+        "light_hue",
+        "light_saturation",
+        "measure_power",
+        "meter_power",
+        "measure_voltage",
+        "measure_current",
+        "onoff.whitemode",
+        "measure_temperature",
+        "rssi",
+        "button.enable_ble_script",
+        "button.disable_ble_script",
+        "actionEvents",
+        "deviceGen2",
+        "multiInputs"
+      ],
+      "energyObj": {
+        "W": 1.3,
+        "batteries": null,
+        "cumulative": null,
+        "cumulativeImportedCapability": null,
+        "cumulativeExportedCapability": null,
+        "homeBattery": null,
+        "homeBatteryVirtual": null,
+        "electricCar": null,
+        "evCharger": null,
+        "evChargerVirtual": null,
+        "meterPowerImportedCapability": null,
+        "meterPowerExportedCapability": null,
+        "generator": null,
+        "approximated": null,
+        "approximation": null
+      },
+      "driverId": "homey:app:app-1:shelly",
+      "unavailableMessage": null,
+      "capabilitiesObj": {
+        "onoff": {
+          "id": "onoff",
+          "title": "Aangezet",
+          "type": "boolean",
+          "getable": true,
+          "setable": true,
+          "value": true
+        },
+        "dim": {
+          "id": "dim",
+          "title": "Dim niveau",
+          "type": "number",
+          "getable": true,
+          "setable": true,
+          "units": "%",
+          "min": 0,
+          "max": 1,
+          "decimals": 2,
+          "value": 0.04
+        },
+        "dim.white": {
+          "id": "dim.white",
+          "title": "Dim niveau wit",
+          "type": "number",
+          "getable": true,
+          "setable": true,
+          "units": "%",
+          "min": 0,
+          "max": 1,
+          "decimals": 2,
+          "value": 0
+        },
+        "light_hue": {
+          "id": "light_hue",
+          "title": "Tint",
+          "type": "number",
+          "getable": true,
+          "setable": true,
+          "units": null,
+          "min": 0,
+          "max": 1,
+          "decimals": 2,
+          "value": 0.15
+        },
+        "light_saturation": {
+          "id": "light_saturation",
+          "title": "Kleurverzadiging",
+          "type": "number",
+          "getable": true,
+          "setable": true,
+          "units": null,
+          "min": 0,
+          "max": 1,
+          "decimals": 2,
+          "value": 0.16
+        },
+        "measure_power": {
+          "id": "measure_power",
+          "title": "Vermogen",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "units": "W",
+          "decimals": 2,
+          "value": 1.3
+        },
+        "meter_power": {
+          "id": "meter_power",
+          "title": "Energie",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "units": "kWh",
+          "decimals": 3,
+          "value": 0.477
+        },
+        "measure_voltage": {
+          "id": "measure_voltage",
+          "title": "Voltage",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "units": "V",
+          "decimals": 2,
+          "value": 13.7
+        },
+        "measure_current": {
+          "id": "measure_current",
+          "title": "Stroom",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "units": "A",
+          "decimals": 2,
+          "value": 0.1
+        },
+        "onoff.whitemode": {
+          "id": "onoff.whitemode",
+          "title": "Wit modus schakelen",
+          "type": "boolean",
+          "getable": true,
+          "setable": true,
+          "value": false
+        },
+        "measure_temperature": {
+          "id": "measure_temperature",
+          "title": "Apparaattemperatuur",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "units": "°C",
+          "decimals": 1,
+          "value": 48.9
+        },
+        "rssi": {
+          "id": "rssi",
+          "title": "Signaal",
+          "type": "number",
+          "getable": true,
+          "setable": false,
+          "units": "RSSI",
+          "value": -70
+        },
+        "button.enable_ble_script": {
+          "id": "button.enable_ble_script",
+          "title": "Start BLE Proxy",
+          "type": "boolean",
+          "getable": false,
+          "setable": true,
+          "value": null
+        },
+        "button.disable_ble_script": {
+          "id": "button.disable_ble_script",
+          "title": "Stop BLE Proxy",
+          "type": "boolean",
+          "getable": false,
+          "setable": true,
+          "value": null
+        },
+        "actionEvents": {
+          "id": "actionEvents",
+          "title": "Action Events",
+          "type": "string",
+          "getable": false,
+          "setable": false,
+          "value": null
+        },
+        "deviceGen2": {
+          "id": "deviceGen2",
+          "title": "Device Generation 2",
+          "type": "string",
+          "getable": false,
+          "setable": false,
+          "value": null
+        },
+        "multiInputs": {
+          "id": "multiInputs",
+          "title": "Multi Inputs",
+          "type": "string",
+          "getable": false,
+          "setable": false,
+          "value": null
+        }
+      }
+    }
+  },
+  "zones": {
+    "zone-1": {
+      "id": "zone-1",
+      "name": "Zone 1",
+      "parent": "zone-3"
+    },
+    "zone-2": {
+      "id": "zone-2",
+      "name": "Zone 2",
+      "parent": "zone-3"
+    },
+    "zone-3": {
+      "id": "zone-3",
+      "name": "Zone 3",
+      "parent": null
+    },
+    "zone-4": {
+      "id": "zone-4",
+      "name": "Zone 4",
+      "parent": "zone-5"
+    },
+    "zone-5": {
+      "id": "zone-5",
+      "name": "Zone 5",
+      "parent": "zone-3"
+    },
+    "zone-6": {
+      "id": "zone-6",
+      "name": "Zone 6",
+      "parent": "zone-3"
+    }
+  },
+  "flows": {
+    "flow-1": {
+      "id": "flow-1",
+      "name": "Flow 1",
+      "enabled": true,
+      "triggerable": true
+    },
+    "flow-2": {
+      "id": "flow-2",
+      "name": "Flow 2",
+      "enabled": true,
+      "triggerable": true
+    }
+  },
+  "advancedFlows": {
+    "advanced-1": {
+      "id": "advanced-1",
+      "name": "Advanced Flow 1",
+      "enabled": true,
+      "triggerable": false
+    },
+    "advanced-2": {
+      "id": "advanced-2",
+      "name": "Advanced Flow 2",
+      "enabled": true,
+      "triggerable": false
+    },
+    "advanced-3": {
+      "id": "advanced-3",
+      "name": "Advanced Flow 3",
+      "enabled": true,
+      "triggerable": false
+    },
+    "advanced-4": {
+      "id": "advanced-4",
+      "name": "Advanced Flow 4",
+      "enabled": true,
+      "triggerable": false
+    }
+  }
+}

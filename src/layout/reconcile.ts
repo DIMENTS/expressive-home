@@ -1,5 +1,5 @@
 import { sectionFor } from '../dashboard/classify';
-import type { SectionKind } from '../dashboard/types';
+import { isDeviceTile, type SectionKind } from '../dashboard/types';
 import { offeredFlows } from '../homey/flows';
 import { missingFeatures } from '../homey/permissions';
 import type { HomeySnapshot } from '../homey/types';
@@ -31,14 +31,14 @@ const tilesOf = (dashboard: DashboardLayout): TileLayout[] => (dashboard.section
 
 /** A stored tile after its device changed; a tile whose device or value is gone stays as it is. */
 function adaptedTile(tile: TileLayout, tiles: readonly TileLayout[], snapshot: HomeySnapshot): TileLayout {
-  if (tile.spec.kind === 'flow' || waitsForValue(tile, tiles, snapshot.devices)) return tile;
+  if (!isDeviceTile(tile.spec) || waitsForValue(tile, tiles, snapshot.devices)) return tile;
   const spec = followDevice(tile, snapshot.devices[tile.spec.deviceId]);
   return spec === null || spec === tile.spec ? tile : { ...tile, spec, size: fitSize(spec.kind, tile.size) };
 }
 
 /** The value of a tile made from one value, when its device is there but the value is not. */
 function goneValue(tile: TileLayout, snapshot: HomeySnapshot): string | null {
-  if (tile.source !== 'value' || tile.spec.kind === 'flow') return null;
+  if (tile.source !== 'value' || !isDeviceTile(tile.spec)) return null;
   const device = snapshot.devices[tile.spec.deviceId];
   const capability = valueCapability(tile);
   return device && capability !== null && !Object.hasOwn(device.capabilities, capability) ? valueRef(device.id, capability) : null;
@@ -52,6 +52,8 @@ function findGone(layout: HubLayout, snapshot: HomeySnapshot, hub: HubView, name
   };
   for (const dashboard of layout.dashboards) {
     for (const tile of tilesOf(dashboard)) {
+      // a widget stands on nothing of the hub, so nothing of it can go
+      if (tile.spec.kind === 'widget') continue;
       const [base = ''] = tileRefs(tile);
       const value = goneValue(tile, snapshot);
       if (hub.isGone(base)) add(base, dashboard.id, names[base] ?? '');
@@ -87,9 +89,10 @@ function currentNames(layout: HubLayout, snapshot: HomeySnapshot, hub: HubView):
   const names = new Map<string, string | undefined>();
   for (const dashboard of layout.dashboards) {
     for (const tile of tilesOf(dashboard)) {
+      if (tile.spec.kind === 'widget') continue;
       const [base = '', value] = tileRefs(tile);
       names.set(base, hub.nameOf(base));
-      if (value !== undefined && tile.spec.kind !== 'flow') names.set(value, snapshot.devices[tile.spec.deviceId]?.capabilities[valueCapability(tile) ?? '']?.title);
+      if (value !== undefined && isDeviceTile(tile.spec)) names.set(value, snapshot.devices[tile.spec.deviceId]?.capabilities[valueCapability(tile) ?? '']?.title);
     }
     for (const { hero } of dashboard.sections ?? []) if (hero) for (const ref of heroRefs(hero)) names.set(ref.deviceId, hub.nameOf(ref.deviceId));
   }

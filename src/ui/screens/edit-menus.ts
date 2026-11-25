@@ -72,7 +72,7 @@ export function moveToGroups(sections: Section[], currentId: string, name: strin
 }
 
 /** What the menu of a dashboard asks for; the app does it. */
-export type BoardAction = 'rename' | 'up' | 'down' | 'remove' | 'reset';
+export type BoardAction = 'rename' | 'look' | 'up' | 'down' | 'remove' | 'reset';
 
 /**
  * The menu of a dashboard in the edit bar: name and icon, its place in the rail, and removing it. The
@@ -83,6 +83,7 @@ export function boardMenuGroups(name: string, place: { index: number; count: num
     {
       kind: 'items', id: 'board', title: name, items: [
         { id: 'rename', label: t('board.menu.rename'), checked: null, icon: 'edit' },
+        { id: 'look', label: t('board.menu.look'), checked: null, icon: 'palette' },
         { id: 'up', label: t('board.menu.up'), checked: null, icon: 'arrow_upward', disabled: place.index <= 0 },
         { id: 'down', label: t('board.menu.down'), checked: null, icon: 'arrow_downward', disabled: place.index >= place.count - 1 },
       ],

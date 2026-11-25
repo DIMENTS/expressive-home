@@ -55,6 +55,16 @@ test('a sensor with two values lets you choose the big one', async () => {
   expect(p.patches).toEqual([{ patch: { spec: { ...tileOf(climate).spec, capabilityId: 'measure_humidity' } } }]);
 });
 
+test('a sensor tile can have its history behind the value, narrow or wide', async () => {
+  const narrow = await panel(climate);
+  expect(narrow.titles()).toContain('Verloop');
+  const p = await panel(climate, tileOf(climate, { size: 'wide' }));
+  const toggle = p.group('Verloop')!.querySelector('mh-switch') as HTMLElement & { checked: boolean; label: string };
+  expect([toggle.label, toggle.checked]).toEqual(['Verloop achter de waarde', false]);
+  toggle.dispatchEvent(new CustomEvent('change', { detail: { checked: true }, bubbles: true, composed: true }));
+  expect(p.patches).toEqual([{ patch: { spec: { ...tileOf(climate).spec, trend: true } } }]);
+});
+
 test('a switch can show another side value, or none', async () => {
   const p = await panel(plug);
   expect(p.options('Bijwaarde').options.map((o) => o.label)).toEqual(['measure_power · 45', 'Geen']);

@@ -1,7 +1,7 @@
 import { expect, test } from 'vitest';
 import type { HeroSpec } from '../../../src/dashboard/types';
 import type { Device } from '../../../src/homey/types';
-import { t } from '../../../src/i18n';
+import { createTranslate, t } from '../../../src/i18n';
 import { hasLongWord, heroView, isWords } from '../../../src/ui/model/hero-view';
 import { cap, device } from '../../helpers/build';
 
@@ -26,7 +26,7 @@ test('the battery hero', () => {
   expect(view.stats).toEqual([
     { role: 'solar', icon: 'solar_power', value: '412 W', label: 'Zon', deviceId: 'z' },
     { role: 'consumption', icon: 'bolt', value: '186 W', label: 'Verbruik', deviceId: 'v' },
-    { role: 'shore', icon: 'power', value: 'Niet aangesloten', label: 'Walstroom', deviceId: 'v' },
+    { role: 'shore', icon: 'power', value: 'Off-grid', label: 'Walstroom', deviceId: 'v' },
     { role: 'net', icon: 'trending_up', value: '+226 W', label: 'Netto laden', deviceId: null },
   ]);
 });
@@ -71,4 +71,22 @@ test('a label with a long word needs more room than one with short ones', () => 
   for (const long of ['Consumption', 'Net discharging', 'Netto ontladen en opladen-tegelijk']) expect([long, hasLongWord(long)]).toEqual([long, true]);
   expect([hasLongWord('Walstroom', 9), hasLongWord('Verbruik', 9)]).toEqual([true, false]);
   for (const short of ['Verbruik', 'Walstroom', 'Netto ontladen', 'Solar', '']) expect([short, hasLongWord(short)]).toEqual([short, false]);
+});
+
+test('without power from outside the shore power says off-grid, or inverting when the inverter really inverts', () => {
+  const options = [{ id: 'none', title: 'Niet aangesloten' }, { id: 'grid', title: 'Net' }, { id: 'inverting', title: 'Omvormen (eiland)' }];
+  const states = [{ id: 'off', title: 'Uit' }, { id: 'inverting', title: 'Omvormen' }, { id: 'bulk', title: 'Bulk' }];
+  const system = (source: string, state: string | null) => device({ id: 'v', name: 'Victron-systeem', caps: [
+    cap('battery_soc', { units: '%', value: 80 }), cap('measure_power', { units: 'W', value: 100 }),
+    cap('ac_input_source', { type: 'enum', value: source, options }),
+    ...(state === null ? [] : [cap('victron_state', { type: 'enum', value: state, options: states })]),
+  ] });
+  const shore = (source: string, state: string | null) => heroView(batteryHero, lookup(system(source, state), panel(0)), t).stats.find((s) => s.role === 'shore')!.value;
+  expect(shore('inverting', 'off')).toBe('Off-grid');
+  expect(shore('none', null)).toBe('Off-grid');
+  expect(shore('inverting', 'inverting')).toBe('Omvormen');
+  expect(shore('none', 'inverting')).toBe('Omvormen');
+  expect(shore('grid', 'bulk')).toBe('Net');
+  expect(heroView(batteryHero, lookup(system('inverting', 'off'), panel(0)), createTranslate('en')).stats.find((s) => s.role === 'shore')!.value).toBe('Off-grid');
+  expect(heroView(batteryHero, lookup(system('inverting', 'inverting'), panel(0)), createTranslate('en')).stats.find((s) => s.role === 'shore')!.value).toBe('Inverting');
 });

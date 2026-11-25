@@ -1,6 +1,7 @@
 import { defineConfig, type Plugin } from 'vite';
 import { appManifest } from './tools/app-manifest.mjs';
 import { contentSecurityPolicy } from './tools/csp.mjs';
+import { widgetFrame } from './tools/widget-frame.mjs';
 import packageJson from './package.json' with { type: 'json' };
 
 /** The page without Athom's library, and with a policy that only allows its own address. */
@@ -21,7 +22,7 @@ function servedPage(): Plugin {
 export default defineConfig({
   base: './',
   publicDir: false,
-  plugins: [servedPage(), appManifest()],
+  plugins: [servedPage(), appManifest(), widgetFrame()],
   define: { __APP_VERSION__: JSON.stringify(packageJson.version), __SERVED_BY_HOMEY__: 'true' },
   build: { outDir: 'homey-app/public', emptyOutDir: true, assetsInlineLimit: 0, rollupOptions: { input: { main: 'index.html' } } },
 });

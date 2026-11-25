@@ -38,7 +38,7 @@ test('a device view groups controls, values and technical details in the order o
   ] });
   const view = deviceView(lamp, { z1: { id: 'z1', name: 'Woonkamer', parentId: null } }, t);
   expect(view.controls.map((c) => c.kind)).toEqual(['switch', 'slider', 'slider']);
-  expect(view.values).toEqual([{ label: 'Vermogen', text: '6,2 W', danger: false }]);
+  expect(view.values).toEqual([{ capabilityId: 'measure_power', label: 'Vermogen', text: '6,2 W', danger: false }]);
   expect(view.technical).toEqual([{ label: 'Signaalsterkte', text: '-61 dBm' }]);
   expect(view).toMatchObject({ name: 'Plafond', zoneName: 'Woonkamer', on: true, unavailable: null, icon: 'lightbulb' });
 });
@@ -52,7 +52,7 @@ test('an active danger alarm is marked and a status flag is not', () => {
   const victron = device({ id: 'v', caps: [
     cap('alarm_generic', { type: 'boolean', title: 'Algemeen alarm', value: true }), cap('alarm_power.mains', { type: 'boolean', title: 'Geen AC-ingang', value: true }),
   ] });
-  expect(deviceView(victron, {}, t).values).toEqual([
+  expect(deviceView(victron, {}, t).values.map(({ capabilityId: _id, ...rest }) => rest)).toEqual([
     { label: 'Algemeen alarm', text: 'Ja', danger: true }, { label: 'Geen AC-ingang', text: 'Ja', danger: false },
   ]);
 });

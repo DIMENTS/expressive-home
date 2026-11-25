@@ -1,6 +1,7 @@
 import { LitElement, css, html, type PropertyValues } from 'lit';
 import type { Mode } from '../../theme/types';
-import { applySectionTheme } from '../apply-theme';
+import { RUSTIG_STYLE, applySectionTheme } from '../apply-theme';
+import type { Style } from '../../theme/styles';
 import type { IconName } from '../icons/icons';
 import type { DimBox } from '../model/dim-math';
 import { pixels } from '../pixels';
@@ -24,6 +25,7 @@ export class MhDimmer extends LitElement {
     icon: { type: String },
     seed: { attribute: false },
     mode: { type: String },
+    look: { attribute: false },
     closing: { type: Boolean, reflect: true },
   };
 
@@ -38,6 +40,7 @@ export class MhDimmer extends LitElement {
   /** The own colour of the section of the tile, or null for that of the dashboard. */
   declare seed: string | null;
   declare mode: Mode;
+  declare look: Style;
   /** The finger was lifted: it shrinks back to the tile. */
   declare closing: boolean;
 
@@ -51,6 +54,7 @@ export class MhDimmer extends LitElement {
     this.icon = 'lightbulb';
     this.seed = null;
     this.mode = 'light';
+    this.look = RUSTIG_STYLE;
     this.closing = false;
   }
 
@@ -86,7 +90,7 @@ export class MhDimmer extends LitElement {
   `];
 
   protected override updated(changed: PropertyValues<this>): void {
-    if (changed.has('seed') || changed.has('mode')) applySectionTheme(this, this.seed, this.mode);
+    if (changed.has('seed') || changed.has('mode') || changed.has('look')) applySectionTheme(this, this.seed, this.mode, this.look);
     const element = this.shadowRoot?.querySelector<HTMLElement>('.dimmer');
     if (!element) return;
     const { box, from } = this;

@@ -1,5 +1,5 @@
 import { tilesFor } from '../../dashboard/classify';
-import type { HeroSpec, TileSpec } from '../../dashboard/types';
+import { isDeviceTile, type HeroSpec, type TileSpec } from '../../dashboard/types';
 import { isButton } from '../../homey/buttons';
 import { offeredFlows } from '../../homey/flows';
 import type { Capability, Device, HomeySnapshot, Zone } from '../../homey/types';
@@ -67,7 +67,7 @@ export function deviceList(snapshot: HomeySnapshot, board: BoardView, query: str
     .sort((a, b) => a.name.localeCompare(b.name, t.locale))
     .map((device) => ({
       id: device.id, name: device.name.trim() || t('tile.unnamed'), icon: iconFor(tilesFor(device)[0]!, device), zoneName, inHero: heroes.has(device.id),
-      where: sectionsWith(board, (spec) => spec.kind !== 'flow' && spec.deviceId === device.id, t), values: valuesOf(device, t),
+      where: sectionsWith(board, (spec) => isDeviceTile(spec) && spec.deviceId === device.id, t), values: valuesOf(device, t),
     }));
   return [
     ...zonesInOrder(snapshot.zones, t.locale).map((zone): ZoneGroup => ({ zoneId: zone.id, name: zone.name, devices: rows(zone.id, zone.name) })),

@@ -9,6 +9,10 @@ import { createNight } from '../../src/home-server/night';
 import { createPairing } from '../../src/home-server/pairing';
 import { createHomeServer, filePath, isLocalAddress, isLocalHost } from '../../src/home-server/server';
 import { createSharedLayouts } from '../../src/home-server/shared-layouts';
+import { createSharedLooks } from '../../src/home-server/shared-looks';
+import { createSharedWidgets } from '../../src/home-server/shared-widgets';
+import { createAppWidgets } from '../../src/home-server/app-widgets';
+import type { HomeServerDeps } from '../../src/home-server/server';
 import { hubLayout, overview, ownSection } from '../helpers/layout';
 import { camperSnapshot, fakeHub, HOMEY_ID } from '../helpers/fake-hub';
 
@@ -17,12 +21,15 @@ afterEach(async () => { for (const server of open.splice(0)) await server.close(
 
 const settle = () => new Promise((done) => { setTimeout(done, 5); });
 
-async function setup(scopes?: string[]) {
+async function setup(scopes?: string[] | Partial<HomeServerDeps>, more: Partial<HomeServerDeps> = {}) {
+  if (scopes !== undefined && !Array.isArray(scopes)) return setup(undefined, scopes);
   const hub = fakeHub(scopes ? { ...camperSnapshot(), scopes } : undefined);
   const clock = { now: 0 };
   const link = createHubLink({ createClient: async () => hub, setTimeout: (fn, ms) => setTimeout(fn, ms), clearTimeout: (h) => clearTimeout(h as ReturnType<typeof setTimeout>), now: () => clock.now });
   const pairing = createPairing({ load: () => [], save: () => {}, now: () => Date.now(), token: () => randomBytes(32).toString('base64url'), code: () => '123456', fingerprint: (t) => createHash('sha256').update(t).digest('hex') });
   const layouts = createSharedLayouts({ load: () => undefined, save: () => {} });
+  const looks = createSharedLooks({ load: () => undefined, save: () => {} });
+  const widgets = createSharedWidgets({ load: () => undefined, save: () => {} });
   const nightClock = { now: 0 };
   const night = createNight({ load: () => undefined, save: () => {}, now: () => nightClock.now });
   const asked: string[] = [];
@@ -42,8 +49,9 @@ async function setup(scopes?: string[]) {
   });
   let ping: () => void = () => {};
   const server = createHomeServer({
-    log: (line) => said.push(line), pairing, layouts, night, flowKey, buttons, build: () => 'abc', hub: link, homeyId: () => HOMEY_ID, setInterval: (fn) => { ping = fn; return 0; }, clearInterval: () => {},
-    file: async (path) => (path === '/index.html' ? { body: new TextEncoder().encode('<mh-app></mh-app>'), type: 'text/html; charset=utf-8' } : null),
+    ...more,
+    log: (line) => said.push(line), pairing, layouts, looks, widgets, night, flowKey, buttons, build: () => 'abc', hub: link, homeyId: () => HOMEY_ID, setInterval: (fn) => { ping = fn; return 0; }, clearInterval: () => {},
+    file: async (path) => (path === '/index.html' || path === '/widget-frame.html' ? { body: new TextEncoder().encode('<mh-app></mh-app>'), type: 'text/html; charset=utf-8' } : null),
   });
   open.push(server);
   await new Promise<void>((done) => { server.server.listen(0, '127.0.0.1', () => done()); });
@@ -90,7 +98,7 @@ async function setup(scopes?: string[]) {
     await settle();
     return { events, ended: () => ended, response };
   }
-  return { card, said, flowKey, asked, hubSays, night, nightClock, hub, link, pairing, layouts, server, port, clock, call, paired, listen, ping: () => ping(), host };
+  return { card, said, flowKey, asked, hubSays, night, nightClock, hub, link, pairing, layouts, looks, widgets, server, port, clock, call, paired, listen, ping: () => ping(), host };
 }
 
 test('the dashboard itself is for everyone, the rest only for paired devices', async () => {
@@ -99,7 +107,7 @@ test('the dashboard itself is for everyone, the rest only for paired devices', a
   expect([page.status, page.headers['content-type'], page.body]).toEqual([200, 'text/html; charset=utf-8', '<mh-app></mh-app>']);
   expect(page.headers['x-frame-options']).toBe('DENY');
   expect((await s.call('GET', '/api/session')).body).toEqual({ paired: false });
-  for (const [method, path] of [['GET', '/api/snapshot'], ['GET', '/api/events'], ['GET', '/api/layouts'], ['PUT', '/api/layouts'], ['POST', '/api/control'], ['POST', '/api/flow'], ['POST', '/api/unpair']] as const) {
+  for (const [method, path] of [['GET', '/api/snapshot'], ['GET', '/api/events'], ['GET', '/api/layouts'], ['PUT', '/api/layouts'], ['GET', '/api/looks'], ['POST', '/api/looks'], ['POST', '/api/control'], ['POST', '/api/flow'], ['POST', '/api/unpair']] as const) {
     expect([path, (await s.call(method, path, method === 'GET' ? undefined : {})).status]).toEqual([path, 401]);
   }
   expect((await s.call('GET', '/api/snapshot', undefined, { cookie: 'mh_device=nonsense' })).status).toBe(401);
@@ -159,8 +167,8 @@ test('live reports go to every paired device that listens, and a ping now and th
   const a = await s.paired('use', 'A');
   const b = await s.paired('edit', 'B');
   const [one, two] = [await s.listen(a.cookie), await s.listen(b.cookie)];
-  expect(one.events).toEqual([['hello', { revision: 0, role: 'use', route: 'local', ready: true, night: null, build: 'abc' }]]);
-  expect(two.events).toEqual([['hello', { revision: 0, role: 'edit', route: 'local', ready: true, night: null, build: 'abc' }]]);
+  expect(one.events).toEqual([['hello', { revision: 0, looks: 0, rescue: 0, widgets: 0, role: 'use', route: 'local', ready: true, night: null, build: 'abc' }]]);
+  expect(two.events).toEqual([['hello', { revision: 0, looks: 0, rescue: 0, widgets: 0, role: 'edit', route: 'local', ready: true, night: null, build: 'abc' }]]);
   s.hub.emit({ type: 'capability', deviceId: 'device-1', capabilityId: 'onoff', value: true, at: null });
   s.hub.emit({ type: 'localAddress', address: '192.168.1.2' });
   s.ping();
@@ -539,4 +547,145 @@ test('a page that is opened asks for the buttons as they are now', async () => {
   s.clock.now += 60_000;
   const { flows } = (await as('GET', '/api/snapshot')).body['snapshot'] as { flows: { id: string }[] };
   expect(flows[0]!.id).toBe('button:film');
+});
+
+// ----- looks -----
+
+const A = 't-aaaaaaaaaaaaaaaa';
+const avond = { format: 1, id: A, name: 'Avondlicht', maker: '', base: 'glas', seed: null, userSeed: true, knobs: {}, app: '1.1.0' };
+
+test('the looks of the house: every paired device reads them, a device that may edit changes them, the others hear it', async () => {
+  const s = await setup();
+  const laptop = await s.paired('edit', 'Laptop');
+  const phone = await s.paired('use', 'Telefoon');
+  const stream = await s.listen(phone.cookie);
+  expect(stream.events[0]![1]).toMatchObject({ looks: 0 });
+  expect((await phone.as('GET', '/api/looks')).body).toEqual({ revision: 0, house: { theme: 'rustig', seed: null, mode: 'auto' }, themes: [], boards: {}, rescue: 0 });
+  const done = await laptop.as('POST', '/api/looks', { ops: [{ save: avond }, { house: { theme: A, seed: null, mode: 'dark' } }] });
+  expect([done.status, done.body]).toMatchObject([200, { revision: 1, house: { theme: A, mode: 'dark' }, themes: [avond] }]);
+  await settle();
+  expect(stream.events.at(-1)).toEqual(['looks', { revision: 1, reset: false }]);
+});
+
+test('a device that may only use cannot change the looks of the house, whatever it sends', async () => {
+  const s = await setup();
+  const { as } = await s.paired('use');
+  expect((await as('POST', '/api/looks', { ops: [{ house: { theme: 'glas', seed: null, mode: 'dark' } }] })).body).toEqual({ error: 'use-only' });
+  expect((await as('POST', '/api/looks', '{broken')).status).toBe(403);
+  expect(s.looks.get().revision).toBe(0);
+});
+
+test('what is no operation is refused as a whole, and nothing changes', async () => {
+  const s = await setup();
+  const { as } = await s.paired('edit');
+  for (const body of [{}, { ops: [] }, { ops: [{ save: avond }, { reset: true }] }, { ops: [{ house: { theme: 'glas' } }, 'x'] }]) {
+    expect((await as('POST', '/api/looks', body)).status).toBe(400);
+  }
+  expect(s.looks.get().revision).toBe(0);
+});
+
+test('saving the layouts, as a page of 1.0.0 does, leaves the looks alone', async () => {
+  const s = await setup();
+  const { as } = await s.paired('edit');
+  await as('POST', '/api/looks', { ops: [{ save: avond }] });
+  await as('PUT', '/api/layouts', { base: 0, layouts: {}, sectionSeeds: {} });
+  expect(s.looks.get().themes).toEqual([avond]);
+});
+
+test('the rescue is heard by every device, and a device that opens its stream later is told how many there were', async () => {
+  const s = await setup();
+  const { cookie } = await s.paired('use');
+  const stream = await s.listen(cookie);
+  s.looks.reset();
+  await settle();
+  expect(stream.events.at(-1)).toEqual(['looks', { revision: 1, reset: true }]);
+  const later = await s.listen(cookie);
+  expect(later.events[0]![1]).toMatchObject({ looks: 1, rescue: 1 });
+});
+
+test('history: every paired device reads the logs and their points through the app, and the hub is asked once', async () => {
+  const s = await setup();
+  const power = { log: 'homey:device:d1:measure_power', kind: 'device' as const, type: 'number' as const, deviceId: 'd1', capabilityId: 'measure_power' };
+  const lamp = { ...power, log: 'homey:device:d1:onoff', type: 'boolean' as const, capabilityId: 'onoff' };
+  s.hub.listHistory.mockResolvedValue([power, lamp]);
+  s.hub.readSeries.mockResolvedValue({ start: 0, end: 1, step: 300_000, updatesIn: 60_000, points: [{ at: 0, value: null }, { at: 300_000, value: 4 }] });
+  s.hub.readSwitches.mockResolvedValue({ changes: [{ at: 5, on: true }] });
+  expect((await s.call('GET', '/api/history/sources')).status).toBe(401);
+  const use = await s.paired('use');
+  expect(await use.as('GET', '/api/history/sources')).toMatchObject({ status: 200, body: { sources: [power, lamp] } });
+  // the hub was told every value it has, so it finds what the app records too
+  expect(s.hub.listHistory.mock.calls[0]![0]!.length).toBeGreaterThan(10);
+  const asked = `/api/history?log=${encodeURIComponent(power.log)}&period=last24Hours`;
+  expect(await use.as('GET', asked)).toMatchObject({ status: 200, body: { series: { points: [{ at: 0, value: null }, { at: 300_000, value: 4 }] } } });
+  await use.as('GET', asked);
+  expect(s.hub.readSeries).toHaveBeenCalledTimes(1);
+  expect(s.hub.readSeries).toHaveBeenCalledWith(power, 'last24Hours');
+  expect(await use.as('GET', `/api/history?log=${encodeURIComponent(lamp.log)}&period=switches`)).toMatchObject({ status: 200, body: { switches: { changes: [{ at: 5, on: true }] } } });
+  expect((await use.as('GET', '/api/history?log=homey%3Adevice%3Ad9%3Ax&period=today')).status).toBe(404);
+  expect((await use.as('GET', `/api/history?log=${encodeURIComponent(power.log)}&period=lastHour`)).status).toBe(400);
+  s.hub.readSeries.mockRejectedValue(new Error('slow'));
+  expect((await use.as('GET', `/api/history?log=${encodeURIComponent(power.log)}&period=today`)).status).toBe(502);
+});
+
+// ----- own widgets -----
+
+const gauge = { format: 'expressive-home-widget', version: 1, id: 'gauge', name: { en: 'Gauge' }, description: {}, icon: null, widgetVersion: '', sizes: ['single', 'wide'], settings: [], html: '', css: '', js: '', texts: {} };
+
+test('the own widgets of the house: every paired device reads them, a device that may edit adds them, the others hear it', async () => {
+  const s = await setup();
+  const laptop = await s.paired('edit', 'Laptop');
+  const phone = await s.paired('use', 'Telefoon');
+  const stream = await s.listen(phone.cookie);
+  expect(stream.events[0]![1]).toMatchObject({ widgets: 0 });
+  expect((await phone.as('GET', '/api/widgets')).body).toEqual({ revision: 0, widgets: [] });
+  const done = await laptop.as('POST', '/api/widgets', { ops: [{ add: gauge }] });
+  expect([done.status, done.body]).toEqual([200, { revision: 1, widgets: [gauge] }]);
+  await settle();
+  expect(stream.events.at(-1)).toEqual(['widgets', { revision: 1 }]);
+  expect((await phone.as('POST', '/api/widgets', { ops: [{ remove: 'gauge' }] })).body).toEqual({ error: 'use-only' });
+  expect((await laptop.as('POST', '/api/widgets', { ops: [{ add: { ...gauge, id: 'Bad Id' } }] })).status).toBe(400);
+  expect(s.widgets.get().revision).toBe(1);
+});
+
+test('the page of the frame of a widget may only be framed by the dashboard, and is always sandboxed', async () => {
+  const s = await setup();
+  const response = await fetch(`http://${s.host}/widget-frame.html`);
+  expect(response.headers.get('x-frame-options')).toBe('SAMEORIGIN');
+  expect(response.headers.get('content-security-policy')).toBe('sandbox allow-scripts');
+  const page = await fetch(`http://${s.host}/index.html`);
+  expect(page.headers.get('x-frame-options')).toBe('DENY');
+  expect(page.headers.get('content-security-policy')).toBeNull();
+});
+
+// ----- widgets of other apps -----
+
+test('without widgets of apps the list says there is no key, and their files are not there', async () => {
+  const s = await setup();
+  const { as } = await s.paired('use');
+  expect((await as('GET', '/api/app-widgets')).body).toEqual({ state: 'no-key', widgets: [] });
+  expect((await fetch(`http://${s.host}/app-widget/com.example/today/index.html`)).status).toBe(404);
+});
+
+test('the back end of a widget of an app is only reached for a widget that stands on a dashboard', async () => {
+  const s = await setup();
+  const { as } = await s.paired('edit');
+  expect((await as('POST', '/api/app-widget-api', { ref: 'app:com.example/today', method: 'GET', route: 'x' })).status).toBe(404);
+});
+
+test('the files Homey adds to a widget page are passed on with what a sandboxed page needs, and a page of a widget names this server', async () => {
+  const s = await setup({
+    appWidgets: createAppWidgets({
+      keyRequest: async () => null,
+      fetchFile: async (path) => ({ status: 200, type: path.endsWith('.css') ? 'text/css' : 'text/javascript', body: new TextEncoder().encode(`/* ${path} */`) }),
+    }),
+  });
+  const script = await fetch(`http://${s.host}/widgets/js/homey.widgets.js`);
+  expect([script.status, await script.text()]).toEqual([200, '/* /widgets/js/homey.widgets.js */']);
+  expect(script.headers.get('access-control-allow-origin')).toBe('*');
+  expect(script.headers.get('cross-origin-resource-policy')).toBe('cross-origin');
+  expect((await fetch(`http://${s.host}/js/crossframe.js`)).status).toBe(200);
+  expect((await fetch(`http://${s.host}/js/other.js`)).status).toBe(404);
+  const page = await fetch(`http://${s.host}/app-widget/com.example/today/index.html`);
+  expect(page.headers.get('content-security-policy')).toContain(`default-src http://${s.host} 'unsafe-inline'`);
+  expect(page.headers.get('content-security-policy')).toMatch(/^sandbox allow-scripts;/);
 });

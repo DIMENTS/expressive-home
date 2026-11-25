@@ -1,5 +1,5 @@
 import { LitElement, css, html, nothing, type PropertyValues } from 'lit';
-import type { DeviceTileSpec, TileSize } from '../../dashboard/types';
+import { isDeviceTile, type DeviceTileSpec, type TileSize } from '../../dashboard/types';
 import type { Capability, Device } from '../../homey/types';
 import { formatValue, joinValue } from '../../i18n/format';
 import { t as dutch, type Translate } from '../../i18n';
@@ -18,6 +18,7 @@ import '../parts/icon';
 import '../parts/icon-picker';
 import '../parts/radio-list';
 import '../parts/sheet';
+import '../parts/switch';
 import '../parts/text-field';
 
 /** A multi-value tile shows this many values. */
@@ -166,13 +167,16 @@ export class MhTilePanel extends LitElement {
     const own = tile.icon !== null && isLibraryIcon(tile.icon) ? tile.icon : null;
     return html`${this.renderName(tile, deviceName)}${this.renderIcon(own ?? automatic, own !== null)}
       ${this.device ? this.renderChoices(spec, tileChoices(spec, this.device)) : nothing}
+      ${spec.kind === 'sensor' ? html`<section><h3>${t('chart.history')}</h3><div class="row"><span class="grow">${t('tileSettings.trend')}</span>
+        <mh-switch label=${t('tileSettings.trend')} .checked=${spec.trend === true}
+          @change=${(e: CustomEvent<{ checked: boolean }>) => { e.stopPropagation(); this.setSpec({ ...spec, trend: e.detail.checked }); }}></mh-switch></div></section>` : nothing}
       ${this.renderSize(tile)}
       <section><mh-button variant="danger" @click=${() => this.emit('remove')}><mh-icon name="delete"></mh-icon>${t('tileSettings.remove')}</mh-button></section>`;
   }
 
   override render() {
     const { t, tile } = this;
-    const spec = tile && tile.spec.kind !== 'flow' ? tile.spec : null;
+    const spec = tile && isDeviceTile(tile.spec) ? tile.spec : null;
     const deviceName = this.device?.name.trim() || t('tile.unnamed');
     const automatic: IconName = spec ? iconFor(spec, this.device) : 'category';
     const name = tile?.label ?? deviceName;

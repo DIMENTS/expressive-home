@@ -374,3 +374,44 @@ test('a hub that was silent once is asked again later, also when asking fails at
   homey.cloud.getLocalAddress = vi.fn(async () => '192.168.1.20:80');
   await vi.waitFor(async () => expect(await app.address()).toBe('http://192.168.1.20:0'));
 });
+
+test('the themes of the flow cards are named in the language of the hub', async () => {
+  const english = await startHomeServer({ homey: sdk(), createClient: async () => fakeHub(), folder: folder(), port: 0 });
+  cleanup.push(() => english.close());
+  expect(english.themeChoices('').map((choice) => choice.name).slice(0, 4)).toEqual(['Calm', 'Vivid', 'Glass', 'Clear']);
+  const dutch = await startHomeServer({ homey: { ...sdk(), i18n: { getLanguage: () => 'nl' } }, createClient: async () => fakeHub(), folder: folder(), port: 0 });
+  cleanup.push(() => dutch.close());
+  expect(dutch.themeChoices('').map((choice) => choice.name).slice(0, 4)).toEqual(['Rustig', 'Uitbundig', 'Glas', 'Helder']);
+});
+
+test('the app records what the hero shows and Homey does not keep, and can be switched off and wiped', async () => {
+  const homey = sdk();
+  const logs = new Map<string, number[]>();
+  const handle = (id: string) => ({ id, createEntry: async (value: number) => { logs.get(id)!.push(value); } });
+  const insights = {
+    createLog: vi.fn(async (id: string) => { logs.set(id, []); return handle(id); }),
+    getLog: vi.fn(async (id: string) => { if (!logs.has(id)) throw new Error('Not found'); return handle(id); }),
+    deleteLog: vi.fn(async (log: unknown) => { logs.delete((log as { id: string }).id); }),
+  };
+  const hub = fakeHub();
+  const app = await startHomeServer({ homey: { ...homey, insights }, createClient: async () => hub, folder: folder(), port: 0 });
+  cleanup.push(() => app.close());
+  await vi.waitFor(() => expect(app.connected()).toBe(true));
+  // the camper's hero shows the sun, the use and the shore power; Homey keeps none of them here
+  await vi.waitFor(() => expect(logs.size).toBeGreaterThanOrEqual(3));
+  expect(app.recording()).toBe(true);
+  app.setRecording(false);
+  expect(homey.values['recordHistory']).toBe(false);
+  await app.wipeRecording();
+  expect(logs.size).toBe(0);
+});
+
+test('a recorded log is named in the language of the hub after its role, never after a device', async () => {
+  const { recordedTitle } = await import('../../src/home-server/index');
+  const snapshot = camperSnapshot();
+  const hero = (await import('../../src/dashboard/hero')).pickHero(snapshot)!;
+  const solar = hero.stats.find((stat) => stat.role === 'solar')!;
+  expect(recordedTitle('ref' in solar ? solar.ref : hero.primary, snapshot)).toEqual({ en: 'Expressive Home: Solar', nl: 'Expressive Home: Zon' });
+  const order = (await import('../../src/home-server/index')).heroValues(null, snapshot);
+  expect(order[0]).toEqual(hero.primary);
+});

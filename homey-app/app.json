@@ -1,6 +1,6 @@
 {
   "id": "app.expressive.home",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "compatibility": ">=12.2.0",
   "sdk": 3,
   "runtime": "nodejs",
@@ -92,6 +92,65 @@
           "en": "End the night on the wall tablets",
           "nl": "Haal de wandtablets uit de nacht"
         }
+      },
+      {
+        "id": "theme_set",
+        "title": {
+          "en": "Set the theme of the house",
+          "nl": "Zet het thema van het huis"
+        },
+        "titleFormatted": {
+          "en": "Set the theme of the house to [[theme]]",
+          "nl": "Zet het thema van het huis op [[theme]]"
+        },
+        "hint": {
+          "en": "Every dashboard that follows the house changes at once. A theme of its own on a dashboard stays.",
+          "nl": "Elk dashboard dat het huis volgt, verandert meteen. Een eigen thema van een dashboard blijft."
+        },
+        "args": [
+          {
+            "type": "autocomplete",
+            "name": "theme",
+            "title": {
+              "en": "Theme",
+              "nl": "Thema"
+            },
+            "placeholder": {
+              "en": "Glass",
+              "nl": "Glas"
+            }
+          }
+        ]
+      },
+      {
+        "id": "mode_set",
+        "title": {
+          "en": "Set light or dark for the house",
+          "nl": "Zet licht of donker voor het huis"
+        },
+        "titleFormatted": {
+          "en": "Set the house to [[mode]]",
+          "nl": "Zet het huis op [[mode]]"
+        },
+        "hint": {
+          "en": "For every dashboard that follows the house in light or dark.",
+          "nl": "Voor elk dashboard dat het huis volgt in licht of donker."
+        },
+        "args": [
+          {
+            "type": "dropdown",
+            "name": "mode",
+            "title": {
+              "en": "Light or dark",
+              "nl": "Licht of donker"
+            },
+            "values": [
+              { "id": "light", "title": { "en": "light", "nl": "licht" } },
+              { "id": "dark", "title": { "en": "dark", "nl": "donker" } },
+              { "id": "auto", "title": { "en": "automatic", "nl": "automatisch" } }
+            ]
+          }
+        ]
       }
     ]
   },
@@ -119,6 +178,18 @@
     "removeFlowKey": {
       "method": "DELETE",
       "path": "/flow-key"
+    },
+    "resetLooks": {
+      "method": "POST",
+      "path": "/looks/reset"
+    },
+    "setRecording": {
+      "method": "PUT",
+      "path": "/recording"
+    },
+    "wipeRecording": {
+      "method": "DELETE",
+      "path": "/recording"
     }
   }
 }

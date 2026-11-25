@@ -38,7 +38,7 @@ export class MhFlowTile extends TileElement<FlowTileSpec> {
     button {
       all: unset; box-sizing: border-box; cursor: pointer; width: 100%; display: flex; align-items: center; gap: var(--space-10); min-width: 0;
       min-height: var(--flow-height); padding: 0 var(--space-20); border-radius: var(--flow-radius);
-      background: var(--flow-bg); color: var(--flow-fg); font-size: var(--type-label-l-size); line-height: var(--type-label-l-line); font-weight: var(--weight-strong);
+      background: var(--flow-bg); color: var(--flow-fg); box-shadow: inset 0 0 0 var(--tile-outline-width) var(--tile-outline); font-size: var(--type-label-l-size); line-height: var(--type-label-l-line); font-weight: var(--weight-strong);
       transition: border-radius var(--motion-spatial), transform var(--motion-spatial), background-color var(--motion-effects), color var(--motion-effects), opacity var(--motion-effects);
       --icon-size: var(--icon-l);
     }

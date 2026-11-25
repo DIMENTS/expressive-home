@@ -5,7 +5,8 @@ import { dayText, timeText } from '../../i18n/format';
 import { alarmKind } from '../../recognition/recognize';
 import type { Mode } from '../../theme/types';
 import { defaultWall, emptyWallHub, type WallHub, type WallSettings } from '../../wall/settings';
-import { applySectionTheme } from '../apply-theme';
+import { RUSTIG_STYLE, applySectionTheme } from '../apply-theme';
+import type { Style } from '../../theme/styles';
 import type { UiContext } from '../app/context';
 import { heroView, isWords } from '../model/hero-view';
 import { attention, shiftAt, temperature, type AttentionItem } from '../model/rest-view';
@@ -43,6 +44,7 @@ export class MhRestScreen extends LitElement {
     hero: { attribute: false },
     heroSeed: { attribute: false },
     mode: { type: String },
+    look: { attribute: false },
     battery: { attribute: false, hasChanged: differs },
     wall: { attribute: false },
     hub: { attribute: false, hasChanged: differs },
@@ -57,6 +59,7 @@ export class MhRestScreen extends LitElement {
   declare hero: HeroSpec | null;
   declare heroSeed: string | null;
   declare mode: Mode;
+  declare look: Style;
   /** The state of charge of the large battery, to tell that it is almost empty. */
   declare battery: CapRef | null;
   declare wall: WallSettings;
@@ -79,6 +82,7 @@ export class MhRestScreen extends LitElement {
     this.hero = null;
     this.heroSeed = null;
     this.mode = 'light';
+    this.look = RUSTIG_STYLE;
     this.battery = null;
     this.wall = defaultWall();
     this.hub = emptyWallHub();
@@ -207,8 +211,8 @@ export class MhRestScreen extends LitElement {
     this.style.setProperty('--_y', String(y));
     const hero = this.shadowRoot?.querySelector<HTMLElement>('.hero');
     // a hero that comes back is drawn anew, without its colour
-    if (hero && (changed.has('heroSeed') || changed.has('mode') || hero.dataset['seed'] === undefined)) {
-      applySectionTheme(hero, this.heroSeed, this.mode);
+    if (hero && (changed.has('heroSeed') || changed.has('mode') || changed.has('look') || hero.dataset['seed'] === undefined)) {
+      applySectionTheme(hero, this.heroSeed, this.mode, this.look);
       hero.dataset['seed'] = this.heroSeed ?? '';
     }
     this.watchWave();

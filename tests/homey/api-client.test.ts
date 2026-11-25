@@ -1,5 +1,6 @@
 import { expect, test, vi } from 'vitest';
-import type { ClientEvent } from '../../src/homey/client';
+import type { ClientEvent, HistorySource } from '../../src/homey/client';
+import { recordedLogId } from '../../src/homey/history';
 import type { Device } from '../../src/homey/types';
 import { createHomeyApiClient, LIVENESS_INTERVAL_MS, RECOVERY_DELAYS_MS, SILENCE_REOPEN_MS, type ApiClientDeps, type HomeyApiLib } from '../../src/homey/api-client';
 import { CLOUD_TIMEOUT_MS, LOCAL_RECHECK_MS } from '../../src/homey/routes';
@@ -21,8 +22,14 @@ function fakeLib(options: { sessionError?: Error; controlError?: Error; flowsErr
     system = { getInfo: async () => { if (options.systemError) throw options.systemError; return options.systemInfo ?? {}; } };
     flow = { getFlows: async () => { if (options.flowsGate) await options.flowsGate; if (state.flowsGateFor) await state.flowsGateFor(this.index); if (options.flowsError) throw options.flowsError; return { f1: { id: 'f1', name: 'Alles uit' } }; }, getAdvancedFlows: async () => ({}), triggerFlow: async (a: unknown) => { calls.push(['flow', a]); }, triggerAdvancedFlow: async (a: unknown) => { calls.push(['advanced', a]); } };
     insights = {
-      getLogs: async () => { if (options.insightsError) throw options.insightsError; return { a: { id: 'homey:device:d1:measure_power' }, b: { id: 'cpu', ownerUri: 'homey:manager:system' }, c: { id: 'onoff', ownerUri: 'homey:device:d1' } }; },
-      getLogEntries: async (args: unknown) => { calls.push(['entries', args]); if (options.insightsError) throw options.insightsError; return { values: [{ t: '2026-11-22T10:05:00.000Z', v: 5 }, { t: '2026-11-22T10:00:00.000Z', v: 4 }] }; },
+      getLogs: async () => { if (options.insightsError) throw options.insightsError; return { a: { id: 'homey:device:d1:measure_power', type: 'number' }, b: { id: 'cpu', ownerUri: 'homey:manager:system', type: 'number' }, c: { id: 'onoff', ownerUri: 'homey:device:d1', type: 'boolean' }, r: { id: `homey:app:app.expressive.home:${recordedLogId('d2', 'ac_input_source')}`, type: 'number' } }; },
+      getLogEntries: async (args: { id: string; resolution?: string }) => {
+        calls.push(['entries', args]);
+        if (options.insightsError) throw options.insightsError;
+        if (args.id.endsWith(':onoff')) return { id: 'x', values: [{ t: '2026-11-22T10:05:00.000Z', v: false }, { t: '2026-11-22T10:00:00.000Z', v: true }] };
+        if (args.resolution === 'lastYear') return { step: 21_600_000, values: [{ t: '2026-01-02T00:00:00.000Z', v: 1 }] };
+        return { step: 300_000, values: [{ t: '2026-11-22T10:05:00.000Z', v: 5 }, { t: '2026-11-22T10:00:00.000Z', v: null }] };
+      },
     };
     destroy() { calls.push(['destroy']); destroyed.push(this.index); }
   }
@@ -805,45 +812,51 @@ test('with a known id the local probe keeps its short limit', async () => {
   }
 });
 
-test('listHistory maps the logs and treats a missing right as none', async () => {
+const POWER: HistorySource = { log: 'homey:device:d1:measure_power', kind: 'device', type: 'number', deviceId: 'd1', capabilityId: 'measure_power' };
+test('listHistory gives the logs of devices, and the recorded ones of values it is told; a missing right is none', async () => {
   const client = createHomeyApiClient(fakeLib().lib, settings, deps(localOk));
   expect(await client.listHistory()).toEqual([]);
   await client.connect();
-  expect(await client.listHistory()).toEqual([{ deviceId: 'd1', capabilityId: 'measure_power' }, { deviceId: 'd1', capabilityId: 'onoff' }]);
+  expect(await client.listHistory()).toEqual([POWER, { log: 'homey:device:d1:onoff', kind: 'device', type: 'boolean', deviceId: 'd1', capabilityId: 'onoff' }]);
+  expect(await client.listHistory([{ deviceId: 'd2', capabilityId: 'ac_input_source' }])).toContainEqual(expect.objectContaining({ kind: 'recorded', deviceId: 'd2', capabilityId: 'ac_input_source' }));
   const forbidden = Object.assign(new Error('forbidden'), { statusCode: 403 });
   const limited = createHomeyApiClient(fakeLib({ insightsError: forbidden }).lib, settings, deps(localOk));
   await limited.connect();
   expect(await limited.listHistory()).toEqual([]);
 });
-test('readHistory asks the library for the full log id and the period', async () => {
+test('readSeries asks for the log and the period, and keeps the gaps; a year asks for two periods', async () => {
   const { lib, calls } = fakeLib();
   const client = createHomeyApiClient(lib, settings, deps(localOk));
-  expect(await client.readHistory({ deviceId: 'd1', capabilityId: 'measure_power' }, 'today')).toEqual([]);
+  expect(await client.readSeries(POWER, 'last24Hours')).toBeNull();
   await client.connect();
-  const points = await client.readHistory({ deviceId: 'd1', capabilityId: 'measure_power' }, 'today');
-  expect(calls).toContainEqual(['entries', { id: 'homey:device:d1:measure_power', resolution: 'today' }]);
-  expect(points).toEqual([{ at: Date.parse('2026-11-22T10:00:00.000Z'), value: 4 }, { at: Date.parse('2026-11-22T10:05:00.000Z'), value: 5 }]);
-  await client.readHistory({ deviceId: 'd1', capabilityId: 'measure_power' }, 'last24Hours');
+  const series = await client.readSeries(POWER, 'last24Hours');
   expect(calls).toContainEqual(['entries', { id: 'homey:device:d1:measure_power', resolution: 'last24Hours' }]);
+  expect(series!.points).toEqual([{ at: Date.parse('2026-11-22T10:00:00.000Z'), value: null }, { at: Date.parse('2026-11-22T10:05:00.000Z'), value: 5 }]);
+  await client.readSeries(POWER, 'year');
+  expect(calls).toContainEqual(['entries', { id: 'homey:device:d1:measure_power', resolution: 'lastYear' }]);
+  expect(calls).toContainEqual(['entries', { id: 'homey:device:d1:measure_power', resolution: 'thisYear' }]);
+  const switches = await client.readSwitches({ ...POWER, log: 'homey:device:d1:onoff', type: 'boolean', capabilityId: 'onoff' });
+  expect(switches!.changes.map((change) => change.on)).toEqual([true, false]);
 });
-test('readHistory with a rejected key reports the auth failure', async () => {
+test('reading history with a rejected key reports the auth failure', async () => {
   const denied = Object.assign(new Error('denied'), { statusCode: 401 });
   const client = createHomeyApiClient(fakeLib({ insightsError: denied }).lib, settings, deps(localOk));
   await client.connect();
   const events: ClientEvent[] = [];
   client.subscribe((e) => events.push(e));
-  await expect(client.readHistory({ deviceId: 'd1', capabilityId: 'measure_power' }, 'today')).rejects.toMatchObject({ name: 'ConnectionError', failure: 'auth' });
+  await expect(client.readSeries(POWER, 'last24Hours')).rejects.toMatchObject({ name: 'ConnectionError', failure: 'auth' });
   await expect(client.listHistory()).rejects.toMatchObject({ failure: 'auth' });
   expect(events).toContainEqual({ type: 'authError' });
 });
-test('readHistory of an unknown log is empty; any other failure is unreachable', async () => {
+test('history of an unknown log is none; any other failure is unreachable', async () => {
   const missing = Object.assign(new Error('not found'), { statusCode: 404 });
   const client = createHomeyApiClient(fakeLib({ insightsError: missing }).lib, settings, deps(localOk));
   await client.connect();
-  expect(await client.readHistory({ deviceId: 'd1', capabilityId: 'measure_power' }, 'today')).toEqual([]);
+  expect(await client.readSeries(POWER, 'last24Hours')).toBeNull();
+  expect(await client.readSwitches(POWER)).toBeNull();
   const broken = createHomeyApiClient(fakeLib({ insightsError: new Error('boom') }).lib, settings, deps(localOk));
   await broken.connect();
-  await expect(broken.readHistory({ deviceId: 'd1', capabilityId: 'measure_power' }, 'today')).rejects.toMatchObject({ failure: 'unreachable' });
+  await expect(broken.readSeries(POWER, 'last24Hours')).rejects.toMatchObject({ failure: 'unreachable' });
 });
 test('readStructure reads the rooms and flows as they are now', async () => {
   const f = fakeLib();
@@ -862,4 +875,16 @@ test('readStructure gives nothing when the hub does not answer', async () => {
   await client.connect();
   options.flowsError = new Error('boom');
   expect(await client.readStructure!()).toBeNull();
+});
+
+test('for measuring, the history comes as the hub gives it, with every period or none', async () => {
+  const { lib, calls } = fakeLib();
+  const client = createHomeyApiClient(lib, settings, deps(localOk));
+  await client.connect();
+  expect(await client.rawHistory!.logs()).toHaveProperty('a');
+  expect(await client.rawHistory!.entries('homey:device:d1:measure_power', 'last7Days')).toHaveProperty('values');
+  await client.rawHistory!.entries('homey:device:d1:measure_power', null);
+  expect((calls as [string, unknown][]).filter(([name]) => name === 'entries').map(([, args]) => args)).toEqual([{ id: 'homey:device:d1:measure_power', resolution: 'last7Days' }, { id: 'homey:device:d1:measure_power' }]);
+  client.disconnect();
+  await expect(client.rawHistory!.logs()).rejects.toThrow();
 });

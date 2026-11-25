@@ -47,7 +47,7 @@ test('every request of the settings has a place in the app', () => {
 test('a key for flows goes to the server, and only what became of it comes back', async () => {
   const server = {
     connected: () => true, address: () => new Promise(() => {}), devices: () => [], codes: () => ({ scan: 'x' }), buttons: () => ['Film'],
-    flowKey: () => 'works', setFlowKey: vi.fn(async () => 'works'), removeFlowKey: vi.fn(),
+    flowKey: () => 'works', setFlowKey: vi.fn(async () => 'works'), removeFlowKey: vi.fn(), recording: () => true,
   };
   const homey = { app: app(server) };
   const api = load<Record<string, (request: Record<string, unknown>) => Promise<unknown>>>('api.js');
@@ -56,7 +56,7 @@ test('a key for flows goes to the server, and only what became of it comes back'
   expect(await api['setFlowKey']!({ homey, body: null })).toEqual({ result: 'works' });
   await api['removeFlowKey']!({ homey });
   expect(server.removeFlowKey).toHaveBeenCalledOnce();
-  expect(await api['getState']!({ homey })).toEqual({ running: true, connected: true, devices: [], flowKey: 'works', codes: { scan: 'x' }, buttons: ['Film'] });
+  expect(await api['getState']!({ homey })).toEqual({ running: true, connected: true, devices: [], flowKey: 'works', codes: { scan: 'x' }, buttons: ['Film'], recording: true });
 });
 
 test('a code is asked for with a slot, a right and whether it has to be a new one', async () => {
@@ -114,7 +114,7 @@ test('the app has one name, in every place somebody sees it', () => {
 });
 
 test('the settings only use the styles that Homey has', () => {
-  const known = ['homey-header', 'homey-title', 'homey-button-primary-full', 'homey-button-secondary-shadow', 'homey-button-danger-shadow', 'homey-button-small', 'homey-form-fieldset', 'homey-form-legend', 'homey-form-label', 'homey-form-input', 'homey-form-select'];
+  const known = ['homey-header', 'homey-title', 'homey-button-primary-full', 'homey-button-secondary-shadow', 'homey-button-danger-shadow', 'homey-button-small', 'homey-form-fieldset', 'homey-form-legend', 'homey-form-label', 'homey-form-input', 'homey-form-select', 'homey-form-checkbox', 'homey-form-checkbox-input', 'homey-form-checkbox-checkmark', 'homey-form-checkbox-text'];
   const used = [...page.matchAll(/homey-(?:button|form|header|title)[\w-]*/g)].map((match) => match[0]);
   expect(used.length).toBeGreaterThan(10);
   expect([...new Set(used)].filter((name) => !known.includes(name))).toEqual([]);
@@ -122,4 +122,21 @@ test('the settings only use the styles that Homey has', () => {
 
 test('what stands on the settings is never made from text', () => {
   expect(page).not.toMatch(/innerHTML|outerHTML|insertAdjacentHTML|document\.write|\sstyle="/);
+});
+
+test('recording what Homey does not keep is switched on and off, and wiped, from the settings', async () => {
+  expect(manifest.api['setRecording']).toEqual({ method: 'PUT', path: '/recording' });
+  expect(manifest.api['wipeRecording']).toEqual({ method: 'DELETE', path: '/recording' });
+  expect(manifest.api).not.toHaveProperty('measureHistory');
+  const server = { setRecording: vi.fn(), wipeRecording: vi.fn(async () => {}), recording: () => true };
+  const homey = { app: app(server) };
+  const api = load<Record<string, (request: Record<string, unknown>) => Promise<unknown>>>('api.js');
+  await api['setRecording']!({ homey, body: { on: false } });
+  expect(server.setRecording).toHaveBeenCalledWith(false);
+  await expect(api['setRecording']!({ homey, body: { on: 'ja' } })).rejects.toThrow();
+  await api['wipeRecording']!({ homey });
+  expect(server.wipeRecording).toHaveBeenCalledOnce();
+  expect(page).toMatch(/<input[^>]*id="record"[^>]*type="checkbox"/);
+  expect(page).toMatch(/<button[^>]*id="wipe"[^>]*data-i18n="settings\.recordWipe"/);
+  expect(page).not.toContain('/history/measure');
 });

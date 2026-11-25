@@ -1,3 +1,4 @@
+import { KNOWN_KINDS } from '../layout/keep-widgets';
 import { createDefaultConfig, type AppConfig, type ConfigStore, type OwnConfig as Own } from '../storage/config';
 import { hubChoices } from '../storage/layout-normalize';
 import { createLocalConfigStore } from '../storage/local-store';
@@ -91,6 +92,8 @@ export function createServedStore(storage: Pick<Storage, 'getItem' | 'setItem' |
   /** What the browser refused to keep of this device: it lasts as long as the page. */
   let refused: Own | null = null;
   let role: Role = 'use';
+  /** The hub said what this device may, since the page opened. */
+  let roleKnown = false;
   let connection: AppConfig['connection'] | null = null;
   /** Every time this device is paired or taken away it begins anew; an older answer is ignored. */
   let epoch = 0;
@@ -142,6 +145,7 @@ export function createServedStore(storage: Pick<Storage, 'getItem' | 'setItem' |
       return none;
     }
     role = device['role'] === 'edit' ? 'edit' : 'use';
+    roleKnown = true;
     const homeyId = typeof session['homeyId'] === 'string' ? session['homeyId'] : null;
     remember(homeyId ?? '');
     return { homeyId, localAddress: null, apiKey: PAIRED };
@@ -211,7 +215,7 @@ export function createServedStore(storage: Pick<Storage, 'getItem' | 'setItem' |
     sending = sent;
     sentAt = link.now();
     try {
-      const doc = read(await ask('PUT', { base: base.revision, ...sent }));
+      const doc = read(await ask('PUT', { base: base.revision, ...sent, knows: KNOWN_KINDS }));
       if (mark !== epoch) return true;
       if (!doc) throw new Error('no document');
       if (role !== 'edit') {
@@ -254,7 +258,9 @@ export function createServedStore(storage: Pick<Storage, 'getItem' | 'setItem' |
 
   /** What this device may do from now on. */
   function become(now: Role): void {
-    if (now === role) return;
+    const first = !roleKnown;
+    roleKnown = true;
+    if (now === role) { if (first) changed(); return; }
     if (now === 'use') { mayOnlyUse(); return; }
     role = now;
     changed();
@@ -405,6 +411,8 @@ export function createServedStore(storage: Pick<Storage, 'getItem' | 'setItem' |
     store,
     /** Whether this device may arrange the dashboards now: it has the right, and has read what there is. */
     mayArrange: (): boolean => role === 'edit' && base.revision >= 0,
+    /** What the hub says this device may; null until it said so. */
+    knownRole: (): Role | null => (roleKnown ? role : null),
     /** Everything that was arranged here is on the hub. */
     settled: (): boolean => !dirty,
     onChanged(listener: () => void): () => void {
@@ -422,7 +430,7 @@ export function createServedStore(storage: Pick<Storage, 'getItem' | 'setItem' |
       sentAt = Number.NEGATIVE_INFINITY;
       if (worker && sending && closing && mine !== sending) {
         // there is no time to wait for the answer: on the revision that the one on its way makes
-        link.request('PUT', 'api/layouts', { base: base.revision + 1, ...mine }).catch(() => {});
+        link.request('PUT', 'api/layouts', { base: base.revision + 1, ...mine, knows: KNOWN_KINDS }).catch(() => {});
       }
       void work();
     },

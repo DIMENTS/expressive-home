@@ -1,4 +1,4 @@
-import type { ClientEvent, HistoryPeriod, HistoryPoint, HistoryRef, HomeyClient } from '../homey/client';
+import type { ClientEvent, HistoryPeriod, HistorySeries, HistorySource, HistorySwitches, HomeyClient } from '../homey/client';
 import { toSnapshot } from '../homey/map';
 import type { Capability, CapabilityValue, Device, HomeySnapshot, RawHomey } from '../homey/types';
 import { findCapability } from '../recognition/recognize';
@@ -17,12 +17,26 @@ export interface MockClientOptions {
   failControl?: (deviceId: string, capabilityId: string) => boolean;
   /** How its devices answer and what goes on by itself, while it simulates. Without it a command is there at once. */
   life?: Life;
-  /** The history a test wants; without it the mock makes up a believable day. */
-  history?: (ref: HistoryRef, period: HistoryPeriod, now: number) => HistoryPoint[];
+  /** The history a test wants; without it the mock makes up believable history. */
+  history?: (source: HistorySource, period: HistoryPeriod, now: number) => HistorySeries | null;
 }
 
 const STEP_MS = 300_000;
 const HOUR_MS = 3_600_000;
+const DAY_MS = 24 * HOUR_MS;
+/** The step and the length of each period, as the hub gives them. */
+const PERIODS: Record<Exclude<HistoryPeriod, 'today'>, { step: number; length: number }> = {
+  last24Hours: { step: STEP_MS, length: DAY_MS },
+  last7Days: { step: HOUR_MS, length: 7 * DAY_MS },
+  last31Days: { step: 6 * HOUR_MS, length: 31 * DAY_MS },
+  year: { step: 6 * HOUR_MS, length: 365 * DAY_MS },
+};
+/** The made-up hub measures since this long ago; before it its points are empty, as on a hub that is new. */
+const MEASURED_MS = 130 * DAY_MS;
+/** How many changes of a yes/no log the hub keeps. */
+const SWITCHES = 50;
+const NUMBERS = ['measure_power', 'measure_temperature', 'measure_humidity'];
+const YES_NO = ['onoff', 'alarm_motion', 'alarm_contact'];
 
 /** A repeatable wobble between -1 and 1 for a moment, so the made-up history is the same on every read. */
 const wobble = (at: number, salt: number): number => {
@@ -49,6 +63,11 @@ const useAt = (at: number): number => {
   const peak = [8, 12.5, 18.5].some((p) => Math.abs(h - p) < 0.25) ? 450 : 0;
   return Math.round(100 + 25 * wobble(at, 2) + peak);
 };
+
+/** A room between about 17 and 23 °C: coolest before dawn. */
+const temperatureAt = (at: number): number => Math.round((20 + 2.6 * Math.sin(Math.PI * (hourOf(at) - 10) / 12) + 0.08 * wobble(at, 3)) * 10) / 10;
+/** Humidity around 55 percent. */
+const humidityAt = (at: number): number => Math.round(55 + 8 * Math.sin(Math.PI * hourOf(at) / 12) + 0.6 * wobble(at, 4));
 
 /** The battery between 52 and 81 percent: charging with the sun until 16:00, then slowly down until 07:30. */
 const batteryAt = (at: number): number => {
@@ -81,17 +100,38 @@ export function createMockClient(raw: RawHomey, options: MockClientOptions = {})
     for (const listener of [...listeners]) listener(event);
   };
 
-  /** Insights keeps every power measurement and the state of charge of a home battery. */
-  const historyRefs = (): HistoryRef[] => {
-    const refs: HistoryRef[] = [];
+  /** Insights keeps power, temperature, humidity, the state of charge of a home battery, and on/off, motion and contact. */
+  const historySources = (): HistorySource[] => {
+    const sources: HistorySource[] = [];
+    const add = (deviceId: string, capabilityId: string, type: HistorySource['type']): void => {
+      sources.push({ log: `homey:device:${deviceId}:${capabilityId}`, kind: 'device', type, deviceId, capabilityId });
+    };
     for (const device of Object.values(state.devices)) {
       for (const id of device.capabilityOrder) {
-        if (device.capabilities[id]?.baseId === 'measure_power') refs.push({ deviceId: device.id, capabilityId: id });
+        const baseId = device.capabilities[id]?.baseId ?? '';
+        if (NUMBERS.includes(baseId)) add(device.id, id, 'number');
+        if (YES_NO.includes(baseId)) add(device.id, id, 'boolean');
       }
       const soc = findCapability(device, 'battery.soc');
-      if (soc) refs.push({ deviceId: device.id, capabilityId: soc.id });
+      if (soc) add(device.id, soc.id, 'number');
     }
-    return refs;
+    return sources;
+  };
+  const known = (source: HistorySource): Device | null => {
+    const found = historySources().some((s) => s.log === source.log);
+    return found ? state.devices[source.deviceId] ?? null : null;
+  };
+
+  /** What the made-up hub measured at a moment. */
+  const valueOf = (device: Device, capabilityId: string): ((at: number) => number) => {
+    const baseId = device.capabilities[capabilityId]?.baseId;
+    // the made-up history ends where the value of now is
+    const live = device.capabilities[capabilityId]?.value;
+    const ending = (shape: (at: number) => number) => (typeof live === 'number' ? (at: number) => Math.round((shape(at) + live - shape(Date.now())) * 10) / 10 : shape);
+    if (capabilityId === findCapability(device, 'battery.soc')?.id) return (at) => Math.min(100, Math.max(0, ending(batteryAt)(at)));
+    if (baseId === 'measure_temperature') return ending(temperatureAt);
+    if (baseId === 'measure_humidity') return ending(humidityAt);
+    return device.deviceClass === 'solarpanel' ? solarAt : useAt;
   };
 
   const emitCapability: MockClient['emitCapability'] = (deviceId, capabilityId, value) => {
@@ -126,20 +166,37 @@ export function createMockClient(raw: RawHomey, options: MockClientOptions = {})
       if (!state.flows.some((f) => f.id === flow.id)) throw new Error(`Unknown flow: ${flow.id}`);
     },
     async listHistory() {
-      return historyRefs();
+      return historySources();
     },
-    async readHistory(ref, period) {
+    async readSeries(source, period) {
       const now = Date.now();
-      if (options.history) return options.history(ref, period, now);
-      const device = state.devices[ref.deviceId];
-      if (!historyRefs().some((r) => r.deviceId === ref.deviceId && r.capabilityId === ref.capabilityId) || !device) return [];
-      const valueAt = ref.capabilityId === findCapability(device, 'battery.soc')?.id ? batteryAt
-        : device.deviceClass === 'solarpanel' ? solarAt : useAt;
-      const midnight = new Date(now).setHours(0, 0, 0, 0);
-      const start = period === 'today' ? midnight : now - 24 * HOUR_MS;
-      const points: HistoryPoint[] = [];
-      for (let at = Math.ceil(start / STEP_MS) * STEP_MS; at <= now; at += STEP_MS) points.push({ at, value: valueAt(at) });
-      return points;
+      if (options.history) return options.history(source, period, now);
+      const device = known(source);
+      if (!device || source.type !== 'number') return null;
+      const valueAt = valueOf(device, source.capabilityId);
+      const { step, length } = period === 'today' ? { step: STEP_MS, length: now - new Date(now).setHours(0, 0, 0, 0) } : PERIODS[period];
+      const start = Math.ceil((now - length) / step) * step;
+      const points: HistorySeries['points'] = [];
+      for (let at = start; at <= now; at += step) {
+        // nothing before the hub measured, and a short gap in the night of a thermometer
+        const gap = at < now - MEASURED_MS || (device.capabilities[source.capabilityId]?.baseId === 'measure_temperature' && step === STEP_MS && Math.abs(hourOf(at) - 3.25) < 0.25);
+        points.push({ at, value: gap ? null : valueAt(at) });
+      }
+      return { start: now - length, end: now, step, updatesIn: step, points };
+    },
+    async readSwitches(source) {
+      const device = known(source);
+      if (!device || source.type !== 'boolean') return null;
+      const now = Date.now();
+      const on = device.capabilities[source.capabilityId]?.value === true;
+      const changes: HistorySwitches['changes'] = [];
+      // the last change brought the state of now; before it, they alternate every hour and a half or so
+      let at = now - 40 * 60_000;
+      for (let i = 0; i < SWITCHES; i++) {
+        changes.unshift({ at, on: i % 2 === 0 ? on : !on });
+        at -= Math.round((1.5 + wobble(at, 5)) * HOUR_MS);
+      }
+      return { changes };
     },
     subscribe(listener) {
       listeners.add(listener);

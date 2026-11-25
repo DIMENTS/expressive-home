@@ -368,3 +368,17 @@ test('without the last device there is a code to scan at once, also when there w
   await expect(s.page.getByText('Tablet is gekoppeld.')).toHaveCount(0);
   await s.context.close();
 });
+
+test('recording what Homey does not keep is on, can be switched off, and wiped after a question', async ({ browser }) => {
+  const s = await settings(browser);
+  await s.page.getByText('Meer mogelijkheden').click();
+  const record = s.page.getByLabel('Zelf opnemen wat Homey niet bijhoudt');
+  await expect(record).toBeChecked();
+  await record.uncheck();
+  await expect(record).not.toBeChecked();
+  await record.check();
+  await s.page.getByRole('button', { name: 'Opname wissen' }).click();
+  await expect(s.page.getByText('De opname is gewist.')).toBeVisible();
+  expect(s.problems).toEqual([]);
+  await s.context.close();
+});

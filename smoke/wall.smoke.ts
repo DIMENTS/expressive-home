@@ -380,7 +380,9 @@ for (const [width, height] of [[1280, 800], [960, 600], [1024, 768], [800, 1280]
         const owner = store.getDevices().find((device) => Object.values(device.capabilities).some((cap) => cap.baseId === 'ac_input_source'))!;
         store.apply({ type: 'capability', deviceId: owner.id, capabilityId: 'ac_input_source', value: { 'Niet aangesloten': 'none', Net: 'grid', Generator: 'generator', Landstroom: 'shore', 'Omvormen (eiland)': 'inverting', Overig: 'other' }[text], at: null });
       }, value);
-      await expect(rest(page).locator('.stat b', { hasText: value })).toHaveCount(1);
+      // without power from outside the word is off-grid, or inverting when the inverter inverts
+      const shown = value === 'Niet aangesloten' || value === 'Omvormen (eiland)' ? /^(Off-grid|Omvormen)$/ : value;
+      await expect(rest(page).locator('.stat b', { hasText: shown })).toHaveCount(1);
       expect([value, await crowded(page)]).toEqual([value, []]);
       expect([value, await cut(page)]).toEqual([value, []]);
     }

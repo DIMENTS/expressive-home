@@ -4,6 +4,10 @@ import { createLink } from '../../served/link';
 import { kindOf, takeScanned } from '../../served/pair-link';
 import { createServedStore } from '../../served/store';
 import { STORAGE_KEY } from '../../storage/local-store';
+import { LOOKS_KEY, createLooksStore } from '../../storage/looks-store';
+import { createLooksSync } from '../../served/looks-sync';
+import { createServedWidgets } from '../../widgets/library-source';
+import type { LooksDoc } from '../../theme/looks-doc';
 import type { AppEnvironment } from './app';
 import { safeStorage } from './safe-storage';
 
@@ -43,8 +47,21 @@ export function servedEnvironment(createDemoClient: AppEnvironment['createDemoCl
   window.addEventListener('pagehide', () => served.flush(true));
   for (const back of ['pageshow', 'online']) window.addEventListener(back, () => link.wake());
 
+  // the looks of the house: what was heard before the app listened is given to it when it does
+  let lastLooks: LooksDoc | null = null;
+  let onLooks: (doc: LooksDoc) => void = () => {};
+  let onRefused: () => void = () => {};
+  const looks = createLooksSync({
+    link,
+    adopt: (doc) => { lastLooks = doc; onLooks(doc); },
+    refused: () => onRefused(),
+    setTimeout: (fn, ms) => window.setTimeout(fn, ms),
+    clearTimeout: (handle) => window.clearTimeout(handle as number),
+  });
+
   return {
     configStore: served.store,
+    looksStore: createLooksStore(safeStorage(() => window.localStorage)),
     createRealClient: () => createServedClient(link),
     createDemoClient,
     schedule: (flush) => { requestAnimationFrame(flush); },
@@ -54,7 +71,7 @@ export function servedEnvironment(createDemoClient: AppEnvironment['createDemoCl
     watchStored: (changed) => {
       const stop = served.onChanged(changed);
       // the theme and the language of this device, chosen in another tab
-      const onStorage = (event: StorageEvent): void => { if (event.key === STORAGE_KEY) changed(); };
+      const onStorage = (event: StorageEvent): void => { if (event.key === STORAGE_KEY || event.key === LOOKS_KEY) changed(); };
       window.addEventListener('storage', onStorage);
       return () => {
         stop();
@@ -64,6 +81,14 @@ export function servedEnvironment(createDemoClient: AppEnvironment['createDemoCl
     served: {
       pair: (code, name) => served.pair(code, name),
       mayArrange: () => served.mayArrange(),
+      knownRole: () => served.knownRole(),
+      widgets: createServedWidgets(link),
+      appWidgets: () => link.request('GET', 'api/app-widgets'),
+      appWidgetApi: (ref, method, route, body) => link.request('POST', 'api/app-widget-api', { ref, method, route, body }),
+      appWidgetSearch: (ref, setting, query) => link.request('GET', `api/app-widget-autocomplete?${new URLSearchParams({ ref, setting, query }).toString()}`),
+      sendLooks: (ops) => looks.send(ops),
+      onLooks: (listener) => { onLooks = listener; if (lastLooks) listener(lastLooks); },
+      onLooksRefused: (listener) => { onRefused = listener; },
       onConflict: (listener) => served.onConflict(listener),
       onUnsaved: (listener) => served.onUnsaved(listener),
       onNight: (listener) => { link.on('night', (word) => listener(word ? { night: word.night, at: Date.now() - word.age } : null)); },

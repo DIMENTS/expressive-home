@@ -2,6 +2,7 @@ import type { Plugin } from 'vite';
 import { defineConfig } from 'vitest/config';
 import { appManifest } from './tools/app-manifest.mjs';
 import { contentSecurityPolicy } from './tools/csp.mjs';
+import { widgetFrame } from './tools/widget-frame.mjs';
 import packageJson from './package.json' with { type: 'json' };
 
 /** Puts the content security policy into every page: the strict one in a build, the dev one on the dev server. */
@@ -21,7 +22,7 @@ function cspPlugin(): Plugin {
 
 export default defineConfig({
   base: './',
-  plugins: [cspPlugin(), appManifest()],
+  plugins: [cspPlugin(), appManifest(), widgetFrame()],
   define: { __APP_VERSION__: JSON.stringify(packageJson.version), __SERVED_BY_HOMEY__: 'false' },
   // Two pages: the app, and the inspection page with the route log and the event counter.
   // Never inline a file as a data: address: the policy allows fonts only from our own origin.

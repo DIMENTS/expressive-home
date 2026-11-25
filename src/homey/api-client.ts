@@ -1,6 +1,6 @@
 import { addressShape, privateIPv4From } from './address';
 import { ConnectionError, type ClientEvent, type HistoryPeriod, type HomeyClient } from './client';
-import { historyPointsFrom, historyRefFromLog } from './history';
+import { seriesFrom, sourcesFrom, switchesFrom, yearFrom } from './history';
 import { toDevice, toSnapshot } from './map';
 import { candidatesFor, chooseRoute, CLOUD_TIMEOUT_MS, FIRST_LOCAL_TIMEOUT_MS, isHomeyId, isIPv4, LOCAL_TIMEOUT_MS, probe, watchForLocal, type RouteCandidate } from './routes';
 import type { CapabilityValue, Device, HomeySnapshot, Route } from './types';
@@ -48,7 +48,7 @@ export interface LibApi {
   };
   insights: {
     getLogs(): Promise<Collection>;
-    getLogEntries(args: { id: string; resolution: HistoryPeriod }): Promise<unknown>;
+    getLogEntries(args: { id: string; resolution?: string }): Promise<unknown>;
   };
   on(event: string, listener: (...args: unknown[]) => void): void;
   destroy(): void;
@@ -688,18 +688,34 @@ export function createHomeyApiClient(
         return null;
       }
     },
-    async listHistory() {
-      const conn = current;
-      if (!conn) return [];
-      const logs = await readInsights(() => conn.api.insights.getLogs());
-      if (logs === null || typeof logs !== 'object') return [];
-      return Object.values(logs as Collection).map(historyRefFromLog).filter((ref) => ref !== null);
+    rawHistory: {
+      async logs() {
+        if (!current) throw new ConnectionError('unreachable');
+        return current.api.insights.getLogs();
+      },
+      async entries(id, resolution) {
+        if (!current) throw new ConnectionError('unreachable');
+        return current.api.insights.getLogEntries({ id, ...(resolution === null ? {} : { resolution }) });
+      },
     },
-    async readHistory(ref, period) {
+    async listHistory(known = []) {
       const conn = current;
       if (!conn) return [];
-      const id = `homey:device:${ref.deviceId}:${ref.capabilityId}`;
-      return historyPointsFrom(await readInsights(() => conn.api.insights.getLogEntries({ id, resolution: period })));
+      return sourcesFrom(await readInsights(() => conn.api.insights.getLogs()), known);
+    },
+    async readSeries(source, period) {
+      const conn = current;
+      if (!conn) return null;
+      const entries = (resolution: string) => readInsights(() => conn.api.insights.getLogEntries({ id: source.log, resolution }));
+      if (period !== 'year') return seriesFrom(await entries(period));
+      const [last, now] = [await entries('lastYear'), await entries('thisYear')];
+      return yearFrom(seriesFrom(last), seriesFrom(now), deps.now());
+    },
+    async readSwitches(source) {
+      const conn = current;
+      if (!conn) return null;
+      const raw = await readInsights(() => conn.api.insights.getLogEntries({ id: source.log }));
+      return raw === null ? null : switchesFrom(raw);
     },
     subscribe(listener) {
       listeners.add(listener);

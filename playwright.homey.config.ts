@@ -15,7 +15,8 @@ export default defineConfig({
   use: { baseURL: `http://localhost:${PORT}/`, trace: 'off' },
   webServer: { command: `node smoke/homey-server.mjs ${PORT} ${CONTROL_PORT}`, url: `http://localhost:${PORT}/`, reuseExistingServer: false, timeout: 30_000 },
   projects: [
-    { name: 'chromium', use: { ...devices['Desktop Chrome'], ...shared } },
+    // PW_CHROMIUM: a Chromium of another version than the one Playwright expects
+    { name: 'chromium', use: { ...devices['Desktop Chrome'], ...shared, ...(process.env['PW_CHROMIUM'] ? { launchOptions: { executablePath: process.env['PW_CHROMIUM'] } } : {}) } },
     { name: 'webkit', use: { ...devices['Desktop Safari'], ...shared } },
   ],
 });

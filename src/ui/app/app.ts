@@ -1,3 +1,4 @@
+import type { HeroChart } from '../../layout/types';
 import { LitElement, css, html, nothing } from 'lit';
 import { createHomeyApiClient, type HomeyApiLib } from '../../homey/api-client';
 import type { HomeyClient } from '../../homey/client';
@@ -6,13 +7,22 @@ import { createMockClient } from '../../mock/mock-client';
 import { createStore, type Store } from '../../state/store';
 import type { ConfigStore } from '../../storage/config';
 import { createLocalConfigStore, STORAGE_KEY } from '../../storage/local-store';
+import { LOOKS_KEY, createLooksStore, type LooksStore } from '../../storage/looks-store';
 import { darkMedia, watchSystemDark } from '../../theme/system-mode';
 import { resolveMode } from '../../theme/engine';
 import { rustigExpressive } from '../../theme/rustig-expressive';
-import type { Mode, ShownDensity, ThemeSettings } from '../../theme/types';
+import type { Density, Mode, ShownDensity, ThemeSettings } from '../../theme/types';
 import type { FlowNight } from '../../wall/night';
 import { wallHubOf, withWallHub, type WallHub, type WallSettings } from '../../wall/settings';
-import { applyThemeTo } from '../apply-theme';
+import { RUSTIG_STYLE, applyThemeTo } from '../apply-theme';
+import { isSafeAddress, safeLook } from '../safe-look';
+import { styleOf, type Style } from '../../theme/styles';
+import { shownSeed, type ChosenLook, type DeviceLook } from '../../theme/choose';
+import type { LookChoose } from '../panels/theme-panel';
+import { lookChoice, lookTarget, poorPlaces, type LookTarget } from '../model/look-view';
+import type { ThemeFile } from '../../theme/look';
+import type { LookOp } from '../../theme/look-ops';
+import type { LooksDoc } from '../../theme/looks-doc';
 import { adoptPageStyles } from '../page-styles';
 import { phoneMedia, watchPhone } from '../phone';
 import type { IconName } from '../icons/icons';
@@ -24,7 +34,16 @@ import { readLayoutFile } from '../../layout/file';
 import { heroSectionId, OVERVIEW_ID, roomBoardId, roomOfBoard, ROOMS_ID, type Column, type DashboardLayout, type HeroChoice, type SectionLayout, type TileLayout } from '../../layout/types';
 import { isLibraryIcon } from '../icons/library';
 import { pickHero } from '../../dashboard/hero';
-import { sectionId, type Section, type SectionKind, type TileSpec } from '../../dashboard/types';
+import { isDeviceTile, sectionId, type Section, type SectionKind, type TileSpec } from '../../dashboard/types';
+import { builtInWidget, widgetName } from '../../widgets/catalog';
+import type { CapabilityValue } from '../../homey/types';
+import { createLocalWidgets, type WidgetLibrary } from '../../widgets/library-source';
+import { appWidgetCall, appWidgetList, appWidgetSearch, type AppWidgetRow } from '../../widgets/app-widget-link';
+import { widgetText, type WidgetFile } from '../../widgets/widget-file';
+import { appSettings, builtInSettings, ownSettings, wantsSettings, type SettingDef } from '../../widgets/settings';
+import { ownWidgetId } from '../../widgets/widget-ref';
+import type { PickOption, WidgetPicks } from '../panels/widget-panel';
+import '../panels/widget-panel';
 import type { NewItem } from '../../layout/reconcile';
 import { isLeftKind, sectionIcon, sectionTitle, shownSectionIcon } from '../model/layout';
 import { tanksOf, temperatureSources } from '../model/rest-view';
@@ -52,6 +71,7 @@ import '../parts/dialog';
 import '../parts/snackbar';
 import '../screens/connect-screen';
 import '../screens/pair-screen';
+import '../panels/board-look-panel';
 import '../screens/dashboard-screen';
 import '../screens/rest-screen';
 import '../panels/add-panel';
@@ -85,6 +105,8 @@ export const REST_KEY = 'dashboard.rest';
 /** What the app needs from the outside world; the browser's by default, a fake one in tests. */
 export interface AppEnvironment {
   configStore: ConfigStore;
+  /** Where this device keeps its looks. */
+  looksStore?: LooksStore;
   createRealClient: ControllerDeps['createRealClient'];
   createDemoClient(which: Demo, language: Language): HomeyClient;
   /** Runs a store flush; in the browser at the next frame, so the live state redraws at most once per frame. */
@@ -105,6 +127,21 @@ export interface AppEnvironment {
     /** What this device is, as far as can be told. */
     kind(): DeviceKind;
     mayArrange(): boolean;
+    /** What the hub says this device may; null until it said so. */
+    knownRole(): 'edit' | 'use' | null;
+    /** The own widgets of the house, on the hub. */
+    widgets?: WidgetLibrary;
+    /** The widgets of other apps the hub has, when the app on the hub has a key for them. */
+    appWidgets?(): Promise<unknown>;
+    appWidgetApi?(ref: string, method: string, route: string, body: unknown): Promise<unknown>;
+    /** The choices of a setting with a search list of such a widget. */
+    appWidgetSearch?(ref: string, setting: string, query: string): Promise<unknown>;
+    /** Changes of the house's looks to the hub. */
+    sendLooks?(ops: LookOp[]): void;
+    /** Calls back with what the hub has of looks, also with what came before; a rescue comes with it. */
+    onLooks?(listener: (doc: LooksDoc) => void): void;
+    /** Calls back when the hub refused a change of looks. */
+    onLooksRefused?(listener: () => void): void;
     /** Calls back when another device saved first. */
     onConflict(listener: () => void): void;
     /** Calls back when a change is not on the hub yet; it is tried again by itself. */
@@ -124,6 +161,7 @@ export function browserEnvironment(): AppEnvironment {
   if (__SERVED_BY_HOMEY__) return servedEnvironment(createDemoClient);
   return {
     configStore: createLocalConfigStore(safeStorage(() => window.localStorage)),
+    looksStore: createLooksStore(safeStorage(() => window.localStorage)),
     createRealClient: (settings) => {
       const lib = homeyLib();
       if (!lib) return null;
@@ -146,7 +184,7 @@ export function browserEnvironment(): AppEnvironment {
     clearTimeout: (handle) => window.clearTimeout(handle as number),
     browserLanguages: navigator.languages?.length ? [...navigator.languages] : [navigator.language],
     watchStored: (changed) => {
-      const onStorage = (event: StorageEvent): void => { if (event.key === STORAGE_KEY) changed(); };
+      const onStorage = (event: StorageEvent): void => { if (event.key === STORAGE_KEY || event.key === LOOKS_KEY) changed(); };
       window.addEventListener('storage', onStorage);
       return () => window.removeEventListener('storage', onStorage);
     },
@@ -176,7 +214,7 @@ const HOLD_HINT_EVERY_MS = 3_600_000;
  * before the element is attached to replace the browser's (tests do).
  */
 export class MhApp extends LitElement {
-  static override properties = { state: { state: true }, panel: { state: true }, editPanel: { state: true }, freshTiles: { state: true }, sectionDialog: { state: true }, boardDialog: { state: true }, pairIssue: { state: true }, pairing: { state: true }, scanned: { state: true }, phone: { state: true }, question: { state: true }, asking: { state: true } };
+  static override properties = { state: { state: true }, panel: { state: true }, editPanel: { state: true }, freshTiles: { state: true }, sectionDialog: { state: true }, boardDialog: { state: true }, pairIssue: { state: true }, pairing: { state: true }, scanned: { state: true }, phone: { state: true }, question: { state: true }, asking: { state: true }, draftLook: { state: true }, boardLook: { state: true } };
   declare state: AppState;
   /** The panel opened from the rail or a header label. */
   declare panel: 'none' | 'theme' | 'settings' | 'wall';
@@ -199,6 +237,10 @@ export class MhApp extends LitElement {
   /** A question before something is taken away; it keeps its text while the dialog fades out. */
   declare question: Question;
   declare asking: boolean;
+  /** A theme being adjusted in the theme panel: the page shows it until it is saved or thrown away. */
+  declare draftLook: ThemeFile | null;
+  /** The panel with the look of the open dashboard. */
+  declare boardLook: boolean;
   /** The tiles that were just added. */
   declare freshTiles: readonly string[];
   private freshTimer: unknown = null;
@@ -211,7 +253,11 @@ export class MhApp extends LitElement {
   private media = darkMedia();
   private narrow = phoneMedia();
   private stopNarrow: (() => void) | null = null;
-  private appliedTheme: { theme: ThemeSettings; dark: boolean; density: ShownDensity; night: boolean } | null = null;
+  private appliedTheme: { theme: ThemeSettings; dark: boolean; density: ShownDensity; night: boolean; style: Style } | null = null;
+  /** `#veilig` after the address: this load shows Rustig, whatever was chosen. */
+  private readonly safe = typeof location !== 'undefined' && isSafeAddress(location.hash);
+  /** What each always-Rustig element last got, so it is only set again when that changes. */
+  private safeApplied = new WeakMap<HTMLElement, string>();
   private store!: Store;
   private controller!: Controller;
   private wall!: Wall;
@@ -238,10 +284,25 @@ export class MhApp extends LitElement {
     this.scanned = '';
     this.phone = this.narrow?.matches ?? false;
     this.question = { heading: '', text: '', ok: '', run: () => {} };
+    this.draftLook = null;
+    this.boardLook = false;
     this.asking = false;
     // The system turned light or dark: the document follows, and so do the sections with their own colour.
     if (this.media) watchSystemDark(this.media, () => { this.appliedTheme = null; this.applyTheme(); this.requestUpdate(); });
   }
+
+  /** What the hub said last of the widgets of other apps, by their reference. */
+  private appRows = new Map<string, AppWidgetRow>();
+  private appRowsRead: Promise<unknown> | null = null;
+
+  private async readAppWidgets(read: () => Promise<unknown>) {
+    const list = await appWidgetList(read);
+    if (list.widgets.length > 0) this.appRows = new Map(list.widgets.map((row) => [row.ref, row]));
+    return list;
+  }
+
+  /** The own widgets of the open house: on the hub when it served this page, otherwise in this browser. */
+  private widgetLibrary: WidgetLibrary | null = null;
 
   /** Makes the store and the controller from the environment, once, when the app is first attached. */
   private setup(): void {
@@ -261,7 +322,12 @@ export class MhApp extends LitElement {
       browserLanguages: env.browserLanguages,
       mayArrange: () => env.served?.mayArrange() ?? true,
       served: env.served !== undefined,
+      ...(env.looksStore ? { looksStore: env.looksStore } : {}),
+      ...(env.served ? { lookRole: () => env.served!.knownRole() } : {}),
+      ...(env.served?.sendLooks ? { sendLooks: (ops: LookOp[]) => env.served!.sendLooks!(ops) } : {}),
     });
+    env.served?.onLooks?.((doc) => this.controller.adoptHubLooks(doc));
+    env.served?.onLooksRefused?.(() => this.notify({ text: this.ctx.t('notify.looksRefused'), icon: 'info' }));
     env.served?.onConflict(() => this.notify({ text: this.ctx.t('notify.conflict'), icon: 'info' }));
     this.scanned = env.served?.scanned() ?? '';
     env.served?.onScanned((code) => {
@@ -281,7 +347,16 @@ export class MhApp extends LitElement {
       settings: () => this.state.wall, allowed: () => this.mayRest(),
       began: () => this.beginRest(), ended: (kind) => { void this.endRest(kind); }, update: () => this.requestUpdate(),
     });
-    this.ctx = { store: this.store, t: createTranslate(this.state.language.active), actions: this.controller.actions, status: () => this.controller.status(), busy: (id) => this.controller.busy(id) };
+    this.ctx = { store: this.store, t: createTranslate(this.state.language.active), actions: this.controller.actions, status: () => this.controller.status(), busy: (id) => this.controller.busy(id), history: this.controller.history,
+      widgets: { boards: () => this.places().map(({ id, name, icon }) => ({ id, name, icon })), openBoard: (id) => this.navigate(`board:${id}`), own: () => this.widgetLibrary?.list() ?? [], safe: () => this.safe,
+        ask: (deviceId, capabilityId, value, widgetName) => this.askForWidget(deviceId, capabilityId, value, widgetName),
+        ...(env.served?.appWidgets ? {
+          apps: () => this.readAppWidgets(env.served!.appWidgets!),
+          appRow: (ref) => (this.appRowsRead ??= this.readAppWidgets(env.served!.appWidgets!)).then(() => this.appRows.get(ref)),
+          appApi: (ref, method, path, body) => appWidgetCall(env.served!.appWidgetApi, ref, method, path, body),
+        } : {}) } };
+    this.widgetLibrary = env.served?.widgets ?? createLocalWidgets(safeStorage(() => window.localStorage), () => this.controller.hubId(), window);
+    this.widgetLibrary.subscribe(() => this.requestUpdate());
     document.documentElement.lang = this.state.language.active;
     this.controller.subscribe(() => {
       this.state = this.controller.getState();
@@ -359,6 +434,9 @@ export class MhApp extends LitElement {
   }
 
   protected override willUpdate(): void {
+    // an adjustment that was not saved is shown only while the theme panel is open on a dashboard
+    const phase = this.state?.phase;
+    if (this.draftLook && (this.panel !== 'theme' || (phase !== 'dashboard' && phase !== 'demo'))) this.draftLook = null;
     // what may be at rest follows from everything that is shown
     if (!this.started) return;
     this.wall.changed();
@@ -443,7 +521,7 @@ export class MhApp extends LitElement {
     const hero = block?.type === 'hero' ? block : undefined;
     const large = this.automaticHero();
     const connecting = state.phase === 'connecting' && !state.startUnreachable;
-    return html`<mh-rest-screen .ctx=${this.ctx} .hero=${hero?.hero ?? null} .heroSeed=${hero ? state.sectionSeeds[hero.id] ?? null : null} mode=${this.shownMode()}
+    return html`<mh-rest-screen .ctx=${this.ctx} .hero=${hero?.hero ?? null} .heroSeed=${hero ? state.sectionSeeds[hero.id] ?? null : null} mode=${this.shownMode()} .look=${this.shownStyle()}
       .battery=${large?.kind === 'battery' ? large.primary : null} .wall=${state.wall} .hub=${wallHubOf(state.wall, state.hubId)} .now=${wall.now} .night=${wall.look === 'night'}
       .away=${this.controller.status().route === null && !connecting} ?leaving=${wall.leaving}></mh-rest-screen>`;
   }
@@ -471,20 +549,115 @@ export class MhApp extends LitElement {
   }
 
   private shownMode(): Mode {
-    return this.nightNow ? 'dark' : resolveMode(this.state.theme.mode, this.media?.matches ?? false);
+    return this.nightNow ? 'dark' : resolveMode(this.chosenLook().mode, this.media?.matches ?? false);
   }
 
-  /** The theme goes onto the document when it changed, when the system turned light or dark, or when the night came or went. */
+  /** The look of the dashboard that is open; the rooms and the rest screen follow this device and the house. */
+  private chosenLook(): ChosenLook {
+    const board = this.state.boardId;
+    const resting = (this.wall?.shown ?? 'none') !== 'none';
+    return this.controller.chosenLook(resting || board === ROOMS_ID || roomOfBoard(board) !== null ? null : board);
+  }
+
+  /** The base colour the page shows. */
+  private shownSeed(): string {
+    return this.chosenLook().seed ?? rustigExpressive.color.defaultSeed;
+  }
+
+  /** One style per theme, the same object as long as the theme is the same, so nothing is drawn again for nothing. */
+  private styles = new Map<string, Style>();
+  private styleFor(file: ThemeFile): Style {
+    const key = JSON.stringify(file);
+    let style = this.styles.get(key);
+    if (!style) {
+      style = styleOf(file);
+      this.styles.set(key, style);
+    }
+    return style;
+  }
+
+  /**
+   * The theme goes onto the document when it changed, when the system turned light or dark, or when the night came or
+   * went; only while this app is on the page: one that was taken off it leaves the page to the one that is there.
+   */
   private applyTheme(): void {
-    if (!this.state) return;
+    if (!this.state || !this.isConnected) return;
     const dark = this.media?.matches ?? false;
-    const theme = this.state.theme;
+    const chosen = this.chosenLook();
+    const theme: ThemeSettings = { ...this.state.theme, seed: this.shownSeed(), mode: chosen.mode };
     const density = this.shownDensity();
     const night = this.nightNow;
+    const style = this.shownStyle();
     const { appliedTheme } = this;
-    if (appliedTheme && appliedTheme.theme === theme && appliedTheme.dark === dark && appliedTheme.density === density && appliedTheme.night === night) return;
-    this.appliedTheme = { theme, dark, density, night };
-    applyThemeTo(document.documentElement, { ...theme, density, ...(night ? { mode: 'dark' } : {}) }, dark);
+    if (appliedTheme && appliedTheme.theme.seed === theme.seed && appliedTheme.theme.mode === theme.mode && appliedTheme.dark === dark && appliedTheme.density === density && appliedTheme.night === night && appliedTheme.style === style) return;
+    this.appliedTheme = { theme, dark, density, night, style };
+    applyThemeTo(document.documentElement, { ...theme, density, ...(night ? { mode: 'dark' } : {}) }, dark, style);
+  }
+
+  /** The style the page shows; with `#veilig` after the address always Rustig. */
+  private shownStyle(): Style {
+    if (this.safe) return RUSTIG_STYLE;
+    return this.styleFor(this.draftLook ?? this.chosenLook().file);
+  }
+
+  /** A choice in the theme panel, for this device or the whole house; a theme that is hard to read is asked about first for the house. */
+  private onLookChoose({ target, theme, seed, mode }: LookChoose): void {
+    const { look } = this.state;
+    const { device } = look;
+    const house = look.house;
+    if (target === 'house') {
+      const change = { ...(theme === undefined ? {} : { theme }), ...(seed === undefined ? {} : { seed }), ...(mode === undefined ? {} : { mode }) };
+      const file = theme === undefined ? undefined : look.themes.find((item) => item.id === theme);
+      const poor = file ? poorPlaces(file, shownSeed(file, seed ?? house?.seed ?? null) ?? rustigExpressive.color.defaultSeed) : 0;
+      if (poor > 0) this.askPoorHouse(poor, this.ctx.t('theme.useAnyway'), () => this.controller.setHouse(change));
+      else this.controller.setHouse(change);
+      return;
+    }
+    // a style of its own takes the colour along that it had from the house, and the other way round
+    const fromHouse = look.role !== 'own' && device.followStyle && house !== null;
+    if (theme !== undefined || seed !== undefined) {
+      this.controller.setDeviceLook({ followStyle: false, theme: theme ?? (fromHouse ? house.theme : device.theme), seed: seed ?? (fromHouse ? house.seed : device.seed) });
+    }
+    if (mode !== undefined) this.controller.setDeviceLook({ followMode: false, mode });
+  }
+
+  /** "Voor wie": the whole house, or this device with what the house has now. */
+  private onLookTarget(target: LookTarget): void {
+    const house = this.state.look.house;
+    if (target === 'house') { this.controller.followHouse(); return; }
+    if (house) this.controller.setDeviceLook({ followStyle: false, followMode: false, theme: house.theme, seed: house.seed, mode: house.mode });
+  }
+
+  /** A theme made or taken in: kept, and used; for the whole house only after a question when it is hard to read. */
+  private onLookSave(file: ThemeFile, poor: number): void {
+    const { look } = this.state;
+    if (!this.controller.saveTheme(file)) return;
+    const target = lookTarget(look.role, look.device);
+    if (target === 'house') {
+      const use = (): void => { this.controller.setHouse({ theme: file.id }); };
+      if (poor > 0) this.askPoorHouse(poor, this.ctx.t('import.save'), use);
+      else use();
+      return;
+    }
+    this.onLookChoose({ target, theme: file.id });
+  }
+
+  /** Whether the whole house gets a theme that is hard to read in some places. */
+  private askPoorHouse(poor: number, ok: string, run: () => void): void {
+    const { t } = this.ctx;
+    this.ask({ heading: t('theme.forWho.house'), text: t('import.poorHouse', { count: poor }), ok, run });
+  }
+
+  /** The danger question, the pairing screen and the theme panel always in Rustig, in the page's colour and light or dark. */
+  private keepSafe(): void {
+    if (!this.state) return;
+    const settings = { ...this.state.theme, seed: this.shownSeed(), mode: this.shownMode(), density: this.shownDensity() };
+    const key = `${settings.seed} ${settings.mode} ${settings.density}`;
+    for (const element of this.renderRoot.querySelectorAll<HTMLElement>('mh-dialog.confirm, mh-pair-screen, mh-theme-panel')) {
+      if (this.safeApplied.get(element) === key) continue;
+      safeLook(element, settings, false);
+      this.safeApplied.set(element, key);
+    }
   }
 
   static override styles = [sharedStyles, css`
@@ -497,7 +670,10 @@ export class MhApp extends LitElement {
   private shownBoard: string | null = null;
 
   protected override updated(): void {
+    // a question of a widget that went without a yes
+    if (this.widgetQuestion && (!this.asking || this.question !== this.widgetQuestion.question)) this.endWidgetQuestion(false);
     if (!this.state) return;
+    this.keepSafe();
     const screen = this.state.phase === 'connect' ? 'connect' : 'dashboard';
     const board = screen === 'dashboard' ? this.state.boardId : null;
     if (board !== this.shownBoard) window.scrollTo(0, 0);
@@ -580,6 +756,7 @@ export class MhApp extends LitElement {
     const spec = this.findTile(tileId)?.spec;
     if (!spec) return '';
     if (spec.kind === 'flow') return flowView(spec, this.store.getSnapshot()?.flows.find((f) => f.id === spec.flowId), this.ctx.t).name;
+    if (spec.kind === 'widget') return widgetName(spec, this.ctx.t);
     return tileView(spec, this.store.getDevice(spec.deviceId), this.ctx.t).name;
   }
 
@@ -673,6 +850,55 @@ export class MhApp extends LitElement {
     const question: Question = { ...dangerQuestion(device, capabilityId, value, this.ctx.t), dangerAt: Date.now(), run: () => this.ctx.actions.guard(deviceId, capabilityId, value) };
     this.ask(question);
     this.env.setTimeout(() => { if (this.question === question) this.asking = false; }, ASK_MS);
+  }
+
+  /** An own widget into the house, from the code or file somebody gave. */
+  private async installWidget(widget: WidgetFile): Promise<void> {
+    const { t } = this.ctx;
+    const done = await this.widgetLibrary?.change([{ add: widget }]) ?? 'refused';
+    const name = widgetText(widget.name, t.language);
+    // a full list takes nothing in, and says so
+    if (done === 'ok' && !this.widgetLibrary?.list().some((kept) => kept.id === widget.id)) { this.notify({ text: t('ownWidgets.full'), icon: 'error' }); return; }
+    this.notify(done === 'ok' ? { text: t('ownWidgets.installed', { name }), icon: 'check_circle' }
+      : { text: t(done === 'refused' ? 'ownWidgets.refused' : 'ownWidgets.unreachable'), icon: 'error' });
+  }
+
+  /** An own widget out of the house, after a question that says where it is placed. */
+  private askRemoveWidget(widget: WidgetFile): void {
+    const { t } = this.ctx;
+    const name = widgetText(widget.name, t.language);
+    const ref = `own:${widget.id}`;
+    const places = this.state.layout.dashboards.flatMap((d) => d.sections ?? []).flatMap((s) => s.tiles).filter((tile) => tile.spec.kind === 'widget' && tile.spec.widget === ref).length;
+    this.ask({
+      heading: t('ownWidgets.removeTitle', { name }), text: t('ownWidgets.removeText', { n: places }), ok: t('ownWidgets.remove'),
+      run: () => {
+        void this.widgetLibrary?.change([{ remove: widget.id }]).then((done) => {
+          this.notify(done === 'ok' ? { text: t('ownWidgets.removed', { name }), icon: 'delete' } : { text: t(done === 'refused' ? 'ownWidgets.refused' : 'ownWidgets.unreachable'), icon: 'error' });
+        });
+      },
+    });
+  }
+
+  /** A question a widget brought up, and how it ends: yes, or anything else. */
+  private widgetQuestion: { question: Question; done(yes: boolean): void } | null = null;
+
+  /** Something dangerous a widget wants: the same question as a tap on a tile, which says which widget asks. */
+  private askForWidget(deviceId: string, capabilityId: string, value: CapabilityValue, widgetName: string): Promise<boolean> {
+    const device = this.store.getDevice(deviceId);
+    if (!device || !isGuarded(device, capabilityId) || this.asking) return Promise.resolve(false);
+    return new Promise((done) => {
+      const asked = dangerQuestion(device, capabilityId, value, this.ctx.t);
+      const question: Question = { ...asked, text: this.ctx.t('widget.asks', { name: widgetName, text: asked.text }), dangerAt: Date.now(), run: () => { this.endWidgetQuestion(true); } };
+      this.widgetQuestion = { question, done };
+      this.ask(question);
+      this.env.setTimeout(() => { if (this.question === question) this.asking = false; }, ASK_MS);
+    });
+  }
+
+  private endWidgetQuestion(yes: boolean): void {
+    const pending = this.widgetQuestion;
+    this.widgetQuestion = null;
+    pending?.done(yes);
   }
 
   private renderQuestion() {
@@ -786,6 +1012,17 @@ export class MhApp extends LitElement {
       @confirm=${(e: CustomEvent<{ name: string | null; icon: string | null }>) => this.onBoardDialog(e.detail)} @cancel=${() => { this.boardDialog = null; }}></mh-name-icon-dialog>`;
   }
 
+  private renderBoardLook() {
+    const board = this.openDashboard();
+    const { look } = this.state;
+    // the colour of this device or the house: a theme with a colour of its own shows that one itself
+    const seed = lookChoice(look.role, look.device, look.house).seed;
+    return html`<mh-board-look-panel .t=${this.ctx.t} ?open=${this.boardLook && board !== undefined} name=${board ? this.boardName(board) : ''}
+      .theme=${board ? look.boards[board.id] ?? null : null} .themes=${look.themes} role=${look.role} seed=${seed} mode=${this.shownMode()}
+      @board-theme=${(e: CustomEvent<{ theme: string | null }>) => { if (board) this.controller.setBoardTheme(board.id, e.detail.theme); }}
+      @close=${() => { this.boardLook = false; }}></mh-board-look-panel>`;
+  }
+
   private boardMenu(board: DashboardLayout | undefined) {
     if (!board) return [];
     const { dashboards } = this.state.layout;
@@ -799,6 +1036,7 @@ export class MhApp extends LitElement {
     const index = dashboards.findIndex((d) => d.id === dashboardId);
     switch (action) {
       case 'rename': this.boardDialog = 'edit'; return;
+      case 'look': this.boardLook = true; return;
       case 'up': this.moveBoard(index - 1); return;
       case 'down': this.moveBoard(index + 1); return;
       case 'reset': this.askReset(); return;
@@ -837,6 +1075,11 @@ export class MhApp extends LitElement {
     this.controller.edit({ type: 'add-tiles', dashboardId: this.state.boardId, sectionId, tiles });
     if (this.state.layout === before) { this.notifyFull(); return; }
     this.showFresh(tiles.map((tile) => tile.id));
+    // a widget that is no use before it is set up opens its settings at once
+    const [first] = tiles;
+    const appRow = first?.spec.kind === 'widget' ? this.appRows.get(first.spec.widget) : undefined;
+    const settable = first?.spec.kind === 'widget' && (wantsSettings(first.spec.widget) || (appRow !== undefined && appSettings(appRow, this.ctx.t.language, '').length > 0));
+    if (tiles.length === 1 && first && settable) this.openEditPanel({ kind: 'tile', tileId: first.id });
     this.notifyUndo(this.ctx.t('add.added', { name, section: sectionTitle(section, this.ctx.t) }), 'check_circle');
   }
 
@@ -967,9 +1210,18 @@ export class MhApp extends LitElement {
     };
     return html`<mh-add-panel .ctx=${this.ctx} ?hidden=${this.phone} ?open=${addTo !== undefined} sectionName=${addTo ? sectionTitle(addTo, this.ctx.t) : ''} boardName=${boardName} .board=${s.board}
         .newId=${this.newTileId} @close=${() => { this.editPanel = null; }}
-        @add-tiles=${(e: CustomEvent<{ tiles: TileLayout[]; name: string }>) => { if (addTo) this.onAddTiles(addTo.id, e.detail.tiles, e.detail.name); }}></mh-add-panel>
-      <mh-tile-panel .t=${this.ctx.t} ?hidden=${this.phone} ?open=${tile !== null} .tile=${tile ? this.storedTile(tile.spec.id, tile.spec) : null} sectionName=${tile ? sectionTitle(tile.section, this.ctx.t) : ''}
-        .device=${tile && tile.spec.kind !== 'flow' ? this.store.getDevice(tile.spec.deviceId) : undefined} @close=${() => { this.editPanel = null; }}
+        @add-tiles=${(e: CustomEvent<{ tiles: TileLayout[]; name: string }>) => { if (addTo) this.onAddTiles(addTo.id, e.detail.tiles, e.detail.name); }}
+        @install-widget=${(e: CustomEvent<{ widget: WidgetFile }>) => { void this.installWidget(e.detail.widget); }}
+        @remove-widget=${(e: CustomEvent<{ widget: WidgetFile }>) => this.askRemoveWidget(e.detail.widget)}
+        @told=${(e: CustomEvent<string>) => this.notify({ text: e.detail, icon: 'check_circle' })}></mh-add-panel>
+      <mh-widget-panel .t=${this.ctx.t} ?hidden=${this.phone} ?open=${tile?.spec.kind === 'widget'} .tile=${tile?.spec.kind === 'widget' ? this.storedTile(tile.spec.id, tile.spec) : null}
+        .settings=${tile?.spec.kind === 'widget' ? this.widgetSettings(tile.spec.widget) : []} .picks=${this.widgetPicks(tile?.spec.kind === 'widget' ? tile.spec.widget : null)}
+        widgetTitle=${tile?.spec.kind === 'widget' ? widgetText(this.ownWidgetOf(tile.spec.widget)?.name ?? {}, this.ctx.t.language) : ''}
+        .sizes=${tile?.spec.kind === 'widget' ? builtInWidget(tile.spec.widget)?.sizes ?? this.ownWidgetOf(tile.spec.widget)?.sizes ?? ['single', 'wide'] : []} sectionName=${tile ? sectionTitle(tile.section, this.ctx.t) : ''}
+        @close=${() => { this.editPanel = null; }} @set-tile=${(e: CustomEvent<{ patch: TilePatch; typing?: boolean }>) => setTile(e.detail.patch, e.detail.typing)}
+        @remove=${() => { this.editPanel = null; if (tile) this.onEdit({ type: 'remove-tile', dashboardId: s.boardId, tileId: tile.spec.id }); }}></mh-widget-panel>
+      <mh-tile-panel .t=${this.ctx.t} ?hidden=${this.phone} ?open=${tile !== null && tile.spec.kind !== 'widget'} .tile=${tile ? this.storedTile(tile.spec.id, tile.spec) : null} sectionName=${tile ? sectionTitle(tile.section, this.ctx.t) : ''}
+        .device=${tile && isDeviceTile(tile.spec) ? this.store.getDevice(tile.spec.deviceId) : undefined} @close=${() => { this.editPanel = null; }}
         @set-tile=${(e: CustomEvent<{ patch: TilePatch; typing?: boolean }>) => setTile(e.detail.patch, e.detail.typing)}
         @remove=${() => { this.editPanel = null; if (tile) this.onEdit({ type: 'remove-tile', dashboardId: s.boardId, tileId: tile.spec.id }); }}></mh-tile-panel>
       <mh-hero-panel .ctx=${this.ctx} ?hidden=${this.phone} ?open=${heroId !== null} .choice=${this.heroChoice(heroId)} .automatic=${heroId !== null ? this.automaticHero() : null} .board=${s.board} boardName=${boardName}
@@ -978,6 +1230,37 @@ export class MhApp extends LitElement {
       <mh-news-panel .ctx=${this.ctx} ?hidden=${this.phone} ?open=${newsOpen} .news=${s.news} .sections=${this.placeOptions()} .sectionName=${this.sectionNameOf}
         @close=${() => { this.editPanel = null; }} @place-all=${() => this.onPlaceAll(s.news)} @place=${(e: CustomEvent<{ ref: string; sectionId: string | null }>) => this.onPlace(e.detail.ref, e.detail.sectionId)}
         @skip=${(e: CustomEvent<{ ref: string }>) => this.onSkip(e.detail.ref)} @new-section=${(e: CustomEvent<{ ref: string }>) => this.onNewSection(e.detail.ref)}></mh-news-panel>`;
+  }
+
+  private ownWidgetOf(ref: string): WidgetFile | undefined {
+    const id = ownWidgetId(ref);
+    return id === null ? undefined : this.widgetLibrary?.list().find((widget) => widget.id === id);
+  }
+
+  /** What a widget lets the owner set: one of the app, or what an own widget's file describes. */
+  private widgetSettings(ref: string): SettingDef[] {
+    const row = this.appRows.get(ref);
+    if (row) return appSettings(row, this.ctx.t.language, this.ctx.t('widget.setting.devices'));
+    const own = this.ownWidgetOf(ref);
+    return own ? ownSettings(own, this.ctx.t.language) : builtInSettings(ref, this.ctx.t);
+  }
+
+  /** What the settings of a widget can choose from: the dashboards, the devices and their values, the flows. */
+  private widgetPicks(ref: string | null = null): WidgetPicks {
+    const snapshot = this.store.getSnapshot();
+    const byName = (a: PickOption, b: PickOption): number => a.title.localeCompare(b.title, this.ctx.t.locale);
+    const devices = Object.values(snapshot?.devices ?? {}).map((device) => ({ id: device.id, title: device.name.trim() || this.ctx.t('tile.unnamed') })).sort(byName);
+    const switchable = Object.values(snapshot?.devices ?? {})
+      .filter((device) => Object.values(device.capabilities).some((cap) => cap.setable && (cap.baseId === 'onoff' || cap.baseId === 'dim')) && !Object.keys(device.capabilities).some((id) => isGuarded(device, id)))
+      .map((device) => ({ id: device.id, title: device.name.trim() || this.ctx.t('tile.unnamed') })).sort(byName);
+    return {
+      boards: this.ctx.widgets?.boards().filter((board) => board.id !== this.state.boardId) ?? [],
+      ...(ref !== null && this.env.served?.appWidgetSearch ? { search: (setting: string, query: string) => appWidgetSearch(this.env.served!.appWidgetSearch!, ref, setting, query) } : {}),
+      devices,
+      switchable,
+      capabilities: (deviceId) => Object.values(this.store.getDevice(deviceId)?.capabilities ?? {}).map((cap) => ({ id: cap.id, title: cap.title })),
+      flows: (snapshot?.flows ?? []).map((flow) => ({ id: flow.id, title: flow.name.trim() || this.ctx.t('flows.unnamed') })).sort(byName),
+    };
   }
 
   /** The stored choice of the hero of the open dashboard; null is automatic. */
@@ -1012,6 +1295,7 @@ export class MhApp extends LitElement {
   private renderDashboard() {
     const s = this.state;
     const status = this.controller.status();
+    const chosen = this.chosenLook();
     const connecting = s.phase === 'connecting';
     const phase = connecting ? (s.startUnreachable ? 'unreachable' : 'loading') : 'ready';
     const empty = s.missing.includes('readDevices') ? 'no-right'
@@ -1024,8 +1308,9 @@ export class MhApp extends LitElement {
     return html`<mh-dashboard .ctx=${this.ctx} .board=${s.board} .boards=${this.places()} .rooms=${rooms} .room=${rooms.find((room) => roomBoardId(room.id) === s.boardId) ?? null} boardName=${open ? this.boardName(open) : ''} boardIcon=${open ? this.boardIcon(open) : 'dashboard'} .boardMenu=${this.boardMenu(open)}
       ?editing=${s.editing && !this.phone} ?canUndo=${s.canUndo} ?firstTime=${open?.sections === null} phase=${phase} emptyReason=${empty} banner=${banner}
       ?inert=${this.wall.shown !== 'none'} ?resting=${this.wall.covered} density=${this.shownDensity()} ?connecting=${connecting && !s.startUnreachable} activePanel=${this.panel === 'wall' ? 'settings' : this.panel}
-      .sectionSeeds=${s.sectionSeeds} mode=${this.shownMode()} .baseSeed=${s.theme.seed}
+      .sectionSeeds=${s.sectionSeeds} .heroChart=${open?.chart ?? null} mode=${this.shownMode()} .look=${this.shownStyle()} .baseSeed=${this.shownSeed()}
       @section-seed=${(e: CustomEvent<{ sectionId: string; seed: string | null }>) => this.controller.setSectionSeed(e.detail.sectionId, e.detail.seed)}
+      @hero-chart=${(e: CustomEvent<{ chart: HeroChart | null }>) => this.controller.edit({ type: 'set-chart', dashboardId: s.boardId, chart: e.detail.chart })}
       @navigate=${(e: CustomEvent<{ to: RailTarget }>) => this.navigate(e.detail.to)}
       .freshTiles=${this.freshTiles} .news=${s.news} .gone=${s.gone} .nameOfBoard=${this.nameOfBoard}
       @place=${(e: CustomEvent<{ ref: string; sectionId: string | null }>) => this.onPlace(e.detail.ref, e.detail.sectionId)} @skip=${(e: CustomEvent<{ ref: string }>) => this.onSkip(e.detail.ref)}
@@ -1040,10 +1325,17 @@ export class MhApp extends LitElement {
       @toggle-edit=${() => { if (!this.phone) this.controller.setEditing(!this.state.editing); }} @done=${() => this.controller.setEditing(false)} @undo=${() => this.undo()}
       @retry=${() => this.controller.retry()} @reload=${() => this.env.served?.reload()} @change-connection=${() => this.controller.changeConnection()}></mh-dashboard>
       ${this.renderEditPanels(open ? this.boardName(open) : '')}
-      ${this.renderSectionDialog()}${this.renderBoardDialog()}${this.renderQuestion()}
+      ${this.renderSectionDialog()}${this.renderBoardDialog()}${this.renderBoardLook()}${this.renderQuestion()}
       <mh-device-panel .ctx=${this.ctx} .deviceId=${connecting ? null : s.openDeviceId} @close=${() => this.controller.closeDevice()}></mh-device-panel>
-      <mh-theme-panel .t=${this.ctx.t} ?open=${this.panel === 'theme'} ?phone=${this.phone} .theme=${s.theme} .presets=${rustigExpressive.color.presets}
-        @change=${(e: CustomEvent<ThemeSettings>) => this.controller.setTheme(e.detail)} @close=${() => { this.panel = 'none'; }}></mh-theme-panel>
+      <mh-theme-panel .t=${this.ctx.t} ?open=${this.panel === 'theme'} ?phone=${this.phone} .look=${s.look} density=${s.theme.density} .presets=${rustigExpressive.color.presets}
+        ?safe=${this.safe} ?systemDark=${this.media?.matches ?? false} .boardTheme=${chosen.why === 'board' ? chosen.file.id : null}
+        @look-choose=${(e: CustomEvent<LookChoose>) => this.onLookChoose(e.detail)} @look-target=${(e: CustomEvent<{ target: LookTarget }>) => this.onLookTarget(e.detail.target)}
+        @density=${(e: CustomEvent<{ density: Density }>) => this.controller.setTheme({ ...this.state.theme, density: e.detail.density })}
+        @follow-house=${() => this.controller.followHouse()} @device-look=${(e: CustomEvent<Partial<DeviceLook>>) => this.controller.setDeviceLook(e.detail)}
+        @look-preview=${(e: CustomEvent<{ file: ThemeFile | null }>) => { this.draftLook = e.detail.file; }}
+        @look-save=${(e: CustomEvent<{ file: ThemeFile; poor?: number }>) => this.onLookSave(e.detail.file, e.detail.poor ?? 0)}
+        @look-remove=${(e: CustomEvent<{ id: string }>) => this.controller.removeTheme(e.detail.id)}
+        @close=${() => { this.panel = 'none'; }}></mh-theme-panel>
       <mh-settings-panel .t=${this.ctx.t} .language=${s.language.choice} ?open=${this.panel === 'settings'} .status=${status} .missing=${s.missing} .softwareVersion=${s.softwareVersion} appVersion=${__APP_VERSION__}
         ?overviewAutomatic=${s.layout.dashboards.find((d) => d.id === OVERVIEW_ID)?.sections == null} @export=${() => this.saveLayout()} @reset=${() => this.askReset()}
         @import=${(e: CustomEvent<{ name: string; text: string }>) => this.loadLayout(e.detail)}

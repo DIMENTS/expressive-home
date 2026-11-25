@@ -13,6 +13,7 @@ import { createLocalConfigStore } from '../storage/local-store';
 import { isValidSeed } from '../theme/engine';
 import type { ThemeSettings } from '../theme/types';
 import { renderDashboard } from './dashboard';
+import { describeShore, probeHistory } from './history-probe';
 import { insightsText, measureInsights } from './insights';
 import { addRouteChange, structureText } from './structure';
 import { applyTheme } from './theme';
@@ -311,12 +312,16 @@ function setupCopy(): void {
     const area = $<HTMLTextAreaElement>('structure');
     const measured = client;
     if (source === 'connecting' || !measured) { area.value = 'nog bezig met verbinden'; return; }
-    area.value = 'Insights meten…';
-    void measureInsights(measured, dashboard.hero, Date.now()).then((m) => {
+    area.value = 'Geschiedenis meten… dit duurt een minuut of twee.';
+    void (async () => {
+      const own = insightsText(await measureInsights(measured, dashboard.hero, Date.now()));
+      const all = measured.rawHistory ? await probeHistory(measured.rawHistory, dashboard.hero, Date.now()) : 'geschiedenis: niet te meten op deze Homey';
       if (measured !== client) return;
-      insightsResult = insightsText(m);
+      const shore = dashboard.hero?.stats.find((stat) => stat.role === 'shore');
+      const shoreText = describeShore(shore && 'ref' in shore ? store.getDevice(shore.ref.deviceId)?.capabilities[shore.ref.capabilityId] : undefined);
+      insightsResult = `${own}\n${all}\n${shoreText}`;
       showResult();
-    });
+    })();
   });
 }
 

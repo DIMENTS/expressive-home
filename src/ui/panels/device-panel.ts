@@ -1,6 +1,8 @@
 import { LitElement, css, html, nothing, type PropertyValues } from 'lit';
 import { live } from 'lit/directives/live.js';
 import { isDangerous, isGuarded } from '../../controls/danger';
+import type { HistorySource } from '../../homey/client';
+import { heroSourceOf } from '../../charts/hero-charts';
 import type { CapabilityValue, Device } from '../../homey/types';
 import { formatValue, joinValue } from '../../i18n/format';
 import type { UiContext } from '../app/context';
@@ -34,6 +36,8 @@ export class MhDevicePanel extends LitElement {
     ctx: { attribute: false },
     drafts: { state: true },
     invalid: { state: true },
+    sources: { state: true },
+    chosen: { state: true },
   };
 
   declare deviceId: string | null;
@@ -42,6 +46,10 @@ export class MhDevicePanel extends LitElement {
   declare drafts: Record<string, string>;
   /** The number fields whose last sent text was no number, by capability id. */
   declare invalid: Record<string, boolean>;
+  /** The logs with history of this device; [] until they are known, and without any. */
+  declare sources: HistorySource[];
+  /** The value whose history is shown, when somebody chose one. */
+  declare chosen: string | null;
   private listening: (() => void)[] = [];
   /** The device that was shown, so the panel can keep its contents while it slides out. */
   private lastView: DeviceView | null = null;
@@ -55,6 +63,8 @@ export class MhDevicePanel extends LitElement {
     this.deviceId = null;
     this.drafts = {};
     this.invalid = {};
+    this.sources = [];
+    this.chosen = null;
   }
 
   static override styles = [sharedStyles, panelStyles, topStyles, css`
@@ -68,6 +78,8 @@ export class MhDevicePanel extends LitElement {
     .number { display: flex; align-items: flex-end; gap: var(--space-8); }
     .number mh-text-field { flex: 1; }
     .number mh-button { margin-bottom: var(--space-24); }
+    button.cell { font: inherit; color: inherit; text-align: start; border: 0; cursor: pointer; min-height: var(--target-min); }
+    button.cell[aria-pressed='true'] { background: var(--c-secondary-container); color: var(--c-on-secondary-container); }
   `];
 
   override connectedCallback(): void {
@@ -101,7 +113,8 @@ export class MhDevicePanel extends LitElement {
   protected override willUpdate(changed: PropertyValues<this>): void {
     if (changed.has('deviceId') || changed.has('ctx')) {
       this.listen();
-      if (changed.has('deviceId')) { this.drafts = {}; this.invalid = {}; this.preview = null; }
+      if (changed.has('deviceId')) { this.drafts = {}; this.invalid = {}; this.preview = null; this.chosen = null; this.sources = []; }
+      this.readSources();
     }
   }
 
@@ -112,6 +125,28 @@ export class MhDevicePanel extends LitElement {
     if (wait !== null) this.arrives = setTimeout(() => this.requestUpdate(), wait);
     // the device disappeared while its window was open: ask to close
     if (this.deviceId && this.ctx && !this.ctx.store.getDevice(this.deviceId)) this.close();
+  }
+
+  /** Which values of this device have history; the list is read once per connection, so it is there at once. */
+  private readSources(): void {
+    const id = this.deviceId;
+    const history = this.ctx?.history;
+    if (!id || !history) return;
+    history.sources().then((all) => {
+      if (this.deviceId !== id) return;
+      // a meter only rises: its line says little, so it has none
+      const mine = all.filter((source) => source.deviceId === id && !this.ctx.store.getDevice(id)?.capabilities[source.capabilityId]?.baseId.startsWith('meter_'));
+      // the charts are only loaded where there is history to show
+      if (mine.length > 0) void import('./device-history').then(() => { if (this.deviceId === id) this.sources = mine; }, () => {});
+      else this.sources = [];
+    }, () => {});
+  }
+
+  /** The value with numbers whose history is shown: the chosen one, else the first of Waarden, else of Bedienen. */
+  private shownSource(view: DeviceView): HistorySource | null {
+    const numbers = this.sources.filter((source) => source.type === 'number');
+    const of = (id: string | null) => (id === null || !this.deviceId ? undefined : heroSourceOf(numbers, { deviceId: this.deviceId, capabilityId: id }) ?? undefined);
+    return of(this.chosen) ?? view.values.map((v) => of(v.capabilityId)).find(Boolean) ?? view.controls.map((c) => of(c.capabilityId)).find(Boolean) ?? numbers[0] ?? null;
   }
 
   private close(): void {
@@ -240,6 +275,9 @@ export class MhDevicePanel extends LitElement {
         : !status.canControl ? html`<mh-note icon="lock">${t('panel.readonly')}</mh-note>` : nothing;
     const enabled = !view.unavailable && status.route !== null && status.canControl;
     const device = this.lastDevice;
+    const shown = this.shownSource(view);
+    const numbers = new Set(this.sources.filter((source) => source.type === 'number').map((source) => source.capabilityId));
+    const switchSources = this.sources.filter((source) => source.type === 'boolean');
     const draw = (cap: Parameters<typeof controlFor>[0]) => {
       const control = controlFor(cap, t);
       return control ? this.renderControl(control, enabled) : nothing;
@@ -247,8 +285,11 @@ export class MhDevicePanel extends LitElement {
     return html`${note}
       ${view.house && device ? deviceTop(this, device, view.house, enabled, draw) : nothing}
       <div class="below">${view.controls.length ? html`<section><h3>${t('panel.control')}</h3><div class="rows">${view.controls.map((c) => this.renderControl(c, enabled))}</div></section>` : nothing}
-      ${view.values.length ? html`<section><h3>${t('panel.values')}</h3><div class="values">${view.values.map((v) => html`
-        <div class="cell ${v.danger ? 'danger' : ''}"><span>${v.label}</span><b>${v.text}</b></div>`)}</div></section>` : nothing}
+      ${view.values.length ? html`<section><h3>${t('panel.values')}</h3><div class="values">${view.values.map((v) => (numbers.has(v.capabilityId) ? html`
+        <button class="cell pick ${v.danger ? 'danger' : ''}" aria-pressed=${String(shown?.capabilityId === v.capabilityId)} @click=${() => { this.chosen = v.capabilityId; }}><span>${v.label}</span><b>${v.text}</b></button>` : html`
+        <div class="cell ${v.danger ? 'danger' : ''}"><span>${v.label}</span><b>${v.text}</b></div>`))}</div></section>` : nothing}
+      ${shown || switchSources.length > 0 ? html`<section><h3>${t('chart.history')}</h3><mh-device-history .ctx=${this.ctx} .device=${device} .source=${shown}
+        .switchSources=${switchSources}></mh-device-history></section>` : nothing}
       ${view.technical.length ? html`<details><summary><mh-icon name="chevron_right"></mh-icon>${t('panel.technical')}</summary>
         <div class="values">${view.technical.map((v) => html`<div class="cell"><span>${v.label}</span><b>${v.text}</b></div>`)}</div></details>` : nothing}</div>`;
   }

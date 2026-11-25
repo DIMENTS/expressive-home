@@ -19,12 +19,19 @@ export interface LinkDeps {
 export type Role = 'use' | 'edit';
 
 export type LinkEvents = {
-  /** The stream is there: again, or for the first time. */
-  open: { revision: number; role: Role | null };
+  /**
+   * The stream is there: again, or for the first time. `looks`: the number of the looks of the house, null from a hub
+   * that has none; `rescue`: how often the owner put every device back in Rustig, absent where that is not counted.
+   */
+  open: { revision: number; role: Role | null; looks: number | null; rescue?: number; widgets?: number };
   /** The stream went, or did not come; it is tried again by itself. */
   lost: null;
   hub: unknown;
   layouts: { revision: number };
+  /** The looks of the house changed. */
+  looks: { revision: number };
+  /** The own widgets of the house changed. */
+  widgets: { revision: number };
   /** What a flow on the hub said of the night of the wall tablets, and how long ago in ms; null: nothing. */
   night: { night: boolean; age: number } | null;
   /** The mark of the version of the dashboard that the hub has. */
@@ -57,7 +64,7 @@ export class RequestError extends Error {
 }
 
 export function createLink(deps: LinkDeps) {
-  const listeners: { [K in keyof LinkEvents]: Set<(value: LinkEvents[K]) => void> } = { open: new Set(), lost: new Set(), hub: new Set(), layouts: new Set(), night: new Set(), build: new Set(), role: new Set(), unpaired: new Set() };
+  const listeners: { [K in keyof LinkEvents]: Set<(value: LinkEvents[K]) => void> } = { open: new Set(), lost: new Set(), hub: new Set(), layouts: new Set(), looks: new Set(), widgets: new Set(), night: new Set(), build: new Set(), role: new Set(), unpaired: new Set() };
   /** Who needs the stream: it is open, or tried again, as long as there is one. */
   const holders = new Set<object>();
   let stream: EventStream | null = null;
@@ -121,13 +128,19 @@ export function createLink(deps: LinkDeps) {
     watch(HELLO_MS);
     on('hello', (data) => {
       up = true;
-      emit('open', { revision: Number(data['revision']) || 0, role: data['role'] === 'use' || data['role'] === 'edit' ? data['role'] : null });
+      emit('open', {
+        revision: Number(data['revision']) || 0, role: data['role'] === 'use' || data['role'] === 'edit' ? data['role'] : null, looks: typeof data['looks'] === 'number' ? data['looks'] : null,
+        ...(typeof data['rescue'] === 'number' ? { rescue: data['rescue'] } : {}),
+        ...(typeof data['widgets'] === 'number' ? { widgets: data['widgets'] } : {}),
+      });
       if (data['night'] !== undefined) night(data['night']);
       if (typeof data['build'] === 'string' && data['build'] !== '') emit('build', data['build']);
     });
     on('ping', () => {});
     on('hub', (data) => emit('hub', data));
     on('layouts', (data) => emit('layouts', { revision: Number(data['revision']) || 0 }));
+    on('looks', (data) => emit('looks', { revision: Number(data['revision']) || 0 }));
+    on('widgets', (data) => emit('widgets', { revision: Number(data['revision']) || 0 }));
     on('night', night);
     on('role', ({ role }) => { if (role === 'use' || role === 'edit') emit('role', role); });
     on('unpaired', unpaired);

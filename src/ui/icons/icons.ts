@@ -398,6 +398,28 @@ import i_shield_lock from '@material-symbols/svg-400/rounded/shield_lock.svg?raw
 import i_shield_lock_fill from '@material-symbols/svg-400/rounded/shield_lock-fill.svg?raw';
 import i_refresh from '@material-symbols/svg-400/rounded/refresh.svg?raw';
 import i_refresh_fill from '@material-symbols/svg-400/rounded/refresh-fill.svg?raw';
+import i_share from '@material-symbols/svg-400/rounded/share.svg?raw';
+import i_share_fill from '@material-symbols/svg-400/rounded/share-fill.svg?raw';
+import i_content_copy from '@material-symbols/svg-400/rounded/content_copy.svg?raw';
+import i_content_copy_fill from '@material-symbols/svg-400/rounded/content_copy-fill.svg?raw';
+import i_history from '@material-symbols/svg-400/rounded/history.svg?raw';
+import i_history_fill from '@material-symbols/svg-400/rounded/history-fill.svg?raw';
+import i_contrast from '@material-symbols/svg-400/rounded/contrast.svg?raw';
+import i_contrast_fill from '@material-symbols/svg-400/rounded/contrast-fill.svg?raw';
+import i_verified_user from '@material-symbols/svg-400/rounded/verified_user.svg?raw';
+import i_verified_user_fill from '@material-symbols/svg-400/rounded/verified_user-fill.svg?raw';
+import i_block from '@material-symbols/svg-400/rounded/block.svg?raw';
+import i_block_fill from '@material-symbols/svg-400/rounded/block-fill.svg?raw';
+import i_code from '@material-symbols/svg-400/rounded/code.svg?raw';
+import i_code_fill from '@material-symbols/svg-400/rounded/code-fill.svg?raw';
+import i_apps from '@material-symbols/svg-400/rounded/apps.svg?raw';
+import i_apps_fill from '@material-symbols/svg-400/rounded/apps-fill.svg?raw';
+import i_speed from '@material-symbols/svg-400/rounded/speed.svg?raw';
+import i_speed_fill from '@material-symbols/svg-400/rounded/speed-fill.svg?raw';
+import i_hourglass_top from '@material-symbols/svg-400/rounded/hourglass_top.svg?raw';
+import i_hourglass_top_fill from '@material-symbols/svg-400/rounded/hourglass_top-fill.svg?raw';
+import i_sticky_note_2 from '@material-symbols/svg-400/rounded/sticky_note_2.svg?raw';
+import i_sticky_note_2_fill from '@material-symbols/svg-400/rounded/sticky_note_2-fill.svg?raw';
 
 export const ICON_NAMES = [
   'tablet', 'bedtime',
@@ -420,6 +442,8 @@ export const ICON_NAMES = [
   'fitness_center', 'tune',
   'edit', 'add', 'add_circle', 'undo', 'search', 'delete', 'drag_indicator', 'drive_file_move', 'arrow_back', 'arrow_forward', 'arrow_upward', 'arrow_downward', 'download', 'upload', 'restart_alt', 'check_box', 'check_box_outline_blank',
   'blinds', 'curtains', 'vertical_shades', 'roller_shades', 'remove', 'keyboard_arrow_up', 'keyboard_arrow_down', 'stop', 'skip_previous', 'pause', 'skip_next', 'volume_up', 'volume_off', 'shuffle', 'repeat', 'repeat_one', 'garage_home', 'notifications_active', 'countertops', 'shield_lock', 'refresh',
+  'share', 'content_copy', 'history', 'contrast', 'verified_user',
+  'sticky_note_2', 'block', 'code', 'apps', 'speed', 'hourglass_top',
 ] as const;
 
 export type IconName = (typeof ICON_NAMES)[number];
@@ -624,4 +648,15 @@ export const ICONS: Readonly<Record<IconName, { outline: string; fill: string }>
   countertops: { outline: i_countertops, fill: i_countertops_fill },
   shield_lock: { outline: i_shield_lock, fill: i_shield_lock_fill },
   refresh: { outline: i_refresh, fill: i_refresh_fill },
+  share: { outline: i_share, fill: i_share_fill },
+  content_copy: { outline: i_content_copy, fill: i_content_copy_fill },
+  history: { outline: i_history, fill: i_history_fill },
+  contrast: { outline: i_contrast, fill: i_contrast_fill },
+  verified_user: { outline: i_verified_user, fill: i_verified_user_fill },
+  sticky_note_2: { outline: i_sticky_note_2, fill: i_sticky_note_2_fill },
+  apps: { outline: i_apps, fill: i_apps_fill },
+  speed: { outline: i_speed, fill: i_speed_fill },
+  hourglass_top: { outline: i_hourglass_top, fill: i_hourglass_top_fill },
+  block: { outline: i_block, fill: i_block_fill },
+  code: { outline: i_code, fill: i_code_fill },
 };

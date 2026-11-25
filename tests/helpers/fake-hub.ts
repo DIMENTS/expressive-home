@@ -1,6 +1,6 @@
 import { vi } from 'vitest';
 import camperRaw from '../../src/mock/fixtures/camper.raw.json';
-import type { ClientEvent, HistoryPeriod, HistoryPoint, HistoryRef } from '../../src/homey/client';
+import type { ClientEvent, HistoryPeriod, HistoryRef, HistorySeries, HistorySource, HistorySwitches } from '../../src/homey/client';
 import { toSnapshot } from '../../src/homey/map';
 import type { CapabilityValue, Flow, HomeySnapshot, RawHomey, Zone } from '../../src/homey/types';
 import { createDefaultConfig, type AppConfig, type ConfigStore } from '../../src/storage/config';
@@ -48,8 +48,9 @@ export function fakeHub(snapshot: HomeySnapshot = camperSnapshot()) {
     }),
     setCapability: vi.fn(async (_d: string, _c: string, _v: CapabilityValue) => { if (hub.failControl) throw new Error('refused'); }),
     startFlow: vi.fn(async () => {}),
-    listHistory: vi.fn(async (): Promise<HistoryRef[]> => []),
-    readHistory: vi.fn(async (_ref: HistoryRef, _period: HistoryPeriod): Promise<HistoryPoint[]> => []),
+    listHistory: vi.fn(async (_known?: readonly HistoryRef[]): Promise<HistorySource[]> => []),
+    readSeries: vi.fn(async (_source: HistorySource, _period: HistoryPeriod): Promise<HistorySeries | null> => null),
+    readSwitches: vi.fn(async (_source: HistorySource): Promise<HistorySwitches | null> => null),
     readStructure: vi.fn(async (): Promise<{ zones: Record<string, Zone>; flows: Flow[] } | null> => structuredClone(hub.structure ?? { zones: snapshot.zones, flows: snapshot.flows })),
     subscribe: vi.fn((listener: (event: ClientEvent) => void) => { listeners.add(listener); return () => listeners.delete(listener); }),
     disconnect: vi.fn(() => { listeners = new Set(); }),

@@ -6,7 +6,9 @@ import type { ThemeSettings } from '../../../src/theme/types';
 import type { HubLayout } from '../../../src/layout/types';
 import { camperSnapshot } from '../../helpers/fake-hub';
 import { REBUILD_QUIET_MS } from '../../../src/ui/app/controller';
-import type { MhApp } from '../../../src/ui/app/app';
+import type { AppEnvironment, MhApp } from '../../../src/ui/app/app';
+import { emptyLooksDoc } from '../../../src/theme/looks-doc';
+import type { ThemeFile } from '../../../src/theme/look';
 import { cap, device } from '../../helpers/build';
 import { deep, deepAll, deepText } from '../../helpers/deep';
 import { board, heroSection, hubLayout, overview, ownSection, sensorTile } from '../../helpers/layout';
@@ -77,7 +79,9 @@ test('a chosen theme is applied to the document at once and saved', async () => 
   const panel = app.shadowRoot!.querySelector('mh-theme-panel') as HTMLElement & { open: boolean };
   expect(panel.open).toBe(true);
   const next: ThemeSettings = { seed: '#a6422a', mode: 'dark', density: 'compact' };
-  panel.dispatchEvent(new CustomEvent('change', { detail: next }));
+  panel.dispatchEvent(new CustomEvent('look-choose', { detail: { target: 'device', seed: next.seed } }));
+  panel.dispatchEvent(new CustomEvent('look-choose', { detail: { target: 'device', mode: next.mode } }));
+  panel.dispatchEvent(new CustomEvent('density', { detail: { density: next.density } }));
   await settle(app);
   expect(surface()).toBe(colorTokens('#a6422a', 'dark', 0)['--c-surface']);
   expect(document.documentElement.dataset['density']).toBe('compact');
@@ -258,7 +262,9 @@ test('a section without its own colour follows a new base colour; one with its o
   expect(water().style.getPropertyValue('--c-primary')).toBe(colorTokens('#3a5ba9', 'light', 0)['--c-primary']);
   app.shadowRoot!.querySelector('mh-dashboard')!.dispatchEvent(new CustomEvent('navigate', { detail: { to: 'theme' } }));
   await settle(app);
-  app.shadowRoot!.querySelector('mh-theme-panel')!.dispatchEvent(new CustomEvent('change', { detail: { seed: '#a6422a', mode: 'dark', density: 'comfortable' } }));
+  const panel = app.shadowRoot!.querySelector('mh-theme-panel')!;
+  panel.dispatchEvent(new CustomEvent('look-choose', { detail: { target: 'device', seed: '#a6422a' } }));
+  panel.dispatchEvent(new CustomEvent('look-choose', { detail: { target: 'device', mode: 'dark' } }));
   await settle(app);
   expect(lights().hasAttribute('data-own-seed')).toBe(false);
   expect(surface()).toBe(colorTokens('#a6422a', 'dark', 0)['--c-surface']);
@@ -289,12 +295,24 @@ test('a change that another tab saved is taken over', async () => {
   await settle(app);
   expect(document.documentElement.dataset['density']).toBe('comfortable');
   window.dispatchEvent(Object.assign(new Event('storage'), { key: STORAGE_KEY }));
-  await settle(app);
-  expect(document.documentElement.dataset['density']).toBe('compact');
-  expect(surface()).toBe(colorTokens('#a6422a', 'light', 0)['--c-surface']);
+  // reading what the other tab saved takes a turn or two; a busy computer takes more
+  await vi.waitFor(() => expect(document.documentElement.dataset['density']).toBe('compact'), { timeout: 8000 });
+  await vi.waitFor(() => expect(surface()).toBe(colorTokens('#a6422a', 'light', 0)['--c-surface']), { timeout: 8000 });
 });
 
 // ----- the edit mode -----
+
+test('an app that is no longer on the page leaves the look of the page alone', async () => {
+  const first = await startApp();
+  first.remove();
+  const second = await startApp();
+  const before = [surface(), document.documentElement.dataset['density']];
+  // the first one still hears things, and draws itself again
+  (first as unknown as { controller: { setTheme(theme: ThemeSettings): void } }).controller.setTheme({ seed: '#a6422a', mode: 'dark', density: 'compact' });
+  await settle(first);
+  await settle(second);
+  expect([surface(), document.documentElement.dataset['density']]).toEqual(before);
+});
 
 const dashboardOf = (app: MhApp) => app.shadowRoot!.querySelector('mh-dashboard') as HTMLElement & { editing: boolean; firstTime: boolean; canUndo: boolean; boardName: string; board: { id: string } };
 /** Without the rooms: those are tested apart. */
@@ -896,7 +914,7 @@ test('a dashboard is renamed in its menu', async () => {
   const { app } = await startWithHub(['nl-NL'], twoBoards());
   await openBoard(app, 'd-1');
   await toggleEdit(app);
-  expect(menuLabels(app)).toEqual([['Buiten', 'Naam en icoon…', 'Hoger in de balk', 'Lager in de balk (uit)'], ['', 'Dashboard weghalen…']]);
+  expect(menuLabels(app)).toEqual([['Buiten', 'Naam en icoon…', 'Uiterlijk…', 'Hoger in de balk', 'Lager in de balk (uit)'], ['', 'Dashboard weghalen…']]);
   await boardAction(app, 'rename');
   expect(boardDialog(app)).toMatchObject({ open: true, heading: 'Naam en icoon', name: 'Buiten', icon: 'deck', autoIcon: null, confirmLabel: 'Bewaren' });
   boardDialog(app).dispatchEvent(new CustomEvent('confirm', { detail: { kind: 'own', name: 'Tuin', icon: 'yard' } }));
@@ -921,7 +939,7 @@ test('dashboards move up and down in the rail; the first one opens at start', as
   await toggleEdit(app);
   await boardAction(app, 'up');
   expect(boardsOf(app)).toEqual(['Buiten', 'Overzicht']);
-  expect(menuLabels(app)[0]).toEqual(['Buiten', 'Naam en icoon…', 'Hoger in de balk (uit)', 'Lager in de balk']);
+  expect(menuLabels(app)[0]).toEqual(['Buiten', 'Naam en icoon…', 'Uiterlijk…', 'Hoger in de balk (uit)', 'Lager in de balk']);
   const layout = Object.values(configStore.stored().layouts)[0]!;
   app.remove();
   const again = await startWithHub(['nl-NL'], layout);
@@ -952,7 +970,7 @@ test('removing a dashboard asks first, opens the first and can be undone', async
 test('the overview cannot be removed; its menu offers back to automatic', async () => {
   const { app } = await startWithHub(['nl-NL'], twoBoards());
   await toggleEdit(app);
-  expect(menuLabels(app)).toEqual([['Overzicht', 'Naam en icoon…', 'Hoger in de balk (uit)', 'Lager in de balk'], ['', 'Terug naar automatisch…']]);
+  expect(menuLabels(app)).toEqual([['Overzicht', 'Naam en icoon…', 'Uiterlijk…', 'Hoger in de balk (uit)', 'Lager in de balk'], ['', 'Terug naar automatisch…']]);
   await boardAction(app, 'reset');
   expect(confirmDialog(app).heading).toBe('Overzicht terug naar automatisch?');
   press(confirmDialog(app), 'Terugzetten');
@@ -1251,7 +1269,7 @@ test('a new section for something new is one step to undo', async () => {
 // ----- served by the app on the hub -----
 
 /** An app that the app on the hub served; `role` null: not paired yet. */
-async function startServed(role: 'use' | 'edit' | null, layout?: HubLayout, code: string | null = null) {
+async function startServed(role: 'use' | 'edit' | null, layout?: HubLayout, code: string | null = null, more: Partial<NonNullable<AppEnvironment['served']>> = {}) {
   const { fakeHub, memoryConfig, HOMEY_ID } = await import('../../helpers/fake-hub');
   const hub = fakeHub();
   const configStore = memoryConfig(role === null ? null : { homeyId: HOMEY_ID, apiKey: 'paired' });
@@ -1264,7 +1282,7 @@ async function startServed(role: 'use' | 'edit' | null, layout?: HubLayout, code
   app.environment = {
     configStore, createRealClient: () => hub, createDemoClient: () => hub,
     schedule: (flush) => { setTimeout(flush, 0); }, setTimeout: (fn, ms) => setTimeout(fn, ms), clearTimeout: (h) => clearTimeout(h as ReturnType<typeof setTimeout>), browserLanguages: ['nl-NL'],
-    served: { pair, mayArrange: () => role !== 'use', onConflict: (listener) => { conflict = listener; }, onUnsaved: (listener) => { unsaved = listener; }, onNight: () => {}, onNewBuild: () => {}, settled: () => true, reload: () => {}, scanned: () => code, onScanned: (listener) => { scan = listener; }, kind: () => 'tablet' },
+    served: { pair, mayArrange: () => role !== 'use', knownRole: () => (role === 'use' ? 'use' : 'edit'), onConflict: (listener) => { conflict = listener; }, onUnsaved: (listener) => { unsaved = listener; }, onNight: () => {}, onNewBuild: () => {}, settled: () => true, reload: () => {}, scanned: () => code, onScanned: (listener) => { scan = listener; }, kind: () => 'tablet', ...more },
   };
   document.body.append(app);
   await settle(app);
@@ -1366,7 +1384,7 @@ test('a hub that does not answer offers only to try again', async () => {
   app.environment = {
     configStore: memoryConfig({ homeyId: HOMEY_ID, apiKey: 'paired' }), createRealClient: () => hub, createDemoClient: () => hub, schedule: (flush) => { setTimeout(flush, 0); },
     setTimeout: (fn, ms) => setTimeout(fn, ms), clearTimeout: (h) => clearTimeout(h as ReturnType<typeof setTimeout>), browserLanguages: ['nl-NL'],
-    served: { pair: async () => 'ok', mayArrange: () => true, onConflict: () => {}, onUnsaved: () => {}, onNight: () => {}, onNewBuild: () => {}, settled: () => true, reload: () => {}, scanned: () => null, onScanned: () => {}, kind: () => 'tablet' },
+    served: { pair: async () => 'ok', mayArrange: () => true, knownRole: () => 'edit', onConflict: () => {}, onUnsaved: () => {}, onNight: () => {}, onNewBuild: () => {}, settled: () => true, reload: () => {}, scanned: () => null, onScanned: () => {}, kind: () => 'tablet' },
   };
   document.body.append(app);
   await settle(app);
@@ -1485,4 +1503,97 @@ test('who taps a slider with a finger is told how it is held, at most once an ho
   await settle(app);
   expect(shown()).toBe(true);
   vi.restoreAllMocks();
+});
+
+// ----- themes -----
+
+/** Hard to read in the dark only: in two places, with every colour. */
+const grijs: ThemeFile = { format: 1, id: 't-gggggggggggggggg', name: 'Grijs', maker: '', base: 'uitbundig', seed: null, userSeed: true, knobs: { strength: 'grey', surfaces: 'solid', background: 'plain', contrast: 'high' }, app: '' };
+/** With a colour of its own, easy to read in it; with the colour of the house it is not everywhere. */
+const paars: ThemeFile = { format: 1, id: 't-pppppppppppppppp', name: 'Paars', maker: '', base: 'helder', seed: '#6750a4', userSeed: false, knobs: { strength: 'vivid', surfaces: 'see-through', background: 'plain', contrast: 'highest' }, app: '' };
+const themePanel = (app: MhApp) => app.shadowRoot!.querySelector('mh-theme-panel') as HTMLElement & { open: boolean };
+
+/** A device that may edit and follows the house, with Grijs among the themes of the house. */
+async function houseWithGrijs() {
+  const sendLooks = vi.fn();
+  const served = await startServed('edit', undefined, null, { sendLooks, onLooks: (listener) => { listener({ ...emptyLooksDoc(), revision: 1, themes: [grijs, paars] }); } });
+  await dispatch(served.app, 'navigate', { to: 'theme' });
+  return { ...served, sendLooks, choose: async (detail: unknown) => { themePanel(served.app).dispatchEvent(new CustomEvent('look-choose', { detail })); await settle(served.app); } };
+}
+
+test('a theme that is hard to read is only chosen for the whole house after a question; one that is easy to read at once', async () => {
+  const { app, sendLooks, choose } = await houseWithGrijs();
+  await choose({ target: 'house', theme: grijs.id });
+  expect([confirmDialog(app).open, sendLooks.mock.calls.length]).toEqual([true, 0]);
+  expect(confirmDialog(app).textContent).toContain('Op 2 plekken slecht te lezen. Toch voor het hele huis gebruiken?');
+  press(confirmDialog(app), 'Annuleren');
+  await settle(app);
+  expect(sendLooks).not.toHaveBeenCalled();
+  await choose({ target: 'house', theme: grijs.id });
+  press(confirmDialog(app), 'Toch gebruiken');
+  await settle(app);
+  expect(sendLooks.mock.calls).toEqual([[[{ house: { theme: grijs.id } }]]]);
+  await choose({ target: 'house', theme: 'glas' });
+  expect([confirmDialog(app).open, sendLooks.mock.calls.at(-1)]).toEqual([false, [[{ house: { theme: 'glas' } }]]]);
+});
+
+test('a theme that is made and is hard to read is asked about once before the whole house gets it', async () => {
+  const { app, sendLooks } = await houseWithGrijs();
+  themePanel(app).dispatchEvent(new CustomEvent('look-save', { detail: { file: { ...grijs, id: 't-hhhhhhhhhhhhhhhh' }, poor: 2 } }));
+  await settle(app);
+  expect([confirmDialog(app).open, sendLooks.mock.calls.length]).toEqual([true, 1]);
+  press(confirmDialog(app), 'Bewaren en gebruiken');
+  await settle(app);
+  expect(confirmDialog(app).open).toBe(false);
+  expect(sendLooks.mock.calls.at(-1)).toEqual([[{ house: { theme: 't-hhhhhhhhhhhhhhhh' } }]]);
+});
+
+test('a theme with a colour of its own is measured in that colour before the whole house gets it', async () => {
+  const { app, sendLooks, choose } = await houseWithGrijs();
+  await choose({ target: 'house', theme: paars.id });
+  expect([confirmDialog(app).open, sendLooks.mock.calls]).toEqual([false, [[[{ house: { theme: paars.id } }]]]]);
+});
+
+test('the cards of a dashboard with a colourful theme of its own show the other themes in the colour of this device', async () => {
+  const { app } = await startWithHub();
+  themePanel(app).dispatchEvent(new CustomEvent('look-save', { detail: { file: paars, poor: 0 } }));
+  await settle(app);
+  const boardLook = app.shadowRoot!.querySelector('mh-board-look-panel') as HTMLElement & { seed: string };
+  boardLook.dispatchEvent(new CustomEvent('board-theme', { detail: { theme: paars.id } }));
+  await settle(app);
+  expect(surface()).toBe(colorTokens('#6750a4', 'light', 0)['--c-surface']);
+  expect(boardLook.seed).toBe('#3b6939');
+});
+
+test('an adjustment that was not saved goes when the app leaves the dashboard', async () => {
+  const { app, hub } = await startWithHub();
+  const adjusting = { ...grijs, base: 'glas' as const, knobs: {} };
+  const preview = async () => {
+    await dispatch(app, 'navigate', { to: 'theme' });
+    themePanel(app).dispatchEvent(new CustomEvent('look-preview', { detail: { file: adjusting } }));
+    await settle(app);
+    expect(document.documentElement.dataset['look']).toBe('glas');
+  };
+  await preview();
+  hub.emit({ type: 'authError' });
+  await settle(app);
+  expect([app.shadowRoot!.querySelector('mh-connect-screen') === null, document.documentElement.dataset['look']]).toEqual([false, 'rustig']);
+  app.shadowRoot!.querySelector('mh-connect-screen')!.dispatchEvent(new CustomEvent('connect', { detail: { address: '5f2a00000000000000000c81', apiKey: 'k2' } }));
+  await settle(app);
+  expect(document.documentElement.dataset['look']).toBe('rustig');
+  await preview();
+  app.shadowRoot!.querySelector('mh-dashboard')!.dispatchEvent(new CustomEvent('change-connection'));
+  await settle(app);
+  expect(document.documentElement.dataset['look']).toBe('rustig');
+});
+
+test('the theme panel knows when the dashboard that is open shows a theme of its own', async () => {
+  const { app } = await startWithHub(['nl-NL'], twoBoards());
+  const panel = themePanel(app) as unknown as { boardTheme: string | null };
+  expect(panel.boardTheme).toBeNull();
+  app.shadowRoot!.querySelector('mh-board-look-panel')!.dispatchEvent(new CustomEvent('board-theme', { detail: { theme: 'glas' } }));
+  await settle(app);
+  expect(panel.boardTheme).toBe('glas');
+  await openBoard(app, 'd-1');
+  expect(panel.boardTheme).toBeNull();
 });

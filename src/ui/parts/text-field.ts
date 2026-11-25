@@ -24,6 +24,7 @@ export class MhTextField extends LitElement {
     hideLabel: { type: Boolean },
     maxlength: { type: Number },
     digits: { type: Boolean },
+    multiline: { type: Boolean },
   };
 
   declare label: string;
@@ -44,6 +45,8 @@ export class MhTextField extends LitElement {
   declare maxlength: number;
   /** A touch screen shows the keyboard of digits. */
   declare digits: boolean;
+  /** More lines: a text area that grows with what is typed; Enter makes a new line. */
+  declare multiline: boolean;
 
   constructor() {
     super();
@@ -60,6 +63,7 @@ export class MhTextField extends LitElement {
     this.hideLabel = false;
     this.maxlength = 0;
     this.digits = false;
+    this.multiline = false;
   }
 
   static override styles = [sharedStyles, css`
@@ -71,6 +75,8 @@ export class MhTextField extends LitElement {
       transition: box-shadow var(--motion-effects);
     }
     .box mh-icon { color: var(--field-label-fg); --icon-size: var(--icon-m); }
+    textarea { all: unset; flex: 1; align-self: stretch; min-width: 0; padding: var(--space-14) 0; min-height: calc(var(--field-height) * 2); field-sizing: content; white-space: pre-wrap; overflow-wrap: anywhere; font-size: var(--type-body-l-size); line-height: var(--type-body-l-line); }
+    textarea:focus-visible { outline: none; }
     input { all: unset; flex: 1; align-self: stretch; min-width: 0; text-overflow: ellipsis; font-size: var(--type-body-l-size); line-height: var(--type-body-l-line); }
     /* the box around it has the ring */
     input:focus-visible { outline: none; }
@@ -91,7 +97,7 @@ export class MhTextField extends LitElement {
   private onInput(event: Event): void {
     // the native event would also leave the shadow root; report one event with the value instead
     event.stopPropagation();
-    this.value = (event.target as HTMLInputElement).value;
+    this.value = (event.target as HTMLInputElement | HTMLTextAreaElement).value;
     this.dispatchEvent(new CustomEvent('input', { detail: { value: this.value }, bubbles: true, composed: true }));
   }
 
@@ -107,16 +113,18 @@ export class MhTextField extends LitElement {
       ${this.quiet || this.hideLabel ? nothing : html`<label for="input">${this.label}</label>`}
       <div class="box">
         ${this.icon ? html`<mh-icon name=${this.icon}></mh-icon>` : nothing}
-        <input id="input" type=${this.type} .value=${live(this.value)} placeholder=${this.placeholder || nothing}
+        ${this.multiline ? html`<textarea id="input" .value=${live(this.value)} placeholder=${this.placeholder || nothing} spellcheck="true" ?disabled=${this.disabled}
+          aria-label=${this.quiet || this.hideLabel ? this.label : nothing} maxlength=${this.maxlength > 0 ? this.maxlength : nothing} aria-describedby=${this.quiet ? nothing : 'help'}
+          @input=${(event: Event) => this.onInput(event)}></textarea>` : html`<input id="input" type=${this.type} .value=${live(this.value)} placeholder=${this.placeholder || nothing}
           inputmode=${this.digits ? 'numeric' : nothing} autocomplete="off" spellcheck="false" autocapitalize="off" ?disabled=${this.disabled}
           aria-label=${this.quiet || this.hideLabel ? this.label : nothing} maxlength=${this.maxlength > 0 ? this.maxlength : nothing} aria-describedby=${this.quiet ? nothing : 'help'} aria-invalid=${this.state === 'error' ? 'true' : 'false'}
-          @input=${(event: Event) => this.onInput(event)} @keydown=${(event: KeyboardEvent) => this.onKey(event)}>
+          @input=${(event: Event) => this.onInput(event)} @keydown=${(event: KeyboardEvent) => this.onKey(event)}>`}
       </div>
       ${this.quiet ? nothing : html`<div class="help" id="help" aria-live="polite">${helpIcon ? html`<mh-icon name=${helpIcon} filled></mh-icon>` : nothing}<span>${this.help}</span></div>`}`;
   }
 
   override focus(options?: FocusOptions): void {
-    this.shadowRoot?.querySelector('input')?.focus(options);
+    this.shadowRoot?.querySelector<HTMLElement>('input, textarea')?.focus(options);
   }
 }
 

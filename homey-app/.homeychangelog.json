@@ -1,4 +1,8 @@
 {
+  "1.1.0": {
+    "en": "Themes: choose a style, adjust it and share it. Charts of what your devices measure, in a device’s window, on a sensor tile and in the highlight; the app records the sun, the use and the shore power that Homey does not keep. Widgets of Homey and of apps on the dashboard.",
+    "nl": "Thema’s: kies een stijl, stel hem bij en deel hem. Grafieken van wat je apparaten meten, in het venster van een apparaat, op een sensortegel en in de blikvanger; het appje neemt zon, verbruik en walstroom op die Homey zelf niet bijhoudt. Widgets van Homey en van apps op het dashboard."
+  },
   "1.0.0": {
     "en": "The first version: scan a code to pair a device, and start flows with buttons on the dashboard.",
     "nl": "De eerste versie: scan een code om een apparaat te koppelen, en start flows met knoppen op het dashboard."

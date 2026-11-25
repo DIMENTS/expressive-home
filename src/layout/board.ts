@@ -28,6 +28,8 @@ export function drawnTile(tile: TileLayout, snapshot: HomeySnapshot): TileSpec |
   if (spec.kind === 'flow') {
     return snapshot.flows.some((flow) => flow.id === spec.flowId) ? { ...spec, id: tile.id, size: 'single', label: tile.label, icon: tile.icon } : null;
   }
+  // a widget decides itself whether it has something to show
+  if (spec.kind === 'widget') return { ...spec, id: tile.id, size: tile.size, label: tile.label, icon: tile.icon };
   return currentSpec(tile, snapshot.devices[spec.deviceId]);
 }
 

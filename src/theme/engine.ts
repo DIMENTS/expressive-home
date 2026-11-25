@@ -1,4 +1,4 @@
-import { Hct, SchemeTonalSpot, argbFromHex, hexFromArgb } from '@material/material-color-utilities';
+import { Hct, SchemeMonochrome, SchemeNeutral, SchemeTonalSpot, SchemeVibrant, argbFromHex, hexFromArgb } from '@material/material-color-utilities';
 import { SHAPE_TOKENS } from './shapes';
 import type { Mode, ModePreference, ThemeDefinition, ShownSettings } from './types';
 
@@ -28,8 +28,12 @@ export function resolveMode(preference: ModePreference, systemPrefersDark: boole
   return preference;
 }
 
-export function colorTokens(seed: string, mode: Mode, contrast: number): Record<string, string> {
-  const scheme = new SchemeTonalSpot(Hct.fromInt(argbFromHex(seed)), mode === 'dark', contrast);
+/** How much colour the roles get from the seed: from none to a lot. */
+export type SchemeName = 'monochrome' | 'neutral' | 'tonalSpot' | 'vibrant';
+const SCHEMES = { monochrome: SchemeMonochrome, neutral: SchemeNeutral, tonalSpot: SchemeTonalSpot, vibrant: SchemeVibrant } as const;
+
+export function colorTokens(seed: string, mode: Mode, contrast: number, schemeName: SchemeName = 'tonalSpot'): Record<string, string> {
+  const scheme = new SCHEMES[schemeName](Hct.fromInt(argbFromHex(seed)), mode === 'dark', contrast);
   const tokens: Record<string, string> = {};
   for (const role of [...COLOR_ROLES, ...EXTRA_ROLES]) {
     const argb = (scheme as unknown as Record<string, number>)[toCamelCase(role)]!;

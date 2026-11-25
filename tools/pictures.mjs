@@ -9,7 +9,7 @@ export const at = (path) => fileURLToPath(new URL(path, import.meta.url));
 /** Serves what `npm run build` made and opens a browser, for as long as `work` takes. */
 export async function withBrowser(work) {
   const server = spawn(process.execPath, [at('../node_modules/vite/bin/vite.js'), 'preview', '--port', String(PORT), '--strictPort'], { cwd: at('..'), stdio: 'ignore' });
-  const browser = await chromium.launch();
+  const browser = await chromium.launch(process.env.PW_CHROMIUM ? { executablePath: process.env.PW_CHROMIUM } : {});
   try {
     for (let tries = 0; ; tries += 1) {
       try {

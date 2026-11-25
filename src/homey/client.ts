@@ -24,19 +24,32 @@ export class ConnectionError extends Error {
 
 /** A capability of a device whose history Insights keeps. */
 export interface HistoryRef { deviceId: string; capabilityId: string }
-export type HistoryPeriod = 'today' | 'last24Hours';
+export type HistoryPeriod = 'today' | 'last24Hours' | 'last7Days' | 'last31Days' | 'year';
 /** `at` in milliseconds since 1970. */
 export interface HistoryPoint { at: number; value: number }
+/** A log with history of a value of a device: kept by the hub itself, or recorded by the app on the hub. */
+export interface HistorySource extends HistoryRef { log: string; kind: 'device' | 'recorded'; type: 'number' | 'boolean' }
+/** The points of a log over a period, oldest first; null is a point without a measurement. Times in milliseconds. */
+export interface HistorySeries { start: number; end: number; step: number; updatesIn: number | null; points: { at: number; value: number | null }[] }
+/** The last changes of a yes/no log, oldest first; the hub keeps a fixed number of them, whatever the period. */
+export interface HistorySwitches { changes: { at: number; on: boolean }[] }
 
 /** The single seam to a Homey hub; the real and the mock client both implement it. */
 export interface HomeyClient {
   connect(): Promise<HomeySnapshot>;
   setCapability(deviceId: string, capabilityId: string, value: CapabilityValue): Promise<void>;
   startFlow(flow: Pick<Flow, 'id' | 'kind'>): Promise<void>;
-  /** The capabilities whose history Insights keeps; [] without the right (403). */
-  listHistory(): Promise<HistoryRef[]>;
-  /** The points of one capability over a period, oldest first; [] without the right or when the log does not exist. */
-  readHistory(ref: HistoryRef, period: HistoryPeriod): Promise<HistoryPoint[]>;
+  /**
+   * The logs with history: those of devices, and those the app on the hub records for one of `known`;
+   * [] without the right (403).
+   */
+  listHistory(known?: readonly HistoryRef[]): Promise<HistorySource[]>;
+  /** The points of a log over a period, with gaps; null without the right, when the log does not exist or has no points. */
+  readSeries(source: HistorySource, period: HistoryPeriod): Promise<HistorySeries | null>;
+  /** The last changes of a yes/no log; null without the right or when the log does not exist. */
+  readSwitches(source: HistorySource): Promise<HistorySwitches | null>;
+  /** What the hub answers about its history, as it is; only to measure what it has. */
+  rawHistory?: { logs(): Promise<unknown>; entries(id: string, resolution: string | null): Promise<unknown> };
   /** The rooms and the flows as they are now; null when they could not be read. */
   readStructure?(): Promise<{ zones: Record<string, Zone>; flows: Flow[] } | null>;
   subscribe(listener: (event: ClientEvent) => void): () => void;

@@ -13,7 +13,11 @@ const OWN = ['dashboard', 'palette', 'settings', 'home', 'cloud', 'cloud_off', '
   'blinds', 'curtains', 'vertical_shades', 'roller_shades', 'remove', 'keyboard_arrow_up', 'keyboard_arrow_down', 'stop', 'skip_previous', 'pause', 'skip_next', 'volume_up', 'volume_off', 'shuffle', 'repeat', 'repeat_one',
   'garage_home', 'notifications_active', 'countertops', 'shield_lock', 'refresh', 'lock_open', 'ac_unit', 'tv', 'speaker', 'music_note', 'power_settings_new',
   // the edit mode
-  'edit', 'add', 'add_circle', 'undo', 'search', 'delete', 'drag_indicator', 'drive_file_move', 'arrow_back', 'arrow_forward', 'arrow_upward', 'arrow_downward', 'download', 'upload', 'restart_alt', 'check_box', 'check_box_outline_blank'];
+  'edit', 'add', 'add_circle', 'undo', 'search', 'delete', 'drag_indicator', 'drive_file_move', 'arrow_back', 'arrow_forward', 'arrow_upward', 'arrow_downward', 'download', 'upload', 'restart_alt', 'check_box', 'check_box_outline_blank',
+  // themes
+  'share', 'content_copy', 'history', 'contrast', 'verified_user',
+  // widgets
+  'sticky_note_2', 'block', 'code', 'apps', 'speed', 'hourglass_top'];
 
 const EXPECTED = [...new Set([...OWN, ...ICON_LIBRARY.flatMap((g) => g.icons.map((icon) => icon.name))])];
 

@@ -127,6 +127,9 @@ export const rustigExpressive: ThemeDefinition = {
     'tile-badge-fg': 'var(--c-error)', 'tile-more-size': '36px',
     'tile-unavailable-bg': 'color-mix(in srgb, var(--c-on-surface) 5%, transparent)', 'tile-unavailable-ring': '2px', 'tile-unavailable-opacity': '.6',
     'tile-wide-face-basis': '52%',
+    // a line around sections and tiles (none in Rustig), and the slider on a tile that is on
+    'section-outline': 'transparent', 'section-outline-width': '0px', 'tile-outline': 'transparent', 'tile-outline-width': '0px',
+    'tile-on-slider-fill': 'var(--slider-fill)', 'tile-on-slider-track': 'var(--slider-track)',
     // slider
     'slider-height': 'var(--density-slider-height)', 'slider-radius': 'var(--shape-md)', 'slider-radius-inner': 'var(--shape-xs)',
     'slider-fill': 'var(--c-primary)', 'slider-track': 'color-mix(in srgb, var(--c-primary) 24%, transparent)',
@@ -154,6 +157,12 @@ export const rustigExpressive: ThemeDefinition = {
     'chart-height': '112px', 'chart-gap': 'var(--space-20)', 'chart-line': 'var(--c-primary)', 'chart-line-2': 'var(--c-tertiary)', 'chart-line-width': '3px',
     'chart-area': 'color-mix(in srgb, var(--c-primary) 20%, transparent)', 'chart-baseline': 'color-mix(in srgb, currentColor 18%, transparent)',
     'chart-label-fg': 'color-mix(in srgb, currentColor 72%, transparent)', 'chart-now-size': '12px', 'chart-now-ring': '3px',
+    // charts in the device window, on a wide tile and in the hero
+    'chart-window-height': '150px', 'chart-cursor': 'color-mix(in srgb, currentColor 34%, transparent)', 'chart-cursor-width': '2px',
+    'chart-tip-bg': 'var(--c-inverse-surface)', 'chart-tip-fg': 'var(--c-inverse-on-surface)', 'chart-tip-radius': 'var(--shape-full)',
+    'chart-band-height': '12px', 'chart-band-on': 'var(--c-primary)', 'chart-band-track': 'color-mix(in srgb, currentColor 10%, transparent)',
+    'chart-tile-share': '55%', 'chart-tile-area': 'color-mix(in srgb, currentColor 18%, transparent)',
+    'hero-chart-line': 'var(--chart-line)', 'hero-chart-line-2': 'var(--chart-line-2)', 'hero-chart-area': 'var(--chart-area)', 'hero-chart-band': 'color-mix(in srgb, currentColor 55%, transparent)',
     // section menu and colour per section
     'section-menu-bg': 'var(--c-surface-container)', 'section-menu-fg': 'var(--c-on-surface)', 'section-menu-radius': 'var(--shape-lg)',
     'section-menu-width': '336px', 'section-menu-item-height': '48px', 'section-dot-size': '20px',
@@ -184,6 +193,11 @@ export const rustigExpressive: ThemeDefinition = {
     'choice-radius': 'var(--shape-sm)', 'choice-radius-on': 'var(--shape-full)',
     'swatch-size': '34px', 'swatch-size-chosen': '46px',
     'radio-height': '48px',
+    // the cards to choose a theme: a little dashboard in that theme's own values
+    'look-card-bg': 'var(--c-surface-container-high)', 'look-card-fg': 'var(--c-on-surface)', 'look-card-note-fg': 'var(--c-on-surface-variant)',
+    'look-card-radius': 'var(--shape-xl)', 'look-card-pad': 'var(--space-6)', 'look-card-ring': '3px', 'look-picker-min': '140px',
+    'look-preview-height': '84px', 'look-preview-radius': 'var(--shape-lg)', 'look-preview-mark': '40%',
+    'share-code-font': 'ui-monospace, "SF Mono", Consolas, monospace',
     // sheet (device window, theme, settings) and dialog
     'sheet-width': '420px', 'sheet-margin': 'var(--space-16)', 'sheet-radius': 'var(--shape-2xl)', 'sheet-bg': 'var(--c-surface)', 'sheet-fg': 'var(--c-on-surface)',
     'sheet-row-bg': 'var(--c-surface-container-high)', 'sheet-row-radius': 'var(--shape-xl)', 'sheet-cell-radius': 'var(--shape-lg)',
@@ -228,5 +242,8 @@ export const rustigExpressive: ThemeDefinition = {
     'rest-wave-track': 'var(--c-secondary-container)', 'rest-stale-wave': 'var(--c-outline)', 'rest-alarm-bg': 'var(--c-error-container)', 'rest-alarm-fg': 'var(--c-on-error-container)',
     'rest-warn-bg': 'var(--c-tertiary-container)', 'rest-warn-fg': 'var(--c-on-tertiary-container)', 'rest-night-bg': '#000000', 'rest-night-fg': '#3a3f38',
     'rest-night-alarm': '#96423b',
+    // widgets: the clock, a note, a link to a dashboard, and a frame of an own widget
+    'widget-clock-size': 'var(--density-greeting-size)', 'widget-clock-wide-size': 'calc(var(--density-greeting-size) * 1.45)', 'widget-note-accent-bg': 'var(--c-inverse-surface)', 'widget-note-accent-fg': 'var(--c-inverse-on-surface)', 'widget-note-accent-icon-bg': 'var(--c-inverse-primary)', 'widget-note-accent-icon-fg': 'var(--c-inverse-surface)', 'widget-note-lines': '6', 'widget-note-wide-lines': '4', 'widget-link-arrow-bg': 'var(--c-primary)', 'widget-link-arrow-fg': 'var(--c-on-primary)', 'widget-max-height': 'calc(var(--tile-height) * 4)', 'widget-missing-border': 'var(--c-outline)',
+    'widget-gauge-width': '150px', 'widget-gauge-stroke': '14', 'widget-gauge-lift': '34px', 'widget-gauge-fill': 'var(--slider-fill)', 'widget-gauge-track': 'var(--slider-track)',
   },
 };

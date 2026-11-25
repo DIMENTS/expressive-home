@@ -1,3 +1,4 @@
+import type { HistorySource } from '../../src/homey/client';
 import { expect, test, vi } from 'vitest';
 import example from '../../src/mock/fixtures/voorbeeld.raw.json';
 import { createMockClient } from '../../src/mock/mock-client';
@@ -86,51 +87,69 @@ test('simulate jitters measure_power by at most 5 percent every 2000 ms', async 
   }
 });
 
-test('the example hub keeps history of the solar panel and the battery', async () => {
+const ref = (source: HistorySource) => ({ deviceId: source.deviceId, capabilityId: source.capabilityId, type: source.type });
+const source = (deviceId: string, capabilityId: string, type: HistorySource['type'] = 'number'): HistorySource => ({ log: `homey:device:${deviceId}:${capabilityId}`, kind: 'device', type, deviceId, capabilityId });
+
+test('the example hub keeps history of power, the battery, the climate and of on and off', async () => {
   const client = createMockClient(raw);
   const snap = await client.connect();
-  const refs = await client.listHistory();
+  const refs = (await client.listHistory()).map(ref);
   const named = (name: string) => Object.values(snap.devices).find((d) => d.name === name)!.id;
-  expect(refs).toContainEqual({ deviceId: named('Zonnepaneel'), capabilityId: 'measure_power' });
-  expect(refs).toContainEqual({ deviceId: named('Thuisaccu'), capabilityId: 'battery_soc' });
-  expect(refs).toContainEqual({ deviceId: named('Thuisaccu'), capabilityId: 'measure_power' });
+  expect(refs).toContainEqual({ deviceId: named('Zonnepaneel'), capabilityId: 'measure_power', type: 'number' });
+  expect(refs).toContainEqual({ deviceId: named('Thuisaccu'), capabilityId: 'battery_soc', type: 'number' });
+  expect(refs.some((r) => r.capabilityId === 'measure_temperature')).toBe(true);
+  expect(refs.some((r) => r.capabilityId === 'onoff' && r.type === 'boolean')).toBe(true);
   // A sensor's own battery is no home battery.
-  expect(refs).not.toContainEqual({ deviceId: named('Sensor 1'), capabilityId: 'measure_battery' });
+  expect(refs).not.toContainEqual(expect.objectContaining({ deviceId: named('Sensor 1'), capabilityId: 'measure_battery' }));
 });
-test('today gives points between midnight and now, oldest first, every five minutes', async () => {
+test('each period has its own step and length; before the hub measured the points are empty', async () => {
   vi.useFakeTimers();
   try {
     vi.setSystemTime(new Date(2026, 10, 22, 14, 32));
     const client = createMockClient(raw);
     const snap = await client.connect();
     const solar = Object.values(snap.devices).find((d) => d.name === 'Zonnepaneel')!;
-    const points = await client.readHistory({ deviceId: solar.id, capabilityId: 'measure_power' }, 'today');
+    const today = (await client.readSeries(source(solar.id, 'measure_power'), 'today'))!;
     const midnight = new Date(2026, 10, 22).getTime();
-    expect(points.length).toBeGreaterThan(100);
-    expect(points.every((p) => p.at >= midnight && p.at <= Date.now() && Number.isFinite(p.value))).toBe(true);
-    expect(points.every((p, i) => i === 0 || p.at - points[i - 1]!.at === 300_000)).toBe(true);
+    expect(today.points.length).toBeGreaterThan(100);
+    expect(today.points.every((p) => p.at >= midnight && p.at <= Date.now())).toBe(true);
+    expect(today.step).toBe(300_000);
     // The sun shines in the middle of the day only.
-    expect(points.find((p) => new Date(p.at).getHours() === 3)!.value).toBe(0);
-    expect(Math.max(...points.map((p) => p.value))).toBeGreaterThan(300);
+    expect(today.points.find((p) => new Date(p.at).getHours() === 3)!.value).toBe(0);
+    expect(Math.max(...today.points.map((p) => p.value ?? 0))).toBeGreaterThan(300);
     const battery = Object.values(snap.devices).find((d) => d.name === 'Thuisaccu')!;
-    const day = await client.readHistory({ deviceId: battery.id, capabilityId: 'battery_soc' }, 'last24Hours');
-    expect(day[0]!.at).toBeGreaterThanOrEqual(Date.now() - 86_400_000);
-    expect(day.every((p) => p.value >= 52 && p.value <= 81)).toBe(true);
+    const day = (await client.readSeries(source(battery.id, 'battery_soc'), 'last24Hours'))!;
+    // a day of about 30 points up and down, ending at the charge of now
+    expect(day.points.every((p) => p.value! >= 0 && p.value! <= 100)).toBe(true);
+    const live = battery.capabilities['battery_soc']!.value as number;
+    expect(Math.abs(day.points.at(-1)!.value! - live)).toBeLessThan(1);
+    expect((await client.readSeries(source(battery.id, 'battery_soc'), 'last7Days'))!.points).toHaveLength(168);
+    expect((await client.readSeries(source(battery.id, 'battery_soc'), 'last31Days'))!.step).toBe(21_600_000);
+    const year = (await client.readSeries(source(battery.id, 'battery_soc'), 'year'))!;
+    expect(year.points.filter((p) => p.value === null).length).toBeGreaterThan(900);
   } finally {
     vi.useRealTimers();
   }
 });
-test('a test can give its own history', async () => {
-  const client = createMockClient(raw, { history: (_ref, period, now) => [{ at: now - 1000, value: period === 'today' ? 1 : 2 }] });
-  await client.connect();
-  expect(await client.readHistory({ deviceId: 'device-5', capabilityId: 'measure_power' }, 'today')).toEqual([{ at: expect.any(Number), value: 1 }]);
-  expect(await client.readHistory({ deviceId: 'device-5', capabilityId: 'measure_power' }, 'last24Hours')).toEqual([{ at: expect.any(Number), value: 2 }]);
+test('on and off: the last fifty changes, ending in the state of now', async () => {
+  const client = createMockClient(raw);
+  const snap = await client.connect();
+  const lamp = Object.values(snap.devices).find((d) => d.capabilities['onoff'])!;
+  const switches = (await client.readSwitches(source(lamp.id, 'onoff', 'boolean')))!;
+  expect(switches.changes).toHaveLength(50);
+  expect(switches.changes.at(-1)!.on).toBe(lamp.capabilities['onoff']!.value === true);
+  expect(switches.changes.every((c, i) => i === 0 || (c.at > switches.changes[i - 1]!.at && c.on !== switches.changes[i - 1]!.on))).toBe(true);
 });
-test('a log the hub does not keep is empty', async () => {
+test('a test can give its own history', async () => {
+  const client = createMockClient(raw, { history: (_source, period, now) => ({ start: now, end: now, step: 1, updatesIn: null, points: [{ at: now - 1000, value: period === 'today' ? 1 : 2 }] }) });
+  await client.connect();
+  expect((await client.readSeries(source('device-5', 'measure_power'), 'today'))!.points).toEqual([{ at: expect.any(Number), value: 1 }]);
+});
+test('a log the hub does not keep is none', async () => {
   const client = createMockClient(raw);
   await client.connect();
-  expect(await client.readHistory({ deviceId: 'device-1', capabilityId: 'onoff' }, 'today')).toEqual([]);
-  expect(await client.readHistory({ deviceId: 'nope', capabilityId: 'measure_power' }, 'today')).toEqual([]);
+  expect(await client.readSeries(source('nope', 'measure_power'), 'today')).toBeNull();
+  expect(await client.readSwitches(source('nope', 'onoff', 'boolean'))).toBeNull();
 });
 
 test('disconnect stops the simulation', async () => {

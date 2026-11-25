@@ -146,7 +146,7 @@ test('a value that is a word is told apart from a number, so it stands smaller',
     await settle(element);
   };
   await report('none');
-  expect([kinds()[2], stats()]).toEqual([['Niet aangesloten', true], 'stats word label']);
+  expect([kinds()[2], stats()]).toEqual([['Off-grid', true], 'stats word label']);
   await report('grid');
   expect([kinds()[2], stats()]).toEqual([['Net', false], 'stats label']);
 });

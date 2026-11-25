@@ -9,4 +9,7 @@ module.exports = {
   async removeDevice({ homey, params }) { return homey.app.removeDevice(params.id); },
   async setFlowKey({ homey, body }) { return homey.app.setFlowKey(body && body.key); },
   async removeFlowKey({ homey }) { return homey.app.removeFlowKey(); },
+  async resetLooks({ homey }) { return homey.app.resetLooks(); },
+  async setRecording({ homey, body }) { return homey.app.setRecording(body && body.on); },
+  async wipeRecording({ homey }) { return homey.app.wipeRecording(); },
 };

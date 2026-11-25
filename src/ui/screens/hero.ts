@@ -3,7 +3,8 @@ import { heroDeviceIds } from '../../dashboard/hero';
 import { HERO_SECTION_ID, type HeroSpec } from '../../dashboard/types';
 import { rustigExpressive } from '../../theme/rustig-expressive';
 import type { Mode } from '../../theme/types';
-import { applySectionTheme } from '../apply-theme';
+import { RUSTIG_STYLE, applySectionTheme } from '../apply-theme';
+import type { Style } from '../../theme/styles';
 import { joinValue } from '../../i18n/format';
 import type { UiContext } from '../app/context';
 import { HERO_STACK_MAX_PX, HERO_STATS_ROW_PX, HERO_LABEL_ROW_PX, HERO_LABELS_ROW_PX, HERO_WORDS_ROW_PX, PHONE_MAX_PX } from '../breakpoints';
@@ -12,6 +13,9 @@ import { wavePath } from '../parts/banner';
 import { sharedStyles } from '../parts/shared-styles';
 import { themePixels } from '../theme-pixels';
 import '../parts/icon';
+import type { HistorySource } from '../../homey/client';
+import type { HeroChart } from '../../layout/types';
+import { heroChartsOf } from '../../charts/hero-charts';
 import { layoutGroup, placeChanged, type SectionAction, type SectionPlace } from './edit-menus';
 import { chosenSeed, colourGroups } from './section-menu';
 import './section-menu';
@@ -37,11 +41,14 @@ export class MhHero extends LitElement {
     width: { state: true },
     seed: { attribute: false },
     mode: { type: String },
+    look: { attribute: false },
     baseSeed: { attribute: false },
     menuOpen: { type: Boolean, reflect: true, attribute: 'menu-open' },
     sectionId: { type: String },
     editing: { type: Boolean, reflect: true },
     place: { attribute: false, hasChanged: placeChanged },
+    chart: { attribute: false },
+    sources: { state: true },
   };
 
   /** Null: nothing to show (drawn only while editing). */
@@ -57,8 +64,14 @@ export class MhHero extends LitElement {
   /** The hero's own colour, saved under its section id, or null to follow the dashboard. */
   declare seed: string | null;
   declare mode: Mode;
+  /** The style of the page, which a hero with its own colour keeps. */
+  declare look: Style;
   /** The dashboard's colour, for the dot of "Zoals het dashboard". */
   declare baseSeed: string;
+  /** The chart chosen for this hero; null for none. */
+  declare chart: HeroChart | null;
+  /** The logs with history of this hub, once known. */
+  declare sources: HistorySource[];
   /** While the menu is open the hero lies above what follows it. */
   declare menuOpen: boolean;
   private listening: (() => void)[] = [];
@@ -71,11 +84,14 @@ export class MhHero extends LitElement {
     this.width = 300;
     this.seed = null;
     this.mode = 'light';
+    this.look = RUSTIG_STYLE;
     this.baseSeed = rustigExpressive.color.defaultSeed;
     this.menuOpen = false;
     this.sectionId = HERO_SECTION_ID;
     this.editing = false;
     this.place = { column: 'left', first: true, last: true };
+    this.chart = null;
+    this.sources = [];
   }
 
   static override styles = [sharedStyles, css`
@@ -174,12 +190,24 @@ export class MhHero extends LitElement {
   }
 
   protected override willUpdate(changed: PropertyValues<this>): void {
-    if (changed.has('hero') || changed.has('ctx')) this.listen();
+    if (changed.has('hero') || changed.has('ctx')) {
+      this.listen();
+      this.ctx?.history?.sources().then((sources) => { this.sources = sources; }, () => {});
+    }
+    // the chart is only loaded when one is chosen
+    if (changed.has('chart') && this.chart !== null && !customElements.get('mh-hero-chart')) {
+      void import('./hero-chart').then(() => this.requestUpdate(), () => {});
+    }
     if (this.ctx) this.stale = this.ctx.status().route === null;
   }
 
   private onSelect(event: CustomEvent<{ group: string; id: string }>): void {
     event.stopPropagation();
+    if (event.detail.group === 'chart') {
+      const chart = event.detail.id === 'none' ? null : event.detail.id as HeroChart;
+      this.dispatchEvent(new CustomEvent('hero-chart', { detail: { chart }, bubbles: true, composed: true }));
+      return;
+    }
     if (event.detail.group === 'layout') {
       this.dispatchEvent(new CustomEvent('section-action', { detail: { sectionId: this.sectionId, action: event.detail.id as SectionAction }, bubbles: true, composed: true }));
       return;
@@ -190,7 +218,7 @@ export class MhHero extends LitElement {
   }
 
   protected override updated(changed: PropertyValues<this>): void {
-    if (changed.has('seed') || changed.has('mode')) applySectionTheme(this, this.seed, this.mode);
+    if (changed.has('seed') || changed.has('mode') || changed.has('look')) applySectionTheme(this, this.seed, this.mode, this.look);
     // The number's area is always there and the wave fills its width: a wave that goes and comes back
     // (another hero, a battery that appears) still gets the right width.
     const main = this.shadowRoot?.querySelector('.main');
@@ -233,7 +261,12 @@ export class MhHero extends LitElement {
   private renderTitle(title: string, icon: string) {
     const { ctx } = this;
     const colours = colourGroups(title, this.seed, this.baseSeed, ctx.t);
-    const groups = this.editing ? [layoutGroup('hero', this.place, ctx.t), ...colours] : colours;
+    const charts = heroChartsOf(this.hero, this.sources);
+    const chartGroup = charts.length === 0 ? [] : [{ kind: 'items' as const, id: 'chart', title: ctx.t('chart.hero.group'), items: [
+      { id: 'none', label: ctx.t('chart.hero.none'), checked: this.chart === null || !charts.includes(this.chart) },
+      ...charts.map((chart) => ({ id: chart, label: ctx.t(chart === 'battery' ? 'chart.hero.battery' : chart === 'solar' ? 'chart.hero.solar' : 'chart.hero.solarUse'), checked: this.chart === chart })),
+    ] }];
+    const groups = this.editing ? [layoutGroup('hero', this.place, ctx.t), ...chartGroup, ...colours] : [...chartGroup, ...colours];
     return html`<div class="head">${this.editing ? html`<button class="grip hit" data-grip aria-label=${ctx.t('edit.grip', { name: title })} @click=${() => this.openMenu()}><mh-icon name="drag_indicator"></mh-icon></button>` : nothing}<mh-icon name=${icon} filled></mh-icon><h2 id="hero-title"><span class="title">${title}</span></h2>${ctx.status().canArrange === false ? nothing : html`<mh-section-menu
         label=${title} .t=${ctx.t} .groups=${groups}
         @select=${(e: CustomEvent<{ group: string; id: string }>) => this.onSelect(e)}
@@ -267,6 +300,7 @@ export class MhHero extends LitElement {
           return deviceId && !editing ? html`<button class=${kind} @click=${() => open(deviceId)}>${inner}</button>` : html`<div class=${kind}>${inner}</div>`;
         })}</div>` : nothing}
       </div>
+      ${this.chart && heroChartsOf(this.hero, this.sources).includes(this.chart) ? html`<mh-hero-chart .ctx=${ctx} .hero=${this.hero} chart=${this.chart} .sources=${this.sources} ?readable=${!editing}></mh-hero-chart>` : nothing}
     </section>`;
   }
 }

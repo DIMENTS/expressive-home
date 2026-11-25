@@ -224,3 +224,12 @@ test('ids are unique and do not use randomUUID', () => {
   expect(newLayoutId('s')).toMatch(/^s-/);
   expect(newLayoutId('d')).toMatch(/^d-/);
 });
+
+test('the chart of a hero is chosen per dashboard, also on the automatic Overzicht, which stays automatic', () => {
+  const layout = defaultHubLayout();
+  const chosen = applyEdit(layout, { type: 'set-chart', dashboardId: 'overview', chart: 'battery' });
+  expect(chosen.dashboards[0]).toMatchObject({ id: 'overview', sections: null, chart: 'battery' });
+  const none = applyEdit(chosen, { type: 'set-chart', dashboardId: 'overview', chart: null });
+  expect(none.dashboards[0]).not.toHaveProperty('chart');
+  expect(applyEdit(layout, { type: 'set-chart', dashboardId: 'nope', chart: 'solar' })).toEqual(layout);
+});

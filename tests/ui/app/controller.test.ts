@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import camperRaw from '../../../src/mock/fixtures/camper.raw.json';
-import { ConnectionError, type ClientEvent, type HistoryPeriod, type HistoryPoint, type HistoryRef } from '../../../src/homey/client';
+import { ConnectionError, type ClientEvent, type HistoryPeriod, type HistoryRef, type HistorySeries, type HistorySource, type HistorySwitches } from '../../../src/homey/client';
 import type { ConnectionSettings } from '../../../src/homey/api-client';
 import { toSnapshot } from '../../../src/homey/map';
 import type { CapabilityValue, Device, HomeySnapshot, RawHomey } from '../../../src/homey/types';
@@ -11,6 +11,8 @@ import { board, hubLayout, overview, ownSection } from '../../helpers/layout';
 import { createStore } from '../../../src/state/store';
 import { createDefaultConfig, type AppConfig, type ConfigStore } from '../../../src/storage/config';
 import { createLocalConfigStore } from '../../../src/storage/local-store';
+import { createLooksStore } from '../../../src/storage/looks-store';
+import { emptyLooksDoc } from '../../../src/theme/looks-doc';
 import { defaultWall, emptyWallHub, withWallHub } from '../../../src/wall/settings';
 import { CONTROL_TIMEOUT_MS, PERMISSION_HINT_MS, REBUILD_QUIET_MS, RESTORED_MS, START_RETRY_MS, createController, type ControllerDeps } from '../../../src/ui/app/controller';
 
@@ -56,8 +58,9 @@ function fakeHub(snapshot: HomeySnapshot = toSnapshot(camperRaw as unknown as Ra
     }),
     setCapability: vi.fn(async (_d: string, _c: string, _v: CapabilityValue) => { if (hub.failControl) throw new Error('refused'); }),
     startFlow: vi.fn(async () => {}),
-    listHistory: vi.fn(async (): Promise<HistoryRef[]> => []),
-    readHistory: vi.fn(async (_ref: HistoryRef, _period: HistoryPeriod): Promise<HistoryPoint[]> => []),
+    listHistory: vi.fn(async (_known?: readonly HistoryRef[]): Promise<HistorySource[]> => []),
+    readSeries: vi.fn(async (_source: HistorySource, _period: HistoryPeriod): Promise<HistorySeries | null> => null),
+    readSwitches: vi.fn(async (_source: HistorySource): Promise<HistorySwitches | null> => null),
     subscribe: vi.fn((listener: (event: ClientEvent) => void) => { listeners.add(listener); return () => listeners.delete(listener); }),
     disconnect: vi.fn(() => { listeners = new Set(); }),
     getHomeyId: vi.fn(() => ID),
@@ -69,7 +72,7 @@ function fakeHub(snapshot: HomeySnapshot = toSnapshot(camperRaw as unknown as Ra
   return hub;
 }
 
-function setup(options: { saved?: Partial<AppConfig['connection']> | null; hub?: ReturnType<typeof fakeHub>; scopes?: string[]; extra?: Device[]; browser?: string[]; peek?: ConfigStore['peek'] } = {}) {
+function setup(options: { saved?: Partial<AppConfig['connection']> | null; hub?: ReturnType<typeof fakeHub>; scopes?: string[]; extra?: Device[]; browser?: string[]; peek?: ConfigStore['peek']; looks?: Pick<ControllerDeps, 'looksStore' | 'lookRole' | 'sendLooks'> } = {}) {
   const configStore = memoryConfig(options.saved ?? null);
   if (options.peek) configStore.peek = options.peek;
   const snapshot = toSnapshot(camperRaw as unknown as RawHomey);
@@ -84,7 +87,7 @@ function setup(options: { saved?: Partial<AppConfig['connection']> | null; hub?:
   const deps: ControllerDeps = {
     configStore, store, createRealClient, createDemoClient: () => demo, notify,
     setTimeout: (fn, ms) => setTimeout(fn, ms), clearTimeout: (h) => clearTimeout(h as ReturnType<typeof setTimeout>),
-    t: createSwitchableTranslate('nl'), browserLanguages: options.browser ?? ['nl-NL'],
+    t: createSwitchableTranslate('nl'), browserLanguages: options.browser ?? ['nl-NL'], ...options.looks,
   };
   const controller = createController(deps);
   const run = () => { const f = flush; flush = null; f?.(); };
@@ -1476,6 +1479,66 @@ test('a file loaded in the example hub changes nothing that is kept; leaving it 
   expect(s.configStore.stored()).toMatchObject({ theme: { seed: '#6750a4' }, sectionSeeds: { 'type:water': '#a6422a' } });
   s.controller.leaveDemo();
   expect(s.controller.getState()).toMatchObject({ theme: { seed: '#6750a4' }, sectionSeeds: { 'type:water': '#a6422a' } });
+});
+
+// ----- a layout file and the look of this device -----
+
+function looksStorage() {
+  const items = new Map<string, string>();
+  const store = createLooksStore({ getItem: (key) => items.get(key) ?? null, setItem: (key, value) => { items.set(key, value); }, removeItem: (key) => { items.delete(key); } });
+  return { store, device: () => store.load().device };
+}
+const fileWith = (theme: AppConfig['theme']) => JSON.stringify({ format: 'expressive-home-layout', version: 1, homeyId: '', dashboards: [{ id: 'overview', name: null, icon: null, sections: null }], theme, sectionSeeds: {} });
+const shownLook = (s: ReturnType<typeof setup>) => { const chosen = s.controller.chosenLook(null); return [chosen.file.id, chosen.seed, chosen.mode]; };
+
+test('a layout file brings its colour and light or dark to a device of its own at once; they are kept, and undone with it', async () => {
+  const looks = looksStorage();
+  const c = await connected({ looks: { looksStore: looks.store } });
+  c.controller.setTheme({ seed: '#3a5ba9', mode: 'light', density: 'comfortable' });
+  expect(c.controller.importLayout(fileWith({ seed: '#A6422A', mode: 'dark', density: 'compact' }))).toMatchObject({ ok: true });
+  expect(shownLook(c)).toEqual(['rustig', '#a6422a', 'dark']);
+  expect(looks.device()).toMatchObject({ seed: '#a6422a', mode: 'dark' });
+  expect(c.state().theme.density).toBe('compact');
+  // what is read again from the storage later is the same
+  await c.controller.reloadStored();
+  expect(shownLook(c)).toEqual(['rustig', '#a6422a', 'dark']);
+  c.controller.undo();
+  expect(shownLook(c)).toEqual(['rustig', '#3a5ba9', 'light']);
+  expect(looks.device()).toMatchObject({ seed: '#3a5ba9', mode: 'light' });
+});
+
+test('a layout file in the example house shows its colour, keeps nothing of it, and leaving brings the own look back', async () => {
+  const looks = looksStorage();
+  const s = setup({ saved: { homeyId: ID, apiKey: 'k' }, looks: { looksStore: looks.store } });
+  await s.controller.start();
+  s.controller.setTheme({ seed: '#3a5ba9', mode: 'light', density: 'comfortable' });
+  await settle();
+  await s.controller.startDemo();
+  s.run();
+  s.controller.importLayout(fileWith({ seed: '#a6422a', mode: 'dark', density: 'compact' }));
+  expect(shownLook(s)).toEqual(['rustig', '#a6422a', 'dark']);
+  expect(looks.device()).toMatchObject({ seed: '#3a5ba9', mode: 'light' });
+  // what is chosen there by hand is kept, as always; what the file brought is not
+  s.controller.setDeviceLook({ theme: 'glas' });
+  expect(shownLook(s)).toEqual(['glas', '#a6422a', 'dark']);
+  expect(looks.device()).toMatchObject({ theme: 'glas', seed: '#3a5ba9', mode: 'light' });
+  s.controller.leaveDemo();
+  expect(shownLook(s)).toEqual(['glas', '#3a5ba9', 'light']);
+});
+
+test('a layout file leaves the colour and light or dark alone where this device follows the house', async () => {
+  const looks = looksStorage();
+  const c = await connected({ looks: { looksStore: looks.store, lookRole: () => 'edit', sendLooks: () => {} } });
+  c.controller.adoptHubLooks({ ...emptyLooksDoc(), revision: 1, house: { theme: 'glas', seed: '#3a5ba9', mode: 'light' } });
+  const before = c.state().theme;
+  c.controller.importLayout(fileWith({ seed: '#a6422a', mode: 'dark', density: 'compact' }));
+  expect(shownLook(c)).toEqual(['glas', '#3a5ba9', 'light']);
+  expect(c.state().theme).toEqual({ ...before, density: 'compact' });
+  // a device with a light or dark of its own takes that of the file, and still the colour of the house
+  c.controller.setDeviceLook({ followMode: false, mode: 'light' });
+  c.controller.importLayout(fileWith({ seed: '#a6422a', mode: 'dark', density: 'compact' }));
+  expect(shownLook(c)).toEqual(['glas', '#3a5ba9', 'dark']);
+  expect(looks.device()).toMatchObject({ followStyle: true, mode: 'dark' });
 });
 
 // ----- the dashboard to start with -----

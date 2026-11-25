@@ -44,7 +44,7 @@ test('its tiles are those of the app: lamps first, narrow ones for a house, with
     ['light', 'wide'], ['light', 'wide'], ['light', 'wide'], ['switch', 'single'], ['climate', 'single'], ['cover', 'single'], ['cover', 'single'], ['media', 'single'], ['media', 'single'], ['generic', 'single'],
   ]);
   const garage = perRoom(house()).sections.find((s) => s.zone === 'garage')!;
-  expect(garage.tiles.some((tile) => tile.kind !== 'flow' && ['garage-solar', 'garage-battery'].includes(tile.deviceId))).toBe(false);
+  expect(garage.tiles.some((tile) => tile.kind !== 'flow' && tile.kind !== 'widget' && ['garage-solar', 'garage-battery'].includes(tile.deviceId))).toBe(false);
 });
 
 test('devices without a room come last; a room whose devices are all in the hero is not there', () => {

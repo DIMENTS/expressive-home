@@ -12,15 +12,27 @@ export type TileSpec =
   | TileLook & { kind: 'switch'; id: string; deviceId: string; size: TileSize; onoffCapabilityId: string; detailCapabilityId: string | null }
   | TileLook & { kind: 'tank'; id: string; deviceId: string; size: TileSize; levelCapabilityId: string | null; volumeCapabilityId: string | null; capacityCapabilityId: string | null }
   | TileLook & { kind: 'button'; id: string; deviceId: string; size: TileSize; capabilityId: string }
-  | TileLook & { kind: 'sensor'; id: string; deviceId: string; size: TileSize; capabilityId: string; showCapabilityTitle: boolean }
+  /** `trend`: when wide, the last 24 hours as a soft area behind the value; absent is off, so tiles from before stay as they were. */
+  | TileLook & { kind: 'sensor'; id: string; deviceId: string; size: TileSize; capabilityId: string; showCapabilityTitle: boolean; trend?: boolean }
   | TileLook & { kind: 'multi'; id: string; deviceId: string; size: TileSize; capabilityIds: string[] }
   | TileLook & { kind: 'generic'; id: string; deviceId: string; size: TileSize; capabilityId: string | null }
   | TileLook & { kind: HouseKind; id: string; deviceId: string; size: TileSize }
-  | TileLook & { kind: 'flow'; id: string; flowId: string; flowKind: 'flow' | 'advanced'; size: 'single' };
-const KINDS: readonly string[] = ['light', 'switch', 'tank', 'button', 'sensor', 'multi', 'generic', 'flow', ...HOUSE_KINDS];
+  | TileLook & { kind: 'flow'; id: string; flowId: string; flowKind: 'flow' | 'advanced'; size: 'single' }
+  | TileLook & WidgetFields;
+/** One setting of a placed widget. */
+export type WidgetSettingValue = string | number | boolean | null;
+/**
+ * A widget: one of the app ('clock', 'note', 'board'), an own one ('own:<id>') or one of an app on the hub
+ * ('app:<app>/<widget>'), with the settings of this one tile.
+ */
+export interface WidgetFields { kind: 'widget'; id: string; size: TileSize; widget: string; settings: Record<string, WidgetSettingValue> }
+const KINDS: readonly string[] = ['light', 'switch', 'tank', 'button', 'sensor', 'multi', 'generic', 'flow', 'widget', ...HOUSE_KINDS];
 /** Another version of the app can have stored a kind that this one does not draw. */
 export const isKnownKind = (kind: string): boolean => KINDS.includes(kind);
-export type DeviceTileSpec = Exclude<TileSpec, { kind: 'flow' }>;
+export type DeviceTileSpec = Exclude<TileSpec, { kind: 'flow' } | { kind: 'widget' }>;
+export type WidgetTileSpec = Extract<TileSpec, { kind: 'widget' }>;
+/** A tile of one device: not a flow, not a widget. */
+export const isDeviceTile = (spec: TileSpec): spec is DeviceTileSpec => spec.kind !== 'flow' && spec.kind !== 'widget';
 export type FlowTileSpec = Extract<TileSpec, { kind: 'flow' }>;
 /** The room of devices that are in none. */
 export const NO_ROOM = 'none';

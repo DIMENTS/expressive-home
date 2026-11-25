@@ -1,0 +1,69 @@
+{
+  "format": "expressive-home-widget",
+  "version": 1,
+  "id": "gauge",
+  "name": {
+    "en": "Gauge",
+    "nl": "Meter"
+  },
+  "description": {
+    "en": "One value of a device on a dial",
+    "nl": "Eén waarde van een apparaat op een wijzerplaat"
+  },
+  "icon": "speed",
+  "widgetVersion": "1.0.0",
+  "sizes": [
+    "single",
+    "wide"
+  ],
+  "settings": [
+    {
+      "id": "device",
+      "type": "device",
+      "title": {
+        "en": "Device",
+        "nl": "Apparaat"
+      }
+    },
+    {
+      "id": "capability",
+      "type": "capability",
+      "device": "device",
+      "title": {
+        "en": "Value",
+        "nl": "Waarde"
+      }
+    },
+    {
+      "id": "min",
+      "type": "number",
+      "title": {
+        "en": "Lowest",
+        "nl": "Laagste"
+      },
+      "default": 0
+    },
+    {
+      "id": "max",
+      "type": "number",
+      "title": {
+        "en": "Highest",
+        "nl": "Hoogste"
+      },
+      "default": 100
+    }
+  ],
+  "html": "<div class=\"gauge\" role=\"img\">\n  <svg viewBox=\"0 0 150 84\" aria-hidden=\"true\"><path class=\"track\" d=\"M11 76 A64 64 0 0 1 139 76\"/><path class=\"fill\" d=\"M11 76 A64 64 0 0 1 139 76\"/></svg>\n  <div class=\"value\"><span class=\"number\">–</span><span class=\"unit\"></span></div>\n  <div class=\"name\"></div>\n</div>",
+  "css": "body { margin: 0; }\n.gauge { box-sizing: border-box; height: 100vh; display: grid; justify-items: center; align-content: center; padding: var(--tile-pad, 14px); color: var(--tile-fg); font-family: var(--font-family); }\nsvg { width: min(150px, 100%); height: auto; display: block; }\npath { fill: none; stroke-width: 14; stroke-linecap: round; }\n.track { stroke: var(--c-surface-container-low); }\n.fill { stroke: var(--c-primary); transition: stroke-dashoffset var(--motion-spatial, 0s); }\n.value { margin-top: -34px; font-size: 28px; line-height: 1; font-weight: var(--weight-strong, 600); font-variant-numeric: tabular-nums; }\n.unit { font-size: 14px; font-weight: var(--weight-medium, 500); margin-left: 2px; }\n.name { margin-top: 6px; font-size: var(--type-body-s-size, 13px); color: var(--tile-state-fg); text-align: center; }\n@media (prefers-reduced-motion: reduce) { .fill { transition: none; } }",
+  "js": "function onHomeyReady(Homey) {\n  const settings = Homey.getSettings();\n  const fill = document.querySelector('.fill');\n  const length = fill.getTotalLength ? fill.getTotalLength() : 201;\n  fill.style.strokeDasharray = String(length);\n  const min = Number(settings.min) || 0;\n  const max = Number(settings.max) > min ? Number(settings.max) : min + 100;\n  function show() {\n    const device = Homey.devices.get(settings.device);\n    const cap = device && device.capabilities[settings.capability];\n    const value = cap && typeof cap.value === 'number' ? cap.value : null;\n    document.querySelector('.number').textContent = value === null ? '–' : value.toLocaleString(Homey.language(), { maximumFractionDigits: 1 });\n    document.querySelector('.unit').textContent = cap && cap.units ? cap.units : '';\n    document.querySelector('.name').textContent = device ? device.name : Homey.__('choose');\n    const share = value === null ? 0 : Math.min(1, Math.max(0, (value - min) / (max - min)));\n    fill.style.strokeDashoffset = String(length * (1 - share));\n    document.querySelector('.gauge').setAttribute('aria-label', device ? device.name + ', ' + (value === null ? Homey.__('none') : value + (cap.units ? ' ' + cap.units : '')) : Homey.__('choose'));\n  }\n  Homey.on('device', show);\n  show();\n  Homey.ready();\n}",
+  "texts": {
+    "en": {
+      "choose": "Choose a device",
+      "none": "no value"
+    },
+    "nl": {
+      "choose": "Kies een apparaat",
+      "none": "geen waarde"
+    }
+  }
+}

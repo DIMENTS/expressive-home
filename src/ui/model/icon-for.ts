@@ -1,4 +1,5 @@
 import type { TileSpec } from '../../dashboard/types';
+import { widgetIcon } from '../../widgets/catalog';
 import { climateOf } from '../../controls/climate';
 import { guardOf, guardState } from '../../controls/guard';
 import type { Capability, Device } from '../../homey/types';
@@ -62,6 +63,7 @@ export function iconFor(spec: TileSpec, device: Device | undefined): IconName {
   const byClass = device ? BY_CLASS[device.deviceClass] : undefined;
   switch (spec.kind) {
     case 'flow': return 'play_arrow';
+    case 'widget': return widgetIcon(spec);
     case 'light': return 'lightbulb';
     case 'tank': return 'water_drop';
     case 'button': return 'touch_app';

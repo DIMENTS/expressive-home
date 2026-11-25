@@ -4,9 +4,9 @@ import { cleanName, valueCapability } from '../layout/refs';
 import { fitSize } from '../layout/tiles';
 import {
   defaultHubLayout, LIMITS, OVERVIEW_ID,
-  type DashboardLayout, type HeroChoice, type HeroValueRef, type HubLayout, type SectionLayout, type TileLayout,
-} from '../layout/types';
+  type DashboardLayout, type HeroChoice, type HeroValueRef, type HubLayout, type SectionLayout, type TileLayout, HERO_CHARTS } from '../layout/types';
 import { SECTION_ID } from './config';
+import { widgetSpecOf } from '../widgets/widget-ref';
 
 const MAX_HUBS = 5;
 const MAX_KNOWN = 5000;
@@ -42,6 +42,7 @@ function specOf(raw: unknown, id: string): TileSpec | null {
     const flowKind = raw['flowKind'];
     return flowId !== null && (flowKind === 'flow' || flowKind === 'advanced') ? { kind: 'flow', id, flowId, flowKind, size: 'single' } : null;
   }
+  if (raw['kind'] === 'widget') return widgetSpecOf(raw, id, size);
   const deviceId = idOf(raw['deviceId']);
   if (deviceId === null) return null;
   const common = { id, deviceId, size };
@@ -60,7 +61,7 @@ function specOf(raw: unknown, id: string): TileSpec | null {
     case 'button': case 'sensor': {
       const capabilityId = idOf(raw['capabilityId']);
       if (capabilityId === null) return null;
-      return raw['kind'] === 'button' ? { kind: 'button', ...common, capabilityId } : { kind: 'sensor', ...common, capabilityId, showCapabilityTitle: raw['showCapabilityTitle'] === true };
+      return raw['kind'] === 'button' ? { kind: 'button', ...common, capabilityId } : { kind: 'sensor', ...common, capabilityId, showCapabilityTitle: raw['showCapabilityTitle'] === true, ...(typeof raw['trend'] === 'boolean' ? { trend: raw['trend'] } : {}) };
     }
     case 'multi': {
       const capabilityIds = list(raw['capabilityIds']).map(idOf).filter((c): c is string => c !== null).slice(0, MULTI_VALUES);
@@ -130,7 +131,8 @@ function dashboardOf(raw: unknown, ids: Set<string>, seen: Seen): DashboardLayou
   const id = idOf(raw['id']);
   if (id === null || !DASHBOARD_ID.test(id) || !firstTime(ids, id)) return null;
   const sections = Array.isArray(raw['sections']) ? sectionsOf(raw['sections'], seen) : id === OVERVIEW_ID ? null : [];
-  return { id, name: nameOf(raw['name']), icon: iconOf(raw['icon']), sections };
+  const chart = HERO_CHARTS.find((one) => one === raw['chart']);
+  return { id, name: nameOf(raw['name']), icon: iconOf(raw['icon']), sections, ...(chart ? { chart } : {}) };
 }
 
 /** The dashboards of a stored layout or a file: what is wrong falls away, the Overzicht always exists. Null when it is no list. */

@@ -1,4 +1,4 @@
-import { ConnectionError, type ClientEvent, type HomeyClient } from '../homey/client';
+import { ConnectionError, type ClientEvent, type HistoryPeriod, type HistoryRef, type HistorySeries, type HistorySource, type HistorySwitches, type HomeyClient } from '../homey/client';
 import type { CapabilityValue, Flow, HomeySnapshot, Route } from '../homey/types';
 import { createStore } from '../state/store';
 
@@ -149,6 +149,9 @@ export function createHubLink(deps: HubLinkDeps) {
     async startFlow(flow: Pick<Flow, 'id' | 'kind'>): Promise<void> {
       await connected().startFlow(flow);
     },
+    listHistory: (known: readonly HistoryRef[]): Promise<HistorySource[]> => connected().listHistory(known),
+    readSeries: (source: HistorySource, period: HistoryPeriod): Promise<HistorySeries | null> => connected().readSeries(source, period),
+    readSwitches: (source: HistorySource): Promise<HistorySwitches | null> => connected().readSwitches(source),
     subscribe(listener: (event: HubEvent) => void): () => void {
       listeners.add(listener);
       return () => { listeners.delete(listener); };

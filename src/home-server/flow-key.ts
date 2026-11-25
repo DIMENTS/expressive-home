@@ -12,7 +12,7 @@ export interface FlowKeyDeps {
   load(): unknown;
   save(value: Kept | null): void;
   /** Asks the hub something with the key; throws when there is no answer. */
-  request(method: 'GET' | 'POST', path: string, key: string): Promise<{ status: number; body: unknown }>;
+  request(method: 'GET' | 'POST' | 'PUT' | 'DELETE', path: string, key: string, body?: unknown): Promise<{ status: number; body: unknown }>;
 }
 
 /** What can be in the header of a request; no key of Homey is shorter. */
@@ -99,6 +99,15 @@ export function createFlowKey(deps: FlowKeyDeps) {
         if ((now === 'refused' || now === 'no-right') && kept === used) change({ ...used, refused: true });
       }
       throw new Error(`The hub answered ${answer.status}`);
+    },
+    /**
+     * A request to the hub itself with a key that may do more than start flows (widgets of apps need one that may
+     * do everything); null when there is no such key. The key never leaves the hub.
+     */
+    async wideRequest(method: 'GET' | 'POST' | 'PUT' | 'DELETE', path: string, body?: unknown): Promise<{ status: number; body: unknown } | null> {
+      const used = kept;
+      if (!used || used.refused || !used.wide) return null;
+      return deps.request(method, path, used.key, body);
     },
     /** Hears when the state may have changed. */
     subscribe(listener: () => void): () => void {

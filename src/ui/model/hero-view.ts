@@ -19,6 +19,19 @@ export interface HeroView {
 /** A label with a word of at least so many letters: too long for a quarter of a phone. */
 export const hasLongWord = (label: string, letters = 10): boolean => label.split(/\s+/).some((word) => word.length >= letters);
 
+/** The sources of shore power that mean no power from outside. */
+const NO_SHORE = new Set(['none', 'inverting']);
+
+/**
+ * The source of shore power in a word. Without power from outside an app says "not connected" or "inverting (island)",
+ * also when its inverter is off: then it is off-grid, and inverting only when a state of that device says it inverts.
+ */
+function shoreWord(cap: Capability, device: Device | undefined, word: string, t: Translate): string {
+  if (typeof cap.value !== 'string' || !NO_SHORE.has(cap.value)) return word;
+  const inverting = Object.values(device?.capabilities ?? {}).some((other) => other.id !== cap.id && other.type === 'enum' && other.value === 'inverting');
+  return t(inverting ? 'hero.shoreInverting' : 'hero.offGrid');
+}
+
 /** A value that is a word, such as the source of the shore power: it stands smaller. A number is not, however long. */
 export const isWords =(value: string): boolean => value.length > 4 && !/\d/.test(value);
 
@@ -67,7 +80,7 @@ export function heroView(hero: HeroSpec, getDevice: (id: string) => Device | und
     if (cap.value === null && hero.kind !== 'own') continue;
     const icon: IconName = stat.role === 'solar' ? 'solar_power' : stat.role === 'consumption' ? 'bolt' : 'power';
     const label = t(stat.role === 'solar' ? 'hero.solar' : stat.role === 'consumption' ? 'hero.consumption' : 'hero.shore');
-    stats.push({ role: stat.role, icon, value, label, deviceId: stat.ref.deviceId });
+    stats.push({ role: stat.role, icon, value: stat.role === 'shore' ? shoreWord(cap, device, value, t) : value, label, deviceId: stat.ref.deviceId });
   }
 
   const own = hero.kind === 'own';

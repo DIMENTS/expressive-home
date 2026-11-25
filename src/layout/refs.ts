@@ -14,6 +14,8 @@ export function valueCapability(tile: TileLayout): string | null {
 /** What a tile stands on: its device or flow first and, for a tile made from one value, that value. */
 export function tileRefs(tile: TileLayout): string[] {
   if (tile.spec.kind === 'flow') return [flowRef(tile.spec.flowId)];
+  // a widget stands on nothing of the hub: it is never gone, and never new
+  if (tile.spec.kind === 'widget') return [];
   const capability = tile.source === 'value' ? valueCapability(tile) : null;
   return capability === null ? [tile.spec.deviceId] : [tile.spec.deviceId, valueRef(tile.spec.deviceId, capability)];
 }

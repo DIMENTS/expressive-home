@@ -39,8 +39,9 @@ test('the plus adds the tiles the app would choose to the section', async () => 
   expect(p.adds).toEqual([{
     name: p.snapshot.devices['device-13']!.name,
     tiles: [
-      { id: 't-1', spec: { kind: 'sensor', id: 't-1', deviceId: 'device-13', size: 'single', capabilityId: 'measure_temperature', showCapabilityTitle: true }, size: 'single', label: null, icon: null, source: 'device' },
-      { id: 't-2', spec: { kind: 'sensor', id: 't-2', deviceId: 'device-13', size: 'single', capabilityId: 'measure_humidity', showCapabilityTitle: true }, size: 'single', label: null, icon: null, source: 'device' },
+      // a sensor tile placed after the update has its history behind the value once it is made wide
+      { id: 't-1', spec: { kind: 'sensor', id: 't-1', deviceId: 'device-13', size: 'single', capabilityId: 'measure_temperature', showCapabilityTitle: true, trend: true }, size: 'single', label: null, icon: null, source: 'device' },
+      { id: 't-2', spec: { kind: 'sensor', id: 't-2', deviceId: 'device-13', size: 'single', capabilityId: 'measure_humidity', showCapabilityTitle: true, trend: true }, size: 'single', label: null, icon: null, source: 'device' },
     ],
   }]);
   expect(p.plus(p.row('device-13')).getAttribute('label')).toBe(`${p.snapshot.devices['device-13']!.name} toevoegen`);
@@ -57,7 +58,7 @@ test('a value adds one tile from that value', async () => {
   const title = p.snapshot.devices['device-3']!.capabilities['measure_starlink_download']!.title;
   expect(p.adds).toEqual([{
     name: `${p.snapshot.devices['device-3']!.name} · ${title}`,
-    tiles: [{ id: 't-1', spec: { kind: 'sensor', id: 't-1', deviceId: 'device-3', size: 'single', capabilityId: 'measure_starlink_download', showCapabilityTitle: true }, size: 'single', label: null, icon: null, source: 'value' }],
+    tiles: [{ id: 't-1', spec: { kind: 'sensor', id: 't-1', deviceId: 'device-3', size: 'single', capabilityId: 'measure_starlink_download', showCapabilityTitle: true, trend: true }, size: 'single', label: null, icon: null, source: 'value' }],
   }]);
 });
 
@@ -148,4 +149,15 @@ test('a button says what it is; on the app on the hub somebody without any hears
   own.store.apply({ type: 'structure', zones: own.store.getSnapshot()!.zones, flows: [] });
   own.flush();
   expect(await flows(own)).toContain('Geen flow die je handmatig kunt starten.');
+});
+
+test('widgets have their own list; the plus adds one with its defaults, nothing else is added', async () => {
+  const p = await panel();
+  deep(p.element, 'mh-choice-group').dispatchEvent(new CustomEvent('change', { detail: { value: 'widgets' }, bubbles: true, composed: true }));
+  await wait(p.element);
+  const rows = deepAll(p.element, '[data-widget]');
+  expect(rows.map((row) => row.getAttribute('data-widget'))).toEqual(['clock', 'note', 'board', 'gauge', 'countdown', 'group']);
+  expect(p.adds).toEqual([]);
+  p.plus(rows[0]!).click();
+  expect(p.adds).toEqual([{ name: 'Klok', tiles: [{ id: 't-1', spec: { kind: 'widget', id: 't-1', size: 'wide', widget: 'clock', settings: {} }, size: 'wide', label: null, icon: null, source: 'device' }] }]);
 });

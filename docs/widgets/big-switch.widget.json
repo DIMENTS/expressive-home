@@ -1,0 +1,53 @@
+{
+  "format": "expressive-home-widget",
+  "version": 1,
+  "id": "big-switch",
+  "name": {
+    "en": "Big switch",
+    "nl": "Grote knop"
+  },
+  "description": {
+    "en": "One large button that switches a device on and off",
+    "nl": "Eén grote knop die een apparaat aan- en uitzet"
+  },
+  "icon": "toggle_on",
+  "widgetVersion": "1.0.0",
+  "sizes": [
+    "single",
+    "wide"
+  ],
+  "settings": [
+    {
+      "id": "device",
+      "type": "device",
+      "title": {
+        "en": "Device",
+        "nl": "Apparaat"
+      }
+    },
+    {
+      "id": "label",
+      "type": "text",
+      "title": {
+        "en": "Text on the button",
+        "nl": "Tekst op de knop"
+      },
+      "default": ""
+    }
+  ],
+  "html": "<button class=\"big\" type=\"button\" aria-pressed=\"false\"><span class=\"dot\"></span><span class=\"label\"></span><span class=\"state\"></span></button>",
+  "css": "body { margin: 0; }\n.big { all: unset; box-sizing: border-box; cursor: pointer; width: 100%; height: 100vh; min-height: 48px; display: grid; align-content: center; justify-items: start; gap: 4px;\n  padding: var(--tile-pad, 14px); border-radius: var(--tile-radius, 20px); font-family: var(--font-family); color: var(--tile-fg); }\n.big:focus-visible { outline: var(--focus-width, 3px) solid var(--focus-color, currentColor); outline-offset: -6px; }\n.big[aria-pressed=\"true\"] { background: var(--tile-on-bg); color: var(--tile-on-fg); }\n.dot { width: 40px; height: 40px; border-radius: 50%; background: var(--tile-icon-bg); }\n.big[aria-pressed=\"true\"] .dot { background: var(--tile-icon-on-bg); }\n.label { font-size: 22px; line-height: 28px; font-weight: var(--weight-strong, 600); }\n.state { font-size: var(--type-body-s-size, 13px); opacity: .8; }",
+  "js": "function onHomeyReady(Homey) {\n  const settings = Homey.getSettings();\n  const button = document.querySelector('.big');\n  function show() {\n    const device = Homey.devices.get(settings.device);\n    const on = !!(device && device.capabilities.onoff && device.capabilities.onoff.value === true);\n    button.setAttribute('aria-pressed', on ? 'true' : 'false');\n    document.querySelector('.label').textContent = settings.label || (device ? device.name : Homey.__('choose'));\n    document.querySelector('.state').textContent = device ? Homey.__(on ? 'on' : 'off') : '';\n    button.disabled = !(device && device.capabilities.onoff && device.capabilities.onoff.setable);\n  }\n  button.addEventListener('click', () => {\n    const device = Homey.devices.get(settings.device);\n    if (!device || !device.capabilities.onoff) return;\n    Homey.devices.setCapabilityValue(device.id, 'onoff', device.capabilities.onoff.value !== true);\n  });\n  Homey.on('device', show);\n  show();\n  Homey.ready();\n}",
+  "texts": {
+    "en": {
+      "choose": "Choose a device",
+      "on": "On",
+      "off": "Off"
+    },
+    "nl": {
+      "choose": "Kies een apparaat",
+      "on": "Aan",
+      "off": "Uit"
+    }
+  }
+}

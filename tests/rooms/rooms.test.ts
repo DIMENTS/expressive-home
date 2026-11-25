@@ -145,7 +145,7 @@ test('a room has all its devices, also those of the hero, per kind and wide to o
   const garage = roomsOf(s, nl).find((r) => r.id === 'garage')!;
   const board = roomDashboard(garage, s, 'nl');
   expect(board.hero).toBeNull();
-  expect(new Set(board.sections.flatMap((x) => x.tiles.map((tile) => (tile.kind === 'flow' ? '' : tile.deviceId))))).toEqual(new Set(garage.deviceIds));
+  expect(new Set(board.sections.flatMap((x) => x.tiles.map((tile) => (tile.kind === 'flow' || tile.kind === 'widget' ? '' : tile.deviceId))))).toEqual(new Set(garage.deviceIds));
   const living = roomDashboard(roomsOf(s, nl)[0]!, s, 'nl');
   expect(living.sections.map((x) => x.kind)).toEqual(['lights', 'switches', 'climate', 'covers', 'media', 'security']);
   for (const tile of living.sections.flatMap((x) => x.tiles)) if (['climate', 'cover', 'media', 'guard'].includes(tile.kind)) expect([tile.kind, tile.size]).toEqual([tile.kind, 'wide']);

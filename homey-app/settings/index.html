@@ -106,6 +106,19 @@
         <legend class="homey-form-legend" data-i18n="settings.night"></legend>
         <p data-i18n="settings.nightText"></p>
       </fieldset>
+      <fieldset class="homey-form-fieldset">
+        <legend class="homey-form-legend" data-i18n="settings.looks"></legend>
+        <p data-i18n="settings.looksText"></p>
+        <p><button class="homey-button-danger-shadow" id="rescue" data-i18n="settings.looksReset"></button></p>
+        <p class="message" id="rescued" role="status"></p>
+      </fieldset>
+      <fieldset class="homey-form-fieldset">
+        <legend class="homey-form-legend" data-i18n="settings.record"></legend>
+        <p data-i18n="settings.recordText"></p>
+        <label class="homey-form-checkbox"><input class="homey-form-checkbox-input" id="record" type="checkbox"><span class="homey-form-checkbox-checkmark"></span><span class="homey-form-checkbox-text" data-i18n="settings.recordOn"></span></label>
+        <p><button class="homey-button-danger-shadow" id="wipe" data-i18n="settings.recordWipe"></button></p>
+        <p class="message" id="wiped" role="status"></p>
+      </fieldset>
     </details>
     <p data-i18n="settings.plain"></p>
   </div>
@@ -368,6 +381,8 @@
         $('content').hidden = !state.running;
         if (!state.running) { $('problem').textContent = t(state.problem === 'port' ? 'problemPort' : 'problemStart'); return; }
         say('state', state.connected ? '' : t('notConnected'));
+        // what somebody is changing is not set back by an answer from before
+        if (document.activeElement !== $('record')) $('record').checked = state.recording !== false;
         devices = state.devices;
         followUsed(state.codes);
         if (fresh) {
@@ -427,6 +442,24 @@
             $('key').setAttribute('aria-invalid', 'false');
             $('key').focus();
           }, failed);
+        });
+      };
+
+      $('rescue').onclick = function () {
+        Homey.confirm(t('looksConfirm'), null, function (error, yes) {
+          if (error || !yes) return;
+          call('POST', '/looks/reset').then(function () { $('rescued').textContent = t('looksDone'); }, failed);
+        });
+      };
+
+      $('record').onchange = function () {
+        var on = $('record').checked;
+        call('PUT', '/recording', { on: on }).then(refresh, function () { $('record').checked = !on; failed(); });
+      };
+      $('wipe').onclick = function () {
+        Homey.confirm(t('recordConfirm'), null, function (error, yes) {
+          if (error || !yes) return;
+          call('DELETE', '/recording').then(function () { $('wiped').textContent = t('recordWiped'); }, failed);
         });
       };
 

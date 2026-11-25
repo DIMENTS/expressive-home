@@ -1,7 +1,10 @@
+import type { AppWidgetRow } from '../../widgets/app-widget-link';
+import type { WidgetFile } from '../../widgets/widget-file';
 import type { TileSpec } from '../../dashboard/types';
 import type { CapabilityValue, Route } from '../../homey/types';
 import type { Translate } from '../../i18n/index';
 import type { Store } from '../../state/store';
+import type { HistoryAccess } from './history';
 
 /** What the dashboard needs to know about the connection and the key's rights. */
 export interface DashboardStatus { route: Route | null; canControl: boolean; canStartFlows: boolean; demo: boolean;
@@ -29,9 +32,34 @@ export interface UiActions {
   openDevice(deviceId: string): void;
 }
 
+/** A dashboard a widget can lead to. */
+export interface BoardChoice { id: string; name: string; icon: string }
+
+/** What widgets need of the app around them; absent where there are no widgets (the gallery, a test). */
+export interface WidgetContext {
+  /** The dashboards there are, and the screen with the rooms when it is shown. */
+  boards(): BoardChoice[];
+  openBoard(id: string): void;
+  /** The own widgets of the open house. */
+  own?(): WidgetFile[];
+  /** The widgets of other apps on the hub, through the app on the hub (a trial); absent without it. */
+  apps?(): Promise<{ state: string; widgets: { ref: string; name: Partial<Record<'en' | 'nl', string>>; app: string }[] }>;
+  /** What the list of the hub says of one widget of an app: its settings, devices and texts. */
+  appRow?(ref: string): Promise<AppWidgetRow | undefined>;
+  /** A request of such a widget to its own back end; null when it is refused. */
+  appApi?(ref: string, method: string, path: string, body: unknown): Promise<{ status: number; body: unknown } | null>;
+  /** The page was opened with #veilig: own widgets stay off. */
+  safe?(): boolean;
+  /** The question of the dashboard for something dangerous a widget wants; true when it was answered yes. */
+  ask?(deviceId: string, capabilityId: string, value: CapabilityValue, widgetName: string): Promise<boolean>;
+}
+
 /** What every tile and panel gets: the live state, the texts, the actions and the status. */
 export interface UiContext {
+  widgets?: WidgetContext;
   store: Store; t: Translate; actions: UiActions; status(): DashboardStatus;
   /** What a lock, a door or an alarm was told and did not answer yet. */
   busy(deviceId: string): { capabilityId: string; value: CapabilityValue } | null;
+  /** History of the hub; without it there are no charts. */
+  history?: HistoryAccess;
 }

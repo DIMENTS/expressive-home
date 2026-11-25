@@ -8,12 +8,17 @@ import { createNight } from '../../src/home-server/night';
 import { createPairing } from '../../src/home-server/pairing';
 import { createHomeServer } from '../../src/home-server/server';
 import { createSharedLayouts } from '../../src/home-server/shared-layouts';
+import { createSharedLooks } from '../../src/home-server/shared-looks';
+import { createSharedWidgets } from '../../src/home-server/shared-widgets';
 import type { HomeyClient } from '../../src/homey/client';
 import { createSwitchableTranslate } from '../../src/i18n';
 import type { LayoutEdit } from '../../src/layout/edit';
 import { createServedClient } from '../../src/served/client';
 import { createLink, type EventStream } from '../../src/served/link';
 import { createServedStore } from '../../src/served/store';
+import { createLooksSync } from '../../src/served/looks-sync';
+import { createLooksStore } from '../../src/storage/looks-store';
+import type { LooksDoc } from '../../src/theme/looks-doc';
 import { createStore } from '../../src/state/store';
 import { createController } from '../../src/ui/app/controller';
 import { camperSnapshot, fakeHub, HOMEY_ID } from '../helpers/fake-hub';
@@ -46,18 +51,19 @@ export async function bed() {
   const pairing = createPairing({ load: () => [], save: () => {}, now: () => Date.now(), token: () => randomBytes(32).toString('base64url'), code: () => String((codes += 1)), fingerprint: (t) => createHash('sha256').update(t).digest('hex') });
   let saves = 0;
   const layouts = createSharedLayouts({ load: () => undefined, save: () => { saves += 1; } });
+  const looks = createSharedLooks({ load: () => undefined, save: () => {} });
   const night = createNight({ load: () => undefined, save: () => {}, now: () => Date.now() });
   const flowKey = createFlowKey({ load: () => undefined, save: () => {}, request: async () => { throw new Error('no key here'); } });
   const version = { build: 'one' };
   const buttons = createButtons({ load: () => undefined, save: () => {}, card: null, flows: () => [], setTimeout: later, clearTimeout: cancel, now: () => Date.now() });
-  const server = createHomeServer({ pairing, layouts, night, flowKey, buttons, build: () => version.build, hub: hubLink, homeyId: () => HOMEY_ID, setInterval: (fn, ms) => setInterval(fn, ms / SPEED), clearInterval: (handle) => clearInterval(handle as ReturnType<typeof setInterval>), file: async () => null });
+  const server = createHomeServer({ pairing, layouts, looks, widgets: createSharedWidgets({ load: () => undefined, save: () => {} }), night, flowKey, buttons, build: () => version.build, hub: hubLink, homeyId: () => HOMEY_ID, setInterval: (fn, ms) => setInterval(fn, ms / SPEED), clearInterval: (handle) => clearInterval(handle as ReturnType<typeof setInterval>), file: async () => null });
   await new Promise<void>((done) => { server.server.listen(0, '127.0.0.1', () => done()); });
   const { port } = server.server.address() as AddressInfo;
   hubLink.start();
   await sleep(5);
   closing.push(async () => { hubLink.stop(); await server.close(); });
   return {
-    hub, hubLink, pairing, layouts, night, version, server, port, host: `127.0.0.1:${port}`, saves: () => saves,
+    hub, hubLink, pairing, layouts, looks, night, version, server, port, host: `127.0.0.1:${port}`, saves: () => saves,
     /** The names of the dashboards that the hub keeps. */
     boards: () => (layouts.get().layouts[HOMEY_ID]?.dashboards ?? []).map((d) => d.name ?? d.id),
   };
@@ -65,7 +71,8 @@ export async function bed() {
 export type Bed = Awaited<ReturnType<typeof bed>>;
 
 /** The page of one device; `up`, `down` and `stream` are the delays of its requests, their answers and its live stream. */
-export function device(b: Bed, delays: { up?: number; down?: number; stream?: number } = {}) {
+/** A page on a device; `stored`: what its browser kept from before. */
+export function device(b: Bed, delays: { up?: number; down?: number; stream?: number } = {}, stored: Record<string, string> = {}) {
   const net = { up: 0, down: 0, stream: delays.down ?? 0, ...delays, away: false, failing: '' };
   const sockets = new Set<{ destroy(): void }>();
   const log: string[] = [];
@@ -126,16 +133,20 @@ export function device(b: Bed, delays: { up?: number; down?: number; stream?: nu
   }
 
   const link = createLink({ fetch, openStream, setTimeout: later, clearTimeout: cancel, now: () => Date.now() * SPEED });
-  const values = new Map<string, string>();
+  const values = new Map<string, string>(Object.entries(stored));
   const storage = { getItem: (key: string) => values.get(key) ?? null, setItem: (key: string, value: string) => { values.set(key, value); }, removeItem: (key: string) => { values.delete(key); } };
   const served = createServedStore(storage, link);
   const notices: string[] = [];
   const store = createStore((flush) => { setTimeout(flush, 0); });
+  let onLooks: (doc: LooksDoc) => void = () => {};
+  const looksSync = createLooksSync({ link, adopt: (doc) => onLooks(doc), refused: () => { notices.push('REFUSED'); }, setTimeout: later, clearTimeout: cancel });
   const controller = createController({
     configStore: served.store, store, createRealClient: () => createServedClient(link), createDemoClient: () => { throw new Error('there is no example here'); },
     notify: (message) => { notices.push(message.text); }, setTimeout: later, clearTimeout: cancel, t: createSwitchableTranslate('nl'), browserLanguages: ['nl'],
     mayArrange: () => served.mayArrange(), served: true,
+    looksStore: createLooksStore(storage), lookRole: () => served.knownRole(), sendLooks: (ops) => looksSync.send(ops),
   });
+  onLooks = (doc) => controller.adoptHubLooks(doc);
   served.onChanged(() => { void controller.reloadStored(); });
   served.onConflict(() => { notices.push('CONFLICT'); });
   served.onUnsaved(() => { notices.push('UNSAVED'); });
@@ -160,6 +171,9 @@ export function device(b: Bed, delays: { up?: number; down?: number; stream?: nu
     add: (id: string, name: string) => controller.edit({ type: 'add-dashboard', dashboard: { id, name, icon: null, sections: [] } }),
     boards: () => controller.getState().layout.dashboards.map((d) => d.name ?? d.id),
     lamp: () => store.getDevice('device-1')!.capabilities['onoff']!.value,
+    /** The theme, colour and light or dark this device shows on a dashboard. */
+    look: (board: string | null = null) => { const chosen = controller.chosenLook(board); return `${chosen.file.id} ${chosen.seed ?? '-'} ${chosen.mode}`; },
+    looksWaiting: () => looksSync.pending(),
   };
 }
 export type Page = ReturnType<typeof device>;

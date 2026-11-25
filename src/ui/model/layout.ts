@@ -1,7 +1,7 @@
 import { coverOf, coverState } from '../../controls/cover';
 import { guardOf, guardState } from '../../controls/guard';
 import { mediaOf, mediaState } from '../../controls/media';
-import { SECTION_ORDER, type Section, type SectionKind, type SectionLayoutKind } from '../../dashboard/types';
+import { isDeviceTile, SECTION_ORDER, type Section, type SectionKind, type SectionLayoutKind } from '../../dashboard/types';
 import { roomTemperature } from '../../rooms/rooms';
 import type { Device } from '../../homey/types';
 import type { MessageKey, Translate } from '../../i18n/index';
@@ -93,8 +93,8 @@ export const countsSomething = (section: Section): boolean => section.zone !== u
 export function sectionCount(section: Section, getDevice: (id: string) => Device | undefined, t: Translate, inRoom: readonly Device[] = []): string {
   const temperature = section.zone === undefined ? null : roomTemperature(inRoom);
   if (temperature) return degrees(temperature.value, t);
-  if (!countsOn(section)) return houseCount(section.tiles.flatMap((spec) => (HOUSE.includes(spec.kind) && spec.kind !== 'flow' ? [getDevice(spec.deviceId)] : [])), t);
-  const on = section.tiles.filter((spec) => (spec.kind === 'light' || spec.kind === 'switch') && tileView(spec, getDevice(spec.deviceId), t).state === 'on').length;
+  if (!countsOn(section)) return houseCount(section.tiles.flatMap((spec) => (HOUSE.includes(spec.kind) && isDeviceTile(spec) ? [getDevice(spec.deviceId)] : [])), t);
+  const on = section.tiles.filter((spec) => (spec.kind === 'light' || spec.kind === 'switch') && isDeviceTile(spec) && tileView(spec, getDevice(spec.deviceId), t).state === 'on').length;
   return on === 0 ? t('count.allOff') : t('count.on', { n: on });
 }
 

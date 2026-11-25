@@ -51,7 +51,7 @@ test('the link passes on what comes over the stream', () => {
   s.streams[0]!.send('role', { role: 'use' });
   s.streams[0]!.send('role', { role: 'admin' });
   s.streams[0]!.send('role');
-  expect(s.heard).toEqual([['open', { revision: 3, role: 'edit' }], ['hub', { type: 'reset' }], ['layouts', { revision: 4 }], ['role', 'use']]);
+  expect(s.heard).toEqual([['open', { revision: 3, role: 'edit', looks: null }], ['hub', { type: 'reset' }], ['layouts', { revision: 4 }], ['role', 'use']]);
 });
 
 test('a stream that goes or falls silent is opened again', () => {
@@ -309,7 +309,7 @@ test('without the live stream there is no route, whatever the hub says', async (
   await c.client.connect();
   expect(c.events).toEqual([{ type: 'route', route: null }]);
   c.state.up = true;
-  c.emit('open', { revision: 1, role: 'edit' });
+  c.emit('open', { revision: 1, role: 'edit', looks: null });
   await settle();
   expect(c.events.at(-1)).toEqual({ type: 'route', route: 'local' });
 });
@@ -330,7 +330,7 @@ test('reading everything again is tried until it works, and not after leaving', 
   await c.client.connect();
   c.emit('lost', null);
   c.answers.delete('GET api/snapshot');
-  c.emit('open', { revision: 1, role: 'edit' });
+  c.emit('open', { revision: 1, role: 'edit', looks: null });
   await settle();
   expect(c.events.at(-1)).toEqual({ type: 'route', route: null });
   vi.advanceTimersByTime(RESYNC_RETRY_MS);
@@ -340,7 +340,7 @@ test('reading everything again is tried until it works, and not after leaving', 
   await settle();
   expect(c.events.at(-1)).toEqual({ type: 'route', route: 'local' });
   c.answers.delete('GET api/snapshot');
-  c.emit('open', { revision: 1, role: 'edit' });
+  c.emit('open', { revision: 1, role: 'edit', looks: null });
   await settle();
   c.client.disconnect();
   const count = c.sent.length;
@@ -356,7 +356,7 @@ test('the way to the app gone and back: no route, then everything is read again'
   c.emit('lost', null);
   expect(c.events).toEqual([{ type: 'route', route: null }]);
   delete (c.snapshot.devices as Record<string, unknown>)['device-1'];
-  c.emit('open', { revision: 1, role: 'edit' });
+  c.emit('open', { revision: 1, role: 'edit', looks: null });
   await settle();
   expect(c.events).toContainEqual({ type: 'deviceRemoved', deviceId: 'device-1' });
   expect(c.events.at(-1)).toEqual({ type: 'route', route: 'local' });
@@ -435,7 +435,7 @@ test('saving puts the layouts on the hub and only theme and language in the brow
   const config = await s.served.store.load();
   s.answers.set('PUT api/layouts', (body) => ({ ...(body as object), revision: 2 }));
   await s.save({ ...config, theme: { seed: '#3a5ba9', mode: 'dark', density: 'compact' }, layouts: layouts('Energie') });
-  expect(s.sent.at(-1)).toEqual(['PUT', 'api/layouts', { base: 1, layouts: layouts('Energie'), sectionSeeds: { 'type:lights': '#a6422a' } }]);
+  expect(s.sent.at(-1)).toEqual(['PUT', 'api/layouts', { base: 1, layouts: layouts('Energie'), sectionSeeds: { 'type:lights': '#a6422a' }, knows: ['widget'] }]);
   expect(s.values.get(STORAGE_KEY)).toContain('#3a5ba9');
   for (const secret of ['Energie', 'type:lights', 'paired', HOMEY_ID]) expect(s.values.get(STORAGE_KEY)).not.toContain(secret);
   // only the theme: nothing for the hub
@@ -489,7 +489,7 @@ test('a hub that does not answer while saving is said once, and saved as soon as
   expect(s.unsaved).toHaveBeenCalledTimes(2);
   // the stream that comes back is a sign too
   s.answers.set('PUT api/layouts', (body) => ({ ...(body as object), revision: 3 }));
-  s.emit('open', { revision: 2, role: 'edit' });
+  s.emit('open', { revision: 2, role: 'edit', looks: null });
   await settle();
   expect(s.sent.at(-1)).toMatchObject(['PUT', 'api/layouts', { base: 2, layouts: layouts('Water') }]);
 });
@@ -571,10 +571,10 @@ test('a right that changes is known at once; what was not saved yet is gone with
   const config = await s.served.store.load();
   expect(s.served.mayArrange()).toBe(true);
   await s.save({ ...config, layouts: layouts('Energie') });
-  s.emit('open', { revision: 1, role: 'use' });
+  s.emit('open', { revision: 1, role: 'use', looks: null });
   await settle();
   expect([s.served.mayArrange(), s.changed.mock.calls.length, (await s.served.store.load()).layouts]).toEqual([false, 1, layouts('Buiten')]);
-  s.emit('open', { revision: 1, role: 'edit' });
+  s.emit('open', { revision: 1, role: 'edit', looks: null });
   expect([s.served.mayArrange(), s.changed.mock.calls.length]).toEqual([true, 2]);
   // also without the stream opening anew
   s.emit('role', 'use');
@@ -620,7 +620,7 @@ test('an app on the hub that began anew counts lower, and that is followed too',
   const s = storeSetup();
   await s.served.store.load();
   s.answers.set('GET api/layouts', () => ({ revision: 0, layouts: {}, sectionSeeds: {} }));
-  s.emit('open', { revision: 0, role: 'edit' });
+  s.emit('open', { revision: 0, role: 'edit', looks: null });
   await settle();
   expect([(await s.served.store.load()).layouts, s.changed.mock.calls.length]).toEqual([{}, 1]);
 });
@@ -640,7 +640,7 @@ test('an answer from before this device was taken away changes nothing afterward
 test('what another device saves comes in, also what was saved while this one was away', async () => {
   const s = storeSetup();
   await s.served.store.load();
-  s.emit('open', { revision: 1, role: null });
+  s.emit('open', { revision: 1, role: null, looks: null });
   await settle();
   expect(s.changed).not.toHaveBeenCalled();
   s.answers.set('GET api/layouts', () => ({ revision: 2, layouts: layouts('Nieuw'), sectionSeeds: {} }));
@@ -731,7 +731,7 @@ test('news that comes while something is asked is not forgotten, also when the h
   s.answers.set('GET api/layouts', () => {
     const answer = { revision, layouts: layouts(`stand ${revision}`), sectionSeeds: {} };
     if (revision === 2) { revision = 3; s.emit('layouts', { revision: 3 }); }
-    else if (revision === 3) { revision = 0; s.emit('open', { revision: 0, role: 'edit' }); }
+    else if (revision === 3) { revision = 0; s.emit('open', { revision: 0, role: 'edit', looks: null }); }
     return answer;
   });
   s.emit('layouts', { revision: 2 });

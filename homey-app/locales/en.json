@@ -49,7 +49,7 @@
     "flowsConfirm": "Remove the key? Then only buttons of the flow card work on the dashboard. The key still exists in Homey itself; remove it there too.",
     "flowKey-none": "There is no key. Buttons of the flow card do not need one.",
     "flowKey-works": "The key works: your other flows start from the dashboard too.",
-    "flowKey-wide": "The key works, but may do more than start flows. A key with only the right Start flows is safer.",
+    "flowKey-wide": "The key works, but may do more than start flows. A key with only the right Start flows is safer. With full access the dashboard also shows widgets of other apps (a trial); the key stays on the Homey.",
     "flowKey-refused": "The Homey no longer accepts this key. Make a new one and paste it below.",
     "flowKeySaved": "The key is saved.",
     "flowKeyFailed-not-a-key": "This is not a key. Copy it again and paste all of it.",
@@ -57,9 +57,21 @@
     "flowKeyFailed-no-right": "This key may not start flows. Make one with the right Start flows.",
     "flowKeyFailed-unreachable": "The Homey could not check the key now. Try again.",
     "night": "Night on wall tablets",
-    "nightText": "With the flow cards ‘Switch the wall tablets to night’ and ‘End the night on the wall tablets’ a flow decides when a wall tablet goes almost black."
+    "nightText": "With the flow cards ‘Switch the wall tablets to night’ and ‘End the night on the wall tablets’ a flow decides when a wall tablet goes almost black.",
+    "looks": "Themes",
+    "looksText": "Has a theme made a dashboard hard to read or use? Then put everything back: the house and every dashboard get Calm, and every device follows the house again. The themes themselves are kept. On one device you can also add #veilig after the address.",
+    "looksReset": "All devices back to Calm",
+    "looksConfirm": "Put all devices back to Calm?",
+    "looksDone": "All devices are back in Calm.",
+    "record": "History",
+    "recordText": "Homey keeps no history of some values, such as the sun, the use and the shore power of a camper. This app can record them itself in Homey’s Insights, for the chart in the hero. Only what a hero shows, at most eight values; it stays on this Homey.",
+    "recordOn": "Record what Homey does not keep",
+    "recordWipe": "Wipe the recording",
+    "recordConfirm": "Wipe everything this app has recorded?",
+    "recordWiped": "The recording has been wiped."
   },
   "flow": {
-    "notRunning": "The dashboard on the Homey is not running now. Restart the app Expressive Home."
+    "notRunning": "The dashboard on the Homey is not running now. Restart the app Expressive Home.",
+    "themeGone": "This theme is gone. Choose another theme in the flow."
   }
 }

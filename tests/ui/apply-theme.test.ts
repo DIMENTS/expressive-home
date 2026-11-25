@@ -60,3 +60,19 @@ test('the bar of a phone gets the colour of the page, only for the document', ()
   expect(meta.content).toBe(colorTokens('#3b6939', 'dark', 0)['--c-surface-container']);
   meta.remove();
 });
+
+test('another style lands on the page, and a section keeps that style in its own colour', async () => {
+  const { BUILT_IN } = await import('../../src/theme/look');
+  const { styleOf } = await import('../../src/theme/styles');
+  const uitbundig = styleOf(BUILT_IN.find((file) => file.id === 'uitbundig')!);
+  const root = document.createElement('div');
+  applyThemeTo(root, { seed: '#3b6939', mode: 'light', density: 'comfortable' }, false, uitbundig);
+  expect(root.style.getPropertyValue('--tile-on-bg')).toBe('var(--c-primary)');
+  expect(root.dataset['look']).toBe('uitbundig');
+  const section = document.createElement('section');
+  applySectionTheme(section, '#3a5ba9', 'light', uitbundig);
+  expect(section.style.getPropertyValue('--tile-on-bg')).toBe('var(--c-primary)');
+  applyThemeTo(root, { seed: '#3b6939', mode: 'light', density: 'comfortable' }, false);
+  expect(root.style.getPropertyValue('--tile-on-bg')).toBe('var(--c-primary-container)');
+  expect(root.dataset['look']).toBe('rustig');
+});

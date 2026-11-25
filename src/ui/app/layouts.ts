@@ -62,7 +62,7 @@ interface Step { id: number; layout: HubLayout; appearance: Appearance | null }
 
 /** Edits of the sections of a dashboard: on the automatic Overzicht they freeze it first. */
 const arranges = (edit: LayoutEdit): edit is Extract<LayoutEdit, { dashboardId: string }> =>
-  'dashboardId' in edit && edit.type !== 'set-dashboard' && edit.type !== 'move-dashboard' && edit.type !== 'remove-dashboard';
+  'dashboardId' in edit && edit.type !== 'set-dashboard' && edit.type !== 'set-chart' && edit.type !== 'move-dashboard' && edit.type !== 'remove-dashboard';
 
 /** A layout with the choices for the hub of another. */
 function withChoices({ grouping: _grouping, rooms: _rooms, ...rest }: HubLayout, from: { grouping?: HubLayout['grouping'] | undefined; rooms?: HubLayout['rooms'] | undefined }): HubLayout {
@@ -254,7 +254,7 @@ export function createLayouts(deps: LayoutsDeps) {
     boardId = next.dashboards[0]?.id ?? OVERVIEW_ID;
     editing = false;
     // what the file stands on is known too, also when it could not be chosen here
-    const onBoards = next.dashboards.flatMap((d) => (d.sections ?? []).flatMap((section) => section.tiles.map((tile) => tileRefs(tile)[0]!)));
+    const onBoards = next.dashboards.flatMap((d) => (d.sections ?? []).flatMap((section) => section.tiles.flatMap((tile) => tileRefs(tile).slice(0, 1))));
     commit({ ...next, known: [...new Set([...everythingOn(snapshot).known, ...onBoards])] }, before);
     return { ok: true, dropped, otherHub: hubId === null || file.homeyId.toLowerCase() !== hubId };
   }

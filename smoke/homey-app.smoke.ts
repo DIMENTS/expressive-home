@@ -184,11 +184,14 @@ test('the dashboards are the same on every device, at once', async ({ browser })
   await rail.getByRole('button', { name: 'Buiten' }).click();
   await expect(tablet.page.locator('mh-section h2 .title')).toHaveText('Terras');
 
-  // each has its own theme
-  await rail.getByRole('button', { name: 'Thema' }).click();
-  await tablet.page.getByRole('radio', { name: 'Donker' }).click();
-  await expect(tablet.page.locator('html')).toHaveAttribute('data-mode', 'dark');
-  await expect(laptop.page.locator('html')).toHaveAttribute('data-mode', 'light');
+  // the tablet follows the house; the laptop may choose a look of its own
+  await laptop.page.getByRole('button', { name: 'Klaar' }).click();
+  await laptop.page.locator('mh-rail').getByRole('button', { name: 'Thema' }).click();
+  await laptop.page.getByRole('radio', { name: 'Dit apparaat' }).click();
+  await laptop.page.getByRole('radio', { name: 'Donker' }).click();
+  await expect(laptop.page.locator('html')).toHaveAttribute('data-mode', 'dark');
+  await expect(tablet.page.locator('html')).toHaveAttribute('data-mode', 'light');
+  await laptop.page.keyboard.press('Escape');
 
   // and it is all still there when the app on the hub starts again
   await hand('stop');
@@ -543,4 +546,70 @@ test('a wall tablet with another version of the app on the hub loads it when nob
   await expect(tablet.page.getByText('Lokaal verbonden')).toBeVisible();
   await tablet.context.close();
   await other.context.close();
+});
+
+test('themes: the laptop chooses for the house and the phone follows; flow cards and the rescue reach every device', async ({ browser }) => {
+  const laptop = await device(browser);
+  await pair(laptop.page, 'edit', 'Laptop');
+  const phone = await device(browser);
+  await pair(phone.page, 'use', 'Telefoon');
+  const look = (page: Page) => page.evaluate(() => [document.documentElement.dataset['look'], document.documentElement.dataset['mode']].join(' '));
+
+  await laptop.page.getByRole('button', { name: 'Thema', exact: true }).click();
+  await expect(laptop.page.getByRole('radio', { name: 'Hele huis' })).toHaveAttribute('aria-checked', 'true');
+  await laptop.page.getByRole('radio', { name: /^Glas,/ }).click();
+  await laptop.page.getByRole('radio', { name: 'Donker' }).click();
+  await expect.poll(() => look(laptop.page)).toBe('glas dark');
+  await expect.poll(() => look(phone.page)).toBe('glas dark');
+
+  // the phone may only use: it says so, and the hub refuses a change sent by hand
+  await phone.page.getByRole('button', { name: 'Thema', exact: true }).click();
+  await expect(phone.page.getByText(/^Dit apparaat volgt het huis\./)).toBeVisible();
+  await expect(phone.page.getByRole('button', { name: 'Bijstellen' })).toHaveCount(0);
+  const refused = await phone.page.evaluate(async () => (await fetch('/api/looks', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ops: [{ house: { theme: 'helder', seed: null, mode: 'light' } }] }) })).status);
+  expect(refused).toBe(403);
+  // the browser says so of that refusal, which was meant
+  phone.problems.splice(0, phone.problems.length, ...phone.problems.filter((problem) => !problem.includes('403')));
+  await phone.page.keyboard.press('Escape');
+
+  // the cards of a flow
+  await hand('theme', { id: 'helder' });
+  await hand('mode', { mode: 'light' });
+  await expect.poll(() => look(phone.page)).toBe('helder light');
+  await expect.poll(() => look(laptop.page)).toBe('helder light');
+  expect(await hand('theme', { id: 't-gone000000000000' })).toBe(false);
+
+  // "Alle apparaten weer in Rustig"
+  await hand('looks-reset');
+  await expect.poll(() => look(phone.page)).toBe('rustig light');
+  await expect.poll(() => look(laptop.page)).toBe('rustig light');
+
+  for (const one of [laptop, phone]) {
+    expect(one.problems).toEqual([]);
+    expect(await one.violations()).toEqual([]);
+    await one.context.close();
+  }
+});
+
+test('a widget of another app, through the app with a key that may do everything, in its sandbox (a trial)', async ({ browser }) => {
+  const d = await device(browser);
+  await pair(d.page, 'edit', 'Laptop');
+  await hand('widekey');
+  await d.page.getByRole('button', { name: 'Bewerken', exact: true }).first().click();
+  await d.page.getByRole('button', { name: 'Tegel toevoegen' }).first().click();
+  const panel = d.page.locator('mh-add-panel');
+  await panel.getByRole('radio', { name: 'Widgets' }).click();
+  await panel.getByRole('button', { name: 'Weer vandaag toevoegen' }).click();
+  // its setting with a search list: what is typed goes to the app on the hub, the choice stays with the tile
+  const settings = d.page.locator('mh-widget-panel');
+  await settings.getByLabel('Zoek Stad').fill('Utr');
+  await settings.locator('[data-choice]').filter({ hasText: 'Utrecht' }).click();
+  await expect(settings).toContainText('Gekozen: Utrecht');
+  await settings.getByRole('button', { name: 'Sluiten' }).click();
+  await d.page.getByRole('button', { name: 'Klaar' }).first().click();
+  await expect(d.page.frameLocator('mh-app-widget iframe').locator('#out')).toHaveText('Vandaag in Utrecht 7 graden');
+  await hand('unflowkey');
+  expect(d.problems).toEqual([]);
+  expect(await d.violations()).toEqual([]);
+  await d.context.close();
 });

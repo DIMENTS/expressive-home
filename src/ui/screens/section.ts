@@ -6,7 +6,8 @@ import { roomIdOf } from '../../rooms/zones';
 import { rustigExpressive } from '../../theme/rustig-expressive';
 import type { Mode, ShownDensity } from '../../theme/types';
 import type { UiContext } from '../app/context';
-import { applySectionTheme } from '../apply-theme';
+import { RUSTIG_STYLE, applySectionTheme } from '../apply-theme';
+import type { Style } from '../../theme/styles';
 import { PHONE_MAX_PX, TILE_GRID_WIDE_MIN_PX } from '../breakpoints';
 import type { Slot } from '../model/drop';
 import { pixels } from '../pixels';
@@ -44,6 +45,7 @@ export class MhSection extends LitElement {
     note: { type: String },
     seed: { attribute: false },
     mode: { type: String },
+    look: { attribute: false },
     baseSeed: { attribute: false },
     menuOpen: { type: Boolean, reflect: true, attribute: 'menu-open' },
     editing: { type: Boolean, reflect: true },
@@ -64,6 +66,8 @@ export class MhSection extends LitElement {
   declare seed: string | null;
   /** Light or dark as the dashboard shows it now, also when it follows the system. */
   declare mode: Mode;
+  /** The style of the page, which a section with its own colour keeps. */
+  declare look: Style;
   /** The dashboard's colour, for the dot of "Zoals het dashboard". */
   declare baseSeed: string;
   /** While the menu is open the section lies above its neighbours, so the menu floats over them. */
@@ -91,6 +95,7 @@ export class MhSection extends LitElement {
     this.note = '';
     this.seed = null;
     this.mode = 'light';
+    this.look = RUSTIG_STYLE;
     this.baseSeed = rustigExpressive.color.defaultSeed;
     this.menuOpen = false;
     this.editing = false;
@@ -107,6 +112,7 @@ export class MhSection extends LitElement {
     :host([menu-open]) { position: relative; z-index: var(--layer-menu); }
     section {
       container-type: inline-size; background: var(--section-bg); color: var(--section-fg); border-radius: var(--section-radius); padding: var(--section-pad);
+      box-shadow: inset 0 0 0 var(--section-outline-width) var(--section-outline);
       transition: background-color var(--motion-effects), color var(--motion-effects);
     }
     .head {
@@ -187,7 +193,7 @@ export class MhSection extends LitElement {
   }
 
   protected override updated(changed: PropertyValues<this>): void {
-    if (changed.has('seed') || changed.has('mode')) applySectionTheme(this, this.seed, this.mode);
+    if (changed.has('seed') || changed.has('mode') || changed.has('look')) applySectionTheme(this, this.seed, this.mode, this.look);
     if (this.dropAt) this.shadowRoot?.querySelector<HTMLElement>('.placeholder')?.style.setProperty('--_height', pixels(this.dropAt.height));
   }
 

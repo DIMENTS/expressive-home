@@ -1,4 +1,4 @@
-import { ConnectionError, type ClientEvent, type HomeyClient } from '../homey/client';
+import { ConnectionError, type ClientEvent, type HistorySeries, type HistorySource, type HistorySwitches, type HomeyClient } from '../homey/client';
 import type { Device, FlowAccess, HomeySnapshot, Route } from '../homey/types';
 import { RequestError, type Link } from './link';
 
@@ -174,8 +174,18 @@ export function createServedClient(link: Link): ServedClient {
     async startFlow(flow) {
       await link.request('POST', 'api/flow', { id: flow.id });
     },
-    listHistory: async () => [],
-    readHistory: async () => [],
+    async listHistory() {
+      const answer = await link.request('GET', 'api/history/sources') as { sources?: unknown };
+      return Array.isArray(answer?.sources) ? answer.sources.filter(isSource) : [];
+    },
+    async readSeries(source, period) {
+      const answer = await askHistory(link, source, period) as { series?: unknown } | null;
+      return seriesOf(answer?.series);
+    },
+    async readSwitches(source) {
+      const answer = await askHistory(link, source, 'switches') as { switches?: unknown } | null;
+      return switchesOf(answer?.switches);
+    },
     subscribe(listener) {
       listeners.add(listener);
       return () => { listeners.delete(listener); };
@@ -189,4 +199,31 @@ export function createServedClient(link: Link): ServedClient {
     getLocalAddress: () => null,
     getLocalAddressShape: () => null,
   };
+}
+
+const finite = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value);
+const isSource = (value: unknown): value is HistorySource => isRecord(value) && typeof value['log'] === 'string'
+  && (value['kind'] === 'device' || value['kind'] === 'recorded') && (value['type'] === 'number' || value['type'] === 'boolean')
+  && typeof value['deviceId'] === 'string' && typeof value['capabilityId'] === 'string';
+
+/** The history of one log from the app; null when the app no longer knows the log. */
+async function askHistory(link: Link, source: HistorySource, period: string): Promise<unknown> {
+  try {
+    return await link.request('GET', `api/history?log=${encodeURIComponent(source.log)}&period=${encodeURIComponent(period)}`);
+  } catch (error) {
+    if (error instanceof RequestError && error.status === 404) return null;
+    throw error;
+  }
+}
+
+/** Only what has the shape of a series: points at a time, with a number or nothing. */
+function seriesOf(raw: unknown): HistorySeries | null {
+  if (!isRecord(raw) || !Array.isArray(raw['points']) || !finite(raw['start']) || !finite(raw['end']) || !finite(raw['step'])) return null;
+  const points = raw['points'].flatMap((point) => (isRecord(point) && finite(point['at']) ? [{ at: point['at'], value: finite(point['value']) ? point['value'] : null }] : []));
+  return { start: raw['start'], end: raw['end'], step: raw['step'], updatesIn: finite(raw['updatesIn']) ? raw['updatesIn'] : null, points };
+}
+
+function switchesOf(raw: unknown): HistorySwitches | null {
+  if (!isRecord(raw) || !Array.isArray(raw['changes'])) return null;
+  return { changes: raw['changes'].flatMap((change) => (isRecord(change) && finite(change['at']) && typeof change['on'] === 'boolean' ? [{ at: change['at'], on: change['on'] }] : [])) };
 }

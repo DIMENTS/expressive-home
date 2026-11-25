@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest';
 import { createSharedLayouts } from '../../src/home-server/shared-layouts';
-import { board, hubLayout, overview, ownSection, sensorTile } from '../helpers/layout';
+import { board, hubLayout, overview, ownSection, sensorTile, tileLayout } from '../helpers/layout';
 
 const ID = '5f2a00000000000000000c81';
 const layouts = (name: string) => ({ [ID]: hubLayout([overview([ownSection('own:a', [sensorTile('t-1', 'device-13')])]), board('d-1', [], { name })]) });
@@ -46,4 +46,35 @@ test('what is put or was kept goes through the same checks as the storage of a b
   expect(put.doc.sectionSeeds).toEqual({ 'type:lights': '#a6422a' });
   expect(put.doc.layouts[ID]!.dashboards[0]!.sections!.map((x) => x.id)).toEqual(['own:b']);
   expect(s.shared.put(1, 'rubbish').doc.layouts).toEqual({});
+});
+
+// ----- a page that does not know widgets -----
+
+const widgetTile = (id: string) => tileLayout({ kind: 'widget', id, size: 'single', widget: 'clock', settings: {} });
+const withWidgets = () => ({ [ID]: hubLayout([overview(null), board('d-1', [ownSection('own:a', [sensorTile('t-1', 'device-13'), widgetTile('w-1'), sensorTile('t-2', 'device-14'), widgetTile('w-2')])])]) });
+const withoutWidgets = (name = 'Oud') => ({ [ID]: hubLayout([overview(null), board('d-1', [ownSection('own:a', [sensorTile('t-2', 'device-14'), sensorTile('t-1', 'device-13')])], { name })]) });
+const tilesOn = (doc: { layouts: Record<string, { dashboards: { sections: { tiles: { id: string }[] }[] | null }[] }> }) =>
+  doc.layouts[ID]!.dashboards[1]!.sections![0]!.tiles.map((tile) => tile.id);
+
+test('a page that does not say it knows widgets cannot drop them: they stay where they were', () => {
+  const s = setup();
+  s.shared.put(0, { layouts: withWidgets(), sectionSeeds: {}, knows: ['widget'] });
+  const old = s.shared.put(1, { layouts: withoutWidgets(), sectionSeeds: {} });
+  expect(old.ok).toBe(true);
+  expect(tilesOn(old.doc)).toEqual(['t-2', 'w-1', 't-1', 'w-2']);
+  expect(old.doc.layouts[ID]!.dashboards[1]!.name).toBe('Oud');
+});
+
+test('a page that knows widgets may remove them', () => {
+  const s = setup();
+  s.shared.put(0, { layouts: withWidgets(), sectionSeeds: {}, knows: ['widget'] });
+  const removed = s.shared.put(1, { layouts: withoutWidgets(), sectionSeeds: {}, knows: ['widget'] });
+  expect(tilesOn(removed.doc)).toEqual(['t-2', 't-1']);
+});
+
+test('a widget of a section that an old page removed goes with it', () => {
+  const s = setup();
+  s.shared.put(0, { layouts: withWidgets(), sectionSeeds: {}, knows: ['widget'] });
+  const gone = s.shared.put(1, { layouts: { [ID]: hubLayout([overview(null), board('d-1', [])]) }, sectionSeeds: {} });
+  expect(gone.doc.layouts[ID]!.dashboards[1]!.sections).toEqual([]);
 });

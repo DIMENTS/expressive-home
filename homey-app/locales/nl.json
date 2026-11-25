@@ -49,7 +49,7 @@
     "flowsConfirm": "De sleutel verwijderen? Op het dashboard werken dan alleen nog knoppen van de flowkaart. In Homey zelf blijft de sleutel bestaan; verwijder hem daar ook.",
     "flowKey-none": "Er is geen sleutel. Die is ook niet nodig voor knoppen van de flowkaart.",
     "flowKey-works": "De sleutel werkt: ook je andere flows starten vanaf het dashboard.",
-    "flowKey-wide": "De sleutel werkt, maar mag meer dan flows starten. Een sleutel met alleen het recht Flows starten is veiliger.",
+    "flowKey-wide": "De sleutel werkt, maar mag meer dan flows starten. Een sleutel met alleen het recht Flows starten is veiliger. Met volledige toegang toont het dashboard ook widgets van andere apps (een proef); de sleutel blijft op de Homey.",
     "flowKey-refused": "De Homey accepteert deze sleutel niet meer. Maak een nieuwe en plak die hieronder.",
     "flowKeySaved": "De sleutel is bewaard.",
     "flowKeyFailed-not-a-key": "Dit is geen sleutel. Kopieer hem opnieuw en plak hem in zijn geheel.",
@@ -57,9 +57,21 @@
     "flowKeyFailed-no-right": "Deze sleutel mag geen flows starten. Maak er een met het recht Flows starten.",
     "flowKeyFailed-unreachable": "De Homey kon de sleutel nu niet nakijken. Probeer het opnieuw.",
     "night": "Nacht op wandtablets",
-    "nightText": "Met de flowkaarten ‘Zet de wandtablets op nacht’ en ‘Haal de wandtablets uit de nacht’ bepaalt een flow wanneer een wandtablet bijna zwart wordt."
+    "nightText": "Met de flowkaarten ‘Zet de wandtablets op nacht’ en ‘Haal de wandtablets uit de nacht’ bepaalt een flow wanneer een wandtablet bijna zwart wordt.",
+    "looks": "Thema’s",
+    "looksText": "Is een dashboard onleesbaar of onbruikbaar geworden door een thema? Zet dan alles terug: het huis en elk dashboard krijgen Rustig, en elk apparaat volgt het huis weer. De thema’s zelf blijven bewaard. Op één apparaat kan het ook door #veilig achter het adres te zetten.",
+    "looksReset": "Alle apparaten weer in Rustig",
+    "looksConfirm": "Alle apparaten weer in Rustig zetten?",
+    "looksDone": "Alle apparaten staan weer in Rustig.",
+    "record": "Geschiedenis",
+    "recordText": "Homey houdt van sommige waarden geen geschiedenis bij, zoals zon, verbruik en walstroom van een camper. Dit appje kan ze zelf opnemen in Insights van Homey, voor de grafiek in de blikvanger. Alleen wat een blikvanger toont, hooguit acht waarden; het blijft op deze Homey.",
+    "recordOn": "Zelf opnemen wat Homey niet bijhoudt",
+    "recordWipe": "Opname wissen",
+    "recordConfirm": "Alles wissen wat dit appje heeft opgenomen?",
+    "recordWiped": "De opname is gewist."
   },
   "flow": {
-    "notRunning": "Het dashboard op de Homey draait nu niet. Herstart de app Expressive Home."
+    "notRunning": "Het dashboard op de Homey draait nu niet. Herstart de app Expressive Home.",
+    "themeGone": "Dit thema is er niet meer. Kies in de flow een ander thema."
   }
 }

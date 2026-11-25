@@ -102,6 +102,18 @@ test('after two minutes of silence the rest screen is there, with what this devi
   expect(s.rest()!.shadowRoot!.querySelector('.clock')!.textContent).toBe('12:03');
 });
 
+test('the rest screen has the look of this device and the house, not the theme of the dashboard', async () => {
+  const s = await launch();
+  s.app.shadowRoot!.querySelector('mh-board-look-panel')!.dispatchEvent(new CustomEvent('board-theme', { detail: { theme: 'glas' } }));
+  await settle(s.app);
+  expect(document.documentElement.dataset['look']).toBe('glas');
+  await s.wait(2 * MINUTE);
+  expect([s.rest() !== null, document.documentElement.dataset['look'], s.rest()!.look.base]).toEqual([true, 'rustig', 'rustig']);
+  tap(lampFace(s.app));
+  await s.wait(300);
+  expect([s.rest(), document.documentElement.dataset['look']]).toEqual([null, 'glas']);
+});
+
 test('a device that is no wall tablet never rests', async () => {
   const s = await launch({ wall: defaultWall() });
   await s.wait(60 * MINUTE);
@@ -414,7 +426,7 @@ function servedLaunch(options: { wall?: WallSettings; hub?: ReturnType<typeof fa
     setTimeout: (fn, ms) => setTimeout(fn, ms), clearTimeout: (handle) => clearTimeout(handle as ReturnType<typeof setTimeout>),
     browserLanguages: ['nl-NL'],
     served: {
-      pair: async () => 'ok' as const, mayArrange: () => true, onConflict: () => {}, onUnsaved: () => {}, scanned: () => null, onScanned: () => {}, kind: () => 'tablet',
+      pair: async () => 'ok' as const, mayArrange: () => true, knownRole: () => 'edit' as const, onConflict: () => {}, onUnsaved: () => {}, scanned: () => null, onScanned: () => {}, kind: () => 'tablet',
       onNight: (listener) => { night = listener; }, onNewBuild: (listener) => { newBuild = listener; }, settled: () => state.settled, reload,
     },
   };

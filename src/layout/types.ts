@@ -41,7 +41,11 @@ export interface SectionLayout {
 }
 
 /** `sections` null: automatic (Overzicht only). The sections of one column stand in the order of the list. */
-export interface DashboardLayout { id: string; name: string | null; icon: string | null; sections: SectionLayout[] | null }
+/** What the chart in the hero of a dashboard shows. */
+export type HeroChart = 'battery' | 'solar' | 'solar-use';
+export const HERO_CHARTS: readonly HeroChart[] = ['battery', 'solar', 'solar-use'];
+/** `chart`: the chart in its hero; absent is none, so dashboards from before stay as they were. */
+export interface DashboardLayout { id: string; name: string | null; icon: string | null; sections: SectionLayout[] | null; chart?: HeroChart }
 
 /** Everything the owner arranged for one Homey. */
 export interface HubLayout {

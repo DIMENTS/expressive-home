@@ -19,7 +19,12 @@ function client(refs: HistoryRef[], read: (ref: HistoryRef, period: HistoryPerio
   return {
     connect: async () => { throw new Error('unused'); }, setCapability: async () => {}, startFlow: async () => {},
     subscribe: () => () => {}, disconnect: () => {},
-    listHistory: async () => refs, readHistory: read,
+    listHistory: async () => refs.map((ref) => ({ ...ref, log: `homey:device:${ref.deviceId}:${ref.capabilityId}`, kind: 'device' as const, type: 'number' as const })),
+    readSeries: async (source, period) => {
+      const points = await read(source, period);
+      return points.length === 0 ? null : { start: 0, end: 0, step: 0, updatesIn: null, points };
+    },
+    readSwitches: async () => null,
   };
 }
 

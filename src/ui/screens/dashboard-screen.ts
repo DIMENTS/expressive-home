@@ -1,7 +1,9 @@
+import type { HeroChart } from '../../layout/types';
 import { LitElement, css, html, nothing, type PropertyValues } from 'lit';
 import { rustigExpressive } from '../../theme/rustig-expressive';
 import { repeat } from 'lit/directives/repeat.js';
 import { sectionId, type Section, type SectionKind, type TileSpec } from '../../dashboard/types';
+import { widgetName } from '../../widgets/catalog';
 import { isButton } from '../../homey/buttons';
 import { shownColumns, type Block, type BoardView } from '../../layout/board';
 import type { LayoutEdit } from '../../layout/edit';
@@ -12,7 +14,8 @@ import type { Mode, ShownDensity } from '../../theme/types';
 import { ALARM_DANGER } from '../../recognition/table';
 import type { UiContext } from '../app/context';
 import { COLUMNS_MIN_PX, PHONE_MAX_PX } from '../breakpoints';
-import { applySectionTheme } from '../apply-theme';
+import { RUSTIG_STYLE, applySectionTheme } from '../apply-theme';
+import type { Style } from '../../theme/styles';
 import { headerChips } from '../model/header-view';
 import { sectionTitle, shownSectionIcon } from '../model/layout';
 import type { Slot } from '../model/drop';
@@ -62,6 +65,7 @@ export class MhDashboard extends LitElement {
   static override properties = {
     ctx: { attribute: false },
     board: { attribute: false },
+    heroChart: { attribute: false },
     boards: { attribute: false },
     rooms: { attribute: false },
     room: { attribute: false },
@@ -79,6 +83,7 @@ export class MhDashboard extends LitElement {
     activePanel: { type: String },
     sectionSeeds: { attribute: false },
     mode: { type: String },
+    look: { attribute: false },
     baseSeed: { attribute: false },
     freshTiles: { attribute: false },
     news: { attribute: false },
@@ -94,6 +99,8 @@ export class MhDashboard extends LitElement {
   declare ctx: UiContext;
   /** The open dashboard. */
   declare board: BoardView | null;
+  /** The chart in the hero of this dashboard; null for none. */
+  declare heroChart: HeroChart | null;
   /** Every dashboard, for the rail. */
   declare boards: RailBoard[];
   /** Every room, for the screen with them, and the room that is open. */
@@ -117,6 +124,8 @@ export class MhDashboard extends LitElement {
   declare sectionSeeds: Record<string, string>;
   /** Light or dark as shown now, for the sections with their own palette. */
   declare mode: Mode;
+  /** The style the page shows: sections with their own colour keep it. */
+  declare look: Style;
   /** The dashboard's colour. */
   declare baseSeed: string;
   /** What is new on the hub and what is gone; shown on the Overzicht only, not while editing. */
@@ -176,8 +185,10 @@ export class MhDashboard extends LitElement {
     this.density = 'comfortable';
     this.connecting = false;
     this.activePanel = 'none';
+    this.heroChart = null;
     this.sectionSeeds = {};
     this.mode = 'light';
+    this.look = RUSTIG_STYLE;
     this.baseSeed = rustigExpressive.color.defaultSeed;
   }
 
@@ -351,7 +362,7 @@ export class MhDashboard extends LitElement {
       copy.style.setProperty('--_width', pixels(rect.width));
       if (kind === 'tile') copy.style.setProperty('--_height', pixels(rect.height));
     }
-    applySectionTheme(copy, this.sectionSeeds[sectionId] ?? null, this.mode);
+    applySectionTheme(copy, this.sectionSeeds[sectionId] ?? null, this.mode, this.look);
     this.shadowRoot?.append(copy);
     this.drag = { kind, id, height: rect?.height ?? 0, target: null };
     this.dragging = true;
@@ -410,6 +421,7 @@ export class MhDashboard extends LitElement {
   private tileName(spec: TileSpec): string {
     const { store, t } = this.ctx;
     if (spec.kind === 'flow') return flowView(spec, store.getSnapshot()?.flows.find((f) => f.id === spec.flowId), t).name;
+    if (spec.kind === 'widget') return widgetName(spec, t);
     return tileView(spec, store.getDevice(spec.deviceId), t).name;
   }
 
@@ -574,7 +586,7 @@ export class MhDashboard extends LitElement {
     const { dim } = this;
     if (!dim) return nothing;
     const section = this.findTile(dim.tileId)?.section.id;
-    return html`<mh-dimmer .box=${dim.box} .from=${dim.from} .level=${dim.level} .percent=${dim.percent} name=${dim.name} icon=${dim.icon} .seed=${(section === undefined ? undefined : this.sectionSeeds[section]) ?? null} mode=${this.mode} ?closing=${dim.closing}></mh-dimmer>`;
+    return html`<mh-dimmer .box=${dim.box} .from=${dim.from} .level=${dim.level} .percent=${dim.percent} name=${dim.name} icon=${dim.icon} .seed=${(section === undefined ? undefined : this.sectionSeeds[section]) ?? null} mode=${this.mode} .look=${this.look} ?closing=${dim.closing}></mh-dimmer>`;
   }
 
   private get phone(): boolean {
@@ -662,12 +674,12 @@ export class MhDashboard extends LitElement {
   private elementFor(block: Block, place: SectionPlace): HTMLElement {
     const id = block.type === 'hero' ? block.id : block.section.id;
     const seed = this.sectionSeeds[id] ?? null;
-    const common = { ctx: this.ctx, seed, mode: this.mode, baseSeed: this.baseSeed, editing: this.editing, place };
+    const common = { ctx: this.ctx, seed, mode: this.mode, look: this.look, baseSeed: this.baseSeed, editing: this.editing, place };
     if (block.type === 'hero') {
       const hero = this.heroes.get(id) ?? document.createElement('mh-hero');
       this.heroes.set(id, hero);
       this.mark(hero, id);
-      return Object.assign(hero, common, { hero: block.hero, sectionId: id });
+      return Object.assign(hero, common, { hero: block.hero, sectionId: id, chart: this.heroChart });
     }
     const section = this.sections.get(id) ?? document.createElement('mh-section');
     this.sections.set(id, section);

@@ -68,7 +68,7 @@ test('the edit bar stays at the top and follows the language', async () => {
 
 test('the menu of a dashboard names it and follows the language', () => {
   const groups = boardMenuGroups('Outside', { index: 1, count: 3 }, null, createTranslate('en'));
-  expect(groups.map((g) => [g.title, ...('items' in g ? g.items.map((i) => i.label) : [])])).toEqual([['Outside', 'Name and icon…', 'Move up', 'Move down'], ['', 'Remove dashboard…']]);
+  expect(groups.map((g) => [g.title, ...('items' in g ? g.items.map((i) => i.label) : [])])).toEqual([['Outside', 'Name and icon…', 'Look…', 'Move up', 'Move down'], ['', 'Remove dashboard…']]);
 });
 
 test('in the toolbar the arrows go from button to button, past a disabled one', async () => {

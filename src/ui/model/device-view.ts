@@ -24,7 +24,7 @@ export interface DeviceView {
   name: string; zoneName: string; icon: IconName; on: boolean; unavailable: string | null;
   /** A device of a house has a top of its own in its window; `line` says in short how it is. */
   house: HouseKind | null; line: string;
-  controls: Control[]; values: { label: string; text: string; danger: boolean }[]; technical: { label: string; text: string }[];
+  controls: Control[]; values: { capabilityId: string; label: string; text: string; danger: boolean }[]; technical: { label: string; text: string }[];
 }
 
 /** At most three options of at most twelve characters sit side by side; anything else is a list. */
@@ -74,7 +74,7 @@ export function deviceView(device: Device, zones: Record<string, Zone>, t: Trans
     if (control) controls.push(control);
     else if (isMinor(cap.baseId)) technical.push({ label: cap.title, text: joinValue(formatValue(cap, 'full', t)) });
     else if (cap.getable) {
-      values.push({ label: cap.title, text: joinValue(formatValue(cap, 'full', t)), danger: cap.value === true && alarmKind(cap.baseId) === 'danger' });
+      values.push({ capabilityId: cap.id, label: cap.title, text: joinValue(formatValue(cap, 'full', t)), danger: cap.value === true && alarmKind(cap.baseId) === 'danger' });
     }
   }
   const unavailable = device.available ? null : device.unavailableMessage?.trim() || t('tile.unavailable');

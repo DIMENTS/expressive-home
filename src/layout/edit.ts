@@ -1,5 +1,5 @@
 import { capRefs, cleanName, isNet, tileRefs } from './refs';
-import { LIMITS, OVERVIEW_ID, type Column, type DashboardLayout, type HeroChoice, type HubLayout, type SectionLayout, type TileLayout } from './types';
+import { LIMITS, OVERVIEW_ID, type Column, type DashboardLayout, type HeroChart, type HeroChoice, type HubLayout, type SectionLayout, type TileLayout } from './types';
 
 export type LayoutEdit =
   | { type: 'move-tile'; dashboardId: string; tileId: string; toSectionId: string; index: number }
@@ -14,6 +14,7 @@ export type LayoutEdit =
   | { type: 'set-hero'; dashboardId: string; hero: HeroChoice | null }
   | { type: 'add-dashboard'; dashboard: DashboardLayout }
   | { type: 'set-dashboard'; dashboardId: string; name: string | null; icon: string | null }
+  | { type: 'set-chart'; dashboardId: string; chart: HeroChart | null }
   | { type: 'move-dashboard'; dashboardId: string; index: number }
   | { type: 'remove-dashboard'; dashboardId: string }
   | { type: 'know'; refs: string[] }
@@ -129,6 +130,14 @@ function apply(layout: HubLayout, edit: LayoutEdit): HubLayout {
       return { ...layout, dashboards: [...layout.dashboards, { ...edit.dashboard, name: cleanName(edit.dashboard.name), sections: edit.dashboard.sections ?? [] }] };
     }
     case 'set-dashboard': return { ...layout, dashboards: layout.dashboards.map((d) => (d.id === edit.dashboardId ? { ...d, name: cleanName(edit.name), icon: edit.icon } : d)) };
+    case 'set-chart': {
+      if (!layout.dashboards.some((d) => d.id === edit.dashboardId)) return layout;
+      return { ...layout, dashboards: layout.dashboards.map((d) => {
+        if (d.id !== edit.dashboardId) return d;
+        const { chart: _old, ...rest } = d;
+        return edit.chart === null ? rest : { ...rest, chart: edit.chart };
+      }) };
+    }
     case 'move-dashboard': {
       const dashboard = layout.dashboards.find((d) => d.id === edit.dashboardId);
       return dashboard ? { ...layout, dashboards: insert(layout.dashboards.filter((d) => d !== dashboard), dashboard, edit.index) } : layout;

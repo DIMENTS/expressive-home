@@ -146,3 +146,24 @@ test('a button is kept as a flow, as every version of the app knows it', () => {
     expect(normalizeHubLayout(round(layout))).toEqual(layout);
   }
 });
+
+test('"Verloop achter de waarde" of a sensor tile is kept as it was, and absent stays absent', () => {
+  const on = { kind: 'sensor', id: 't-1', deviceId: 'd', size: 'wide', capabilityId: 'measure_temperature', showCapabilityTitle: false, trend: true } as const;
+  const off = { ...on, id: 't-2', trend: false } as const;
+  const before = { kind: 'sensor', id: 't-3', deviceId: 'd', size: 'wide', capabilityId: 'measure_temperature', showCapabilityTitle: false } as const;
+  const layout = hubLayout([overview([ownSection('own:s-a', [tileLayout(on), tileLayout(off), tileLayout(before)])])]);
+  expect(normalizeHubLayout(round(layout))).toEqual(layout);
+  const odd = round(layout) as { dashboards: { sections: { tiles: { spec: Record<string, unknown> }[] }[] }[] };
+  odd.dashboards[0]!.sections[0]!.tiles[0]!.spec['trend'] = 'ja';
+  const read = JSON.stringify(normalizeHubLayout(odd));
+  expect(read).not.toContain('"trend":"ja"');
+  expect(read.match(/"trend"/g)).toHaveLength(1);
+});
+
+test('the chart of a hero is kept when it is one there is; anything else falls away', () => {
+  const layout = hubLayout([{ ...overview([]), chart: 'solar-use' }, { ...board('d-a', []), chart: 'battery' }]);
+  expect(normalizeHubLayout(round(layout))).toEqual(layout);
+  const odd = round(layout) as { dashboards: Record<string, unknown>[] };
+  odd.dashboards[0]!['chart'] = 'taart';
+  expect(JSON.stringify(normalizeHubLayout(odd))).not.toContain('taart');
+});

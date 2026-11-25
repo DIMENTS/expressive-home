@@ -1,6 +1,6 @@
 import { isGuarded } from '../controls/danger';
 import { houseKind, plainTilesFor, tilesFor } from '../dashboard/classify';
-import { HOUSE_KINDS, type DeviceTileSpec, type TileSize, type TileSpec } from '../dashboard/types';
+import { HOUSE_KINDS, isDeviceTile, type DeviceTileSpec, type TileSize, type TileSpec } from '../dashboard/types';
 import type { Capability, Device } from '../homey/types';
 import { isTank, mainValues } from '../recognition/recognize';
 import { valueCapability } from './refs';
@@ -97,7 +97,7 @@ export function adaptTile(spec: DeviceTileSpec, device: Device): DeviceTileSpec 
  * tile's one value is gone. A value that became something else gives the tile for what it is now.
  */
 export function followDevice(tile: TileLayout, device: Device | undefined): DeviceTileSpec | null {
-  if (!device || tile.spec.kind === 'flow') return null;
+  if (!device || !isDeviceTile(tile.spec)) return null;
   if (tile.source === 'device') return adaptTile(tile.spec, device);
   const capability = valueCapability(tile);
   const made = capability === null ? null : tileForValue(device, capability, tile.id);

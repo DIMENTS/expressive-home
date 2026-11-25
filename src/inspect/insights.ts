@@ -59,12 +59,15 @@ export async function measureInsights(client: HomeyClient, hero: HeroSpec | null
   }
   const roles: InsightsMeasurement['roles'] = [];
   for (const { role, ref } of hero ? heroRoles(hero) : []) {
-    const exists = logs.some((log) => log.deviceId === ref.deviceId && log.capabilityId === ref.capabilityId);
+    const source = logs.find((log) => log.deviceId === ref.deviceId && log.capabilityId === ref.capabilityId);
+    const exists = source !== undefined;
     const periods: PeriodMeasurement[] = [];
     if (exists) {
       for (const period of PERIODS) {
         try {
-          periods.push(describe(period, await client.readHistory(ref, period), now));
+          const series = await client.readSeries(source!, period);
+          const points = (series?.points ?? []).flatMap((point) => (point.value === null ? [] : [{ at: point.at, value: point.value }]));
+          periods.push(describe(period, points, now));
         } catch (error) {
           periods.push({ period, points: 0, stepMinutes: null, firstMinutesAgo: null, lastMinutesAgo: null, error: failureOf(error) });
         }

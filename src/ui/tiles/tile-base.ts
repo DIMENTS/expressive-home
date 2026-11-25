@@ -97,10 +97,14 @@ export const deviceTileStyles = css`
     position: relative; display: flex; flex-direction: column; gap: var(--space-10); min-width: 0; height: 100%;
     min-height: var(--tile-height); padding: var(--tile-pad); border-radius: var(--tile-radius);
     background: var(--_bg); color: var(--_fg); -webkit-user-select: none; user-select: none; text-align: left; cursor: pointer;
+    box-shadow: inset 0 0 0 var(--tile-outline-width) var(--tile-outline);
     transition: background-color var(--motion-effects), color var(--motion-effects), opacity var(--motion-effects),
       border-radius var(--motion-spatial), transform var(--motion-spatial);
   }
-  :host([state="on"]) .tile { --_bg: var(--tile-on-bg); --_fg: var(--tile-on-fg); --_state: var(--tile-on-fg); }
+  :host([state="on"]) .tile {
+    --_bg: var(--tile-on-bg); --_fg: var(--tile-on-fg); --_state: var(--tile-on-fg);
+    --slider-fill: var(--tile-on-slider-fill); --slider-track: var(--tile-on-slider-track);
+  }
   :host([state="danger"]) .tile { --_bg: var(--tile-alert-bg); --_fg: var(--tile-alert-fg); --_state: var(--tile-alert-fg); }
   :host([state="unavailable"]) .tile { --_bg: var(--tile-unavailable-bg); }
   :host([stale]) .tile { opacity: var(--state-stale); cursor: default; }
@@ -270,6 +274,16 @@ export abstract class DeviceTileElement<S extends DeviceTileSpec = DeviceTileSpe
     return html`<span class="state">${view.warn ? html`<mh-icon class="warn" name="battery_alert" filled></mh-icon>` : nothing}<span>${view.stateText}</span></span>`;
   }
 
+  /** What lies behind the face, such as the history of a wide sensor tile. */
+  protected renderBehind(): TemplateResult | typeof nothing {
+    return nothing;
+  }
+
+  /** What a screen reader hears after the name and the state. */
+  protected ariaExtra(): string {
+    return '';
+  }
+
   /** The part below or beside the head: a slider, cells or a bar. */
   protected renderExtra(): TemplateResult | typeof nothing {
     return nothing;
@@ -289,8 +303,10 @@ export abstract class DeviceTileElement<S extends DeviceTileSpec = DeviceTileSpe
     const { view } = this;
     const editing = this.editing;
     const toggles = view.tap === 'toggle' && !editing;
+    const extra = this.ariaExtra();
     return html`<div class="tile ${this.spec.kind}" @click=${() => this.activate()}>
-      <div class="face" role="button" tabindex="0" aria-label=${editing ? this.ctx.t('edit.tile.open', { name: this.editName }) : view.ariaLabel}
+      ${this.renderBehind()}
+      <div class="face" role="button" tabindex="0" aria-label=${editing ? this.ctx.t('edit.tile.open', { name: this.editName }) : extra ? `${view.ariaLabel}, ${extra}` : view.ariaLabel}
         aria-pressed=${toggles ? (view.state === 'on' ? 'true' : 'false') : nothing}
         @keydown=${(event: KeyboardEvent) => this.onKey(event)}>${this.renderFace()}</div>
       ${this.renderExtra()}

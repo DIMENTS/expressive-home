@@ -12,6 +12,7 @@ import './climate-tile';
 import './cover-tile';
 import './media-tile';
 import './guard-tile';
+import './widget-tile';
 
 registerTile({ kind: 'light', tag: 'mh-light-tile', sizes: ['wide', 'single'] });
 registerTile({ kind: 'switch', tag: 'mh-switch-tile', sizes: ['single', 'wide'] });
@@ -25,3 +26,4 @@ registerTile({ kind: 'climate', tag: 'mh-climate-tile', sizes: ['single', 'wide'
 registerTile({ kind: 'cover', tag: 'mh-cover-tile', sizes: ['single', 'wide'] });
 registerTile({ kind: 'media', tag: 'mh-media-tile', sizes: ['single', 'wide'] });
 registerTile({ kind: 'guard', tag: 'mh-guard-tile', sizes: ['single', 'wide'] });
+registerTile({ kind: 'widget', tag: 'mh-widget-tile', sizes: ['single', 'wide'] });

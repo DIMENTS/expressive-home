@@ -11,6 +11,7 @@ const PORT = 8790;
 const NIGHT_CARDS = { night_on: true, night_off: false };
 
 const isRole = (value) => value === 'use' || value === 'edit';
+const MODES = ['light', 'dark', 'auto'];
 
 class ExpressiveHomeApp extends Homey.App {
   async onInit() {
@@ -23,6 +24,21 @@ class ExpressiveHomeApp extends Homey.App {
         return true;
       });
     }
+    const theme = this.homey.flow.getActionCard('theme_set');
+    theme.registerArgumentAutocompleteListener('theme', async (query) => (this.server ? this.server.themeChoices(query || '') : []));
+    theme.registerRunListener(async (args) => {
+      if (!this.server) throw new Error(this.homey.__('flow.notRunning'));
+      const id = args && args.theme && args.theme.id;
+      if (typeof id !== 'string' || !this.server.setHouseTheme(id)) throw new Error(this.homey.__('flow.themeGone'));
+      return true;
+    });
+    this.homey.flow.getActionCard('mode_set').registerRunListener(async (args) => {
+      if (!this.server) throw new Error(this.homey.__('flow.notRunning'));
+      const mode = args && args.mode;
+      if (!MODES.includes(mode)) throw new Error('not-possible');
+      this.server.setHouseMode(mode);
+      return true;
+    });
     try {
       // the server is one bundled file (npm run homey-app)
       const { startHomeServer } = await import('./lib/server.mjs');
@@ -44,7 +60,7 @@ class ExpressiveHomeApp extends Homey.App {
   async getState() {
     if (!this.server) return { running: false, problem: this.problem };
     const { server } = this;
-    return { running: true, connected: server.connected(), devices: server.devices(), flowKey: server.flowKey(), codes: server.codes(), buttons: server.buttons() };
+    return { running: true, connected: server.connected(), devices: server.devices(), flowKey: server.flowKey(), codes: server.codes(), buttons: server.buttons(), recording: server.recording() };
   }
 
   /** The code that another device pairs with; a new one when none is open, or when that is asked for. */
@@ -72,6 +88,27 @@ class ExpressiveHomeApp extends Homey.App {
   removeFlowKey() {
     if (!this.server) throw new Error('not-possible');
     this.server.removeFlowKey();
+    return true;
+  }
+
+  /** "Zelf opnemen wat Homey niet bijhoudt", on or off. */
+  setRecording(on) {
+    if (!this.server || typeof on !== 'boolean') throw new Error('not-possible');
+    this.server.setRecording(on);
+    return true;
+  }
+
+  /** "Opname wissen": what the app recorded goes from Insights. */
+  async wipeRecording() {
+    if (!this.server) throw new Error('not-possible');
+    await this.server.wipeRecording();
+    return true;
+  }
+
+  /** "Alle apparaten weer in Rustig": the house and every dashboard; each device follows the house again. */
+  resetLooks() {
+    if (!this.server) throw new Error('not-possible');
+    this.server.resetLooks();
     return true;
   }
 }

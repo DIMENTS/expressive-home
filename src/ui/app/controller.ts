@@ -2,6 +2,7 @@ import type { Grouping, TileSpec } from '../../dashboard/types';
 import { parseAddress } from '../../homey/address';
 import type { ConnectionSettings } from '../../homey/api-client';
 import { ConnectionError, type ClientEvent, type HomeyClient } from '../../homey/client';
+import { createHistoryAccess } from './history';
 import { clampTarget, climateOf, targetStep } from '../../controls/climate';
 import { isGuarded } from '../../controls/danger';
 import { number as numberOf } from '../../controls/find';
@@ -20,6 +21,12 @@ import type { WallSettings } from '../../wall/settings';
 import type { SnackbarMessage } from '../parts/snackbar';
 import type { DashboardStatus, UiActions } from './context';
 import { createLayouts, type ImportResult, type LayoutState } from './layouts';
+import { createLooks, type LookState } from './looks';
+import { createLooksStore, type LooksStore } from '../../storage/looks-store';
+import type { ChosenLook, DeviceLook, HouseLook } from '../../theme/choose';
+import type { LookOp } from '../../theme/look-ops';
+import type { LooksDoc } from '../../theme/looks-doc';
+import type { ThemeFile } from '../../theme/look';
 
 export type ConnectIssue = 'none' | 'invalid-address' | 'ambiguous-address' | 'missing-key' | 'unreachable' | 'auth' | 'revoked';
 
@@ -46,6 +53,8 @@ export interface AppState extends LayoutState {
   wall: WallSettings;
   /** The hub that is open, also before it answers; 'demo' for the example hub. */
   hubId: string | null;
+  /** What this device chose of looks, the house's choice and the themes there are. */
+  look: LookState;
 }
 
 type RealClient = HomeyClient & { getHomeyId(): string | null; getLocalAddress(): string | null };
@@ -65,7 +74,19 @@ export interface ControllerDeps {
   mayArrange?(): boolean;
   /** The app on the hub served this page. */
   served?: boolean;
+  /** Where this device keeps its looks; without it, nothing is kept. */
+  looksStore?: LooksStore;
+  /** What the hub says this device may (null: not yet); without it the device is its own. */
+  lookRole?(): 'edit' | 'use' | null;
+  /** Changes of the house's looks to the hub. */
+  sendLooks?(ops: LookOp[]): void;
 }
+
+/** A storage that keeps what it is given for as long as the page is open. */
+const memoryStorage = (): Pick<Storage, 'getItem' | 'setItem' | 'removeItem'> => {
+  const items = new Map<string, string>();
+  return { getItem: (key) => items.get(key) ?? null, setItem: (key, value) => { items.set(key, value); }, removeItem: (key) => { items.delete(key); } };
+};
 
 /** Delays between attempts while the hub cannot be reached at the start; the last one repeats. */
 export const START_RETRY_MS = [5000, 10000, 30000, 60000];
@@ -108,9 +129,12 @@ export function createController(deps: ControllerDeps) {
     setAppearance({ theme, sectionSeeds }) {
       // the example hub keeps nothing (5.12): the look of a file lasts until it is left
       if (isDemo) ownLook ??= { theme: config.theme, sectionSeeds: config.sectionSeeds };
-      config.theme = theme;
+      // colour and light or dark are this device's look: where it follows the house, the file's are left out on purpose
+      const took = looks.fromFile(theme);
+      const next: ThemeSettings = { ...theme, seed: took.seed ? theme.seed.toLowerCase() : config.theme.seed, mode: took.mode ? theme.mode : config.theme.mode };
+      config.theme = next;
       config.sectionSeeds = { ...sectionSeeds };
-      set({ theme, sectionSeeds: { ...sectionSeeds } });
+      set({ theme: next, sectionSeeds: { ...sectionSeeds } });
       if (!isDemo) void save();
     },
     stored: (hubId) => config.layouts[hubId],
@@ -123,8 +147,25 @@ export function createController(deps: ControllerDeps) {
     startBoard: () => config.startBoard,
     publish: () => set(layouts.state()),
   });
+  let isDemo = false;
+  const looks = createLooks({
+    store: deps.looksStore ?? createLooksStore(memoryStorage()),
+    role: () => (deps.lookRole ? deps.lookRole() : 'own'),
+    theme: () => config.theme,
+    setTheme(theme) {
+      config.theme = theme;
+      if (early) early.theme = theme;
+      if (ownLook) ownLook = { ...ownLook, theme };
+      set({ theme });
+      void save();
+    },
+    publish: () => set({ look: looks.state() }),
+    demo: () => isDemo,
+    ...(deps.sendLooks ? { send: deps.sendLooks } : {}),
+  });
   let state: AppState = {
     ...layouts.state(),
+    look: looks.state(),
     phase: 'connecting', connectIssue: 'none', busy: false, waitingForPermission: false, review: null, savedAddress: '',
     route: null, missing: [], startUnreachable: false, restored: false,
     theme: config.theme, softwareVersion: null, openDeviceId: null,
@@ -133,7 +174,6 @@ export function createController(deps: ControllerDeps) {
   };
   t.setLanguage(state.language.active);
   let client: HomeyClient | null = null;
-  let isDemo = false;
   /** The owner's own theme and colours while a file that was loaded in the example hub shows others; null otherwise. */
   let ownLook: Pick<AppConfig, 'theme' | 'sectionSeeds'> | null = null;
   /** What was set up for a wall tablet on the example hub, which keeps nothing; null: what this device has. */
@@ -165,6 +205,8 @@ export function createController(deps: ControllerDeps) {
     state.hubId = openHub();
     for (const listener of [...listeners]) listener();
   };
+  // what this device may is known from the last time, or it is its own: its look is there at once
+  looks.roleChanged();
   const clearTimer = (handle: unknown): null => {
     if (handle !== null) deps.clearTimeout(handle);
     return null;
@@ -235,6 +277,7 @@ export function createController(deps: ControllerDeps) {
     rebuildTimer = clearTimer(rebuildTimer);
     client?.disconnect();
     client = null;
+    if (isDemo) looks.leaveDemo();
     isDemo = false;
     if (ownLook) {
       config = { ...config, ...ownLook };
@@ -281,10 +324,11 @@ export function createController(deps: ControllerDeps) {
     if (stored?.connection.apiKey === config.connection.apiKey) await save(true);
   }
 
-  /** The key no longer works: back to the connect screen, only the key is removed. */
+  /** The key no longer works: back to the connect screen, only the key is removed; a paired device forgets the house. */
   async function revoke(): Promise<void> {
     generation += 1;
     dropClient();
+    if (deps.served) looks.forgetHouse();
     retryTimer = clearTimer(retryTimer);
     config.connection = { ...config.connection, apiKey: null };
     set({ phase: 'connect', connectIssue: 'revoked', review: null, busy: false, startUnreachable: false, route: null, openDeviceId: null });
@@ -380,6 +424,7 @@ export function createController(deps: ControllerDeps) {
     const active = resolveLanguage(config.language, deps.browserLanguages);
     t.setLanguage(active);
     set({ theme: config.theme, savedAddress: homeyId ?? localAddress ?? '', language: { choice: config.language, active }, sectionSeeds: { ...config.sectionSeeds }, startBoard: config.startBoard, wall: config.wall });
+    looks.roleChanged();
     // what was open before (a device that is paired again) is not what is stored now
     layouts.use(null);
     if (!apiKey) { set({ ...layouts.state(), phase: 'connect', connectIssue: 'none' }); return; }
@@ -445,6 +490,8 @@ export function createController(deps: ControllerDeps) {
   async function clearSavedConnection(): Promise<void> {
     try {
       config = await inTurn(() => configStore.clearConnection());
+      // a device that was taken away forgets what it knew of the house
+      if (deps.served) looks.forgetHouse();
     } catch {
       if (deps.served) {
         // the hub did not hear it: this device is still paired, and goes on
@@ -539,6 +586,8 @@ export function createController(deps: ControllerDeps) {
     const cleared = config.connection.apiKey !== null && stored.connection.apiKey === null;
     config = { ...stored, language: config.language };
     ownLook = null;
+    looks.reload();
+    looks.roleChanged();
     layouts.adopt(deps.served);
     // the right to arrange can be gone
     if (!mayArrange()) layouts.setEditing(false);
@@ -582,7 +631,13 @@ export function createController(deps: ControllerDeps) {
     void save();
   }
 
-  function setTheme(theme: ThemeSettings): void {
+  function setTheme(next: ThemeSettings): void {
+    // colour and light or dark are this device's own look: a device that may only use follows the house in them
+    const before = config.theme;
+    const own = looks.state().role !== 'use';
+    const theme = own ? next : { ...next, seed: before.seed, mode: before.mode };
+    if (own && theme.seed !== before.seed) looks.setDevice({ seed: theme.seed, followStyle: false });
+    if (own && theme.mode !== before.mode) looks.setDevice({ mode: theme.mode, followMode: false });
     config.theme = theme;
     if (early) early.theme = theme;
     if (ownLook) ownLook = { ...ownLook, theme };
@@ -764,9 +819,18 @@ export function createController(deps: ControllerDeps) {
     },
   };
 
+  const history = createHistoryAccess({
+    client: () => (state.route === null ? null : client),
+    known: () => store.getDevices().flatMap((device) => Object.keys(device.capabilities).map((capabilityId) => ({ deviceId: device.id, capabilityId }))),
+    now: () => Date.now(),
+  });
+
   return {
+    history,
     getState: () => state,
     subscribe(listener: () => void) { listeners.add(listener); return () => { listeners.delete(listener); }; },
+    /** The hub that is open, or 'demo'; null on the connect screen. */
+    hubId: (): string | null => openHub(),
     closeDevice: () => set({ openDeviceId: null }),
     openBoard: (id: string) => layouts.openBoard(id),
     /** The automatic Overzicht per kind of device or per room, and whether the screen with the rooms is there: for every device on this hub. */
@@ -792,6 +856,16 @@ export function createController(deps: ControllerDeps) {
     reloadStored,
     start, connect, cancelConnect, continueWithMissingRights, useOtherKey, changeConnection, startDemo, leaveDemo, retry, disconnect, setTheme, setLanguage, setStartBoard, setWall, setSectionSeed,
     actions, status,
+    /** The look of a dashboard on this device; rooms follow the house. */
+    chosenLook: (boardId: string | null): ChosenLook => looks.chosen(boardId),
+    setDeviceLook: (change: Partial<DeviceLook>): boolean => looks.setDevice(change),
+    followHouse: (): boolean => looks.followHouse(),
+    saveTheme: (file: ThemeFile): boolean => looks.saveTheme(file),
+    removeTheme: (id: string): boolean => looks.removeTheme(id),
+    setBoardTheme: (boardId: string, themeId: string | null): boolean => looks.setBoardTheme(boardId, themeId),
+    setHouse: (house: Partial<HouseLook>): boolean => looks.setHouse(house),
+    /** What the hub has of looks now; with a rescue that this device did not see yet, it follows the house again. */
+    adoptHubLooks: (doc: LooksDoc): void => looks.adoptHub(doc),
     busy(deviceId: string): { capabilityId: string; value: CapabilityValue } | null {
       const busy = busyDevices.get(deviceId);
       return busy ? { capabilityId: busy.capabilityId, value: busy.value } : null;

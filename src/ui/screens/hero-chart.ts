@@ -9,6 +9,7 @@ import type { UiContext } from '../app/context';
 import { HISTORY_FRESH_MS } from '../app/history';
 import { sharedStyles } from '../parts/shared-styles';
 import '../parts/chart';
+import { CHART_PARTS } from '../part-names';
 
 const HOUR_MS = 3_600_000;
 /** With less than this many hours of points per five minutes, the battery shows the hourly points of the week. */
@@ -144,7 +145,7 @@ export class MhHeroChart extends LitElement {
       <div class="top">${this.reading ? nothing : this.corner()}</div>
       <div class="open"
         @click=${() => { if (ref && this.readable) this.ctx.actions.openDevice(ref.deviceId); }}>
-        <mh-chart variant="hero" .series=${{ ...this.main, end: Math.max(end, this.main.end) }} .second=${this.second} .kind=${{ baseId: cap?.baseId ?? '', units: cap?.units ?? null }}
+        <mh-chart exportparts=${CHART_PARTS} variant="hero" .series=${{ ...this.main, end: Math.max(end, this.main.end) }} .second=${this.second} .kind=${{ baseId: cap?.baseId ?? '', units: cap?.units ?? null }}
           .format=${this.format()} .t=${this.ctx.t} period=${period} name=${name} .now=${Date.now()} .nowValue=${live} area ?readable=${this.readable}
           @chart-read=${(event: CustomEvent<{ reading: boolean }>) => { this.reading = event.detail.reading; }}></mh-chart>
       </div>`;

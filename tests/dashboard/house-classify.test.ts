@@ -26,7 +26,7 @@ test('what only looks like it keeps its own tile', () => {
   expect([kinds(media.plugAsTv), sectionFor(media.plugAsTv)]).toEqual([['switch'], 'media']);
   expect([kinds(covers.tiltOnly), sectionFor(covers.tiltOnly)]).toEqual([['sensor'], 'covers']);
   expect([kinds(heating.fridge), sectionFor(heating.fridge)]).toEqual([['sensor', 'sensor'], 'climate']);
-  expect([kinds(heating.gateway), kinds(guards.car)]).toEqual([['sensor', 'sensor'], ['generic']]);
+  expect([kinds(heating.gateway), kinds(guards.car)]).toEqual([['sensor', 'sensor'], ['car']]);
   // a lamp and a plug stay what they are, whatever else they can
   const lamp = device({ id: 'l', deviceClass: 'light', caps: [cap('onoff', { type: 'boolean', setable: true, value: true }), cap('dim', { setable: true, min: 0, max: 1 }), cap('speaker_playing', { type: 'boolean', setable: true })] });
   const plug = device({ id: 'p', deviceClass: 'socket', caps: [cap('onoff', { type: 'boolean', setable: true, value: true }), cap('target_temperature', { setable: true }), cap('locked', { type: 'boolean', setable: true })] });
@@ -41,7 +41,7 @@ test('nothing of a lock or a garage door is a switch or a button', () => {
 });
 
 test('the sections stand in their order', () => {
-  expect(SECTION_ORDER).toEqual(['lights', 'switches', 'climate', 'covers', 'media', 'water', 'security', 'other', 'flows']);
+  expect(SECTION_ORDER).toEqual(['lights', 'switches', 'climate', 'covers', 'media', 'household', 'vehicles', 'water', 'security', 'other', 'flows']);
   const board = generateDashboard(snapshot([guards.lock, media.full, covers.both, heating.zone]), { grouping: 'type' });
   expect(board.sections.map((section) => [section.id, section.titleKey, section.tiles.length])).toEqual([
     ['type:climate', 'section.climate', 1], ['type:covers', 'section.covers', 1], ['type:media', 'section.media', 1], ['type:security', 'section.security', 1],

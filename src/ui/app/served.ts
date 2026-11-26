@@ -7,6 +7,7 @@ import { STORAGE_KEY } from '../../storage/local-store';
 import { LOOKS_KEY, createLooksStore } from '../../storage/looks-store';
 import { createLooksSync } from '../../served/looks-sync';
 import { createServedWidgets } from '../../widgets/library-source';
+import { createAppLive } from '../../widgets/app-live';
 import type { LooksDoc } from '../../theme/looks-doc';
 import type { AppEnvironment } from './app';
 import { safeStorage } from './safe-storage';
@@ -51,10 +52,19 @@ export function servedEnvironment(createDemoClient: AppEnvironment['createDemoCl
   let lastLooks: LooksDoc | null = null;
   let onLooks: (doc: LooksDoc) => void = () => {};
   let onRefused: () => void = () => {};
+  let onTooBig: () => void = () => {};
   const looks = createLooksSync({
     link,
     adopt: (doc) => { lastLooks = doc; onLooks(doc); },
     refused: () => onRefused(),
+    tooBig: () => onTooBig(),
+    setTimeout: (fn, ms) => window.setTimeout(fn, ms),
+    clearTimeout: (handle) => window.clearTimeout(handle as number),
+  });
+
+  // the live news of apps for their widgets on this page
+  const appLive = createAppLive({
+    link, random: () => Math.random(),
     setTimeout: (fn, ms) => window.setTimeout(fn, ms),
     clearTimeout: (handle) => window.clearTimeout(handle as number),
   });
@@ -85,10 +95,12 @@ export function servedEnvironment(createDemoClient: AppEnvironment['createDemoCl
       widgets: createServedWidgets(link),
       appWidgets: () => link.request('GET', 'api/app-widgets'),
       appWidgetApi: (ref, method, route, body) => link.request('POST', 'api/app-widget-api', { ref, method, route, body }),
+      appLive: (ref, listener) => appLive.listen(ref, listener),
       appWidgetSearch: (ref, setting, query) => link.request('GET', `api/app-widget-autocomplete?${new URLSearchParams({ ref, setting, query }).toString()}`),
       sendLooks: (ops) => looks.send(ops),
       onLooks: (listener) => { onLooks = listener; if (lastLooks) listener(lastLooks); },
       onLooksRefused: (listener) => { onRefused = listener; },
+      onLooksTooBig: (listener) => { onTooBig = listener; },
       onConflict: (listener) => served.onConflict(listener),
       onUnsaved: (listener) => served.onUnsaved(listener),
       onNight: (listener) => { link.on('night', (word) => listener(word ? { night: word.night, at: Date.now() - word.age } : null)); },

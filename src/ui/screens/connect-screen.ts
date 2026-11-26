@@ -73,6 +73,7 @@ export class MhConnectScreen extends LitElement {
     }
     @media (width < ${PHONE_MAX_PX}px) { .rights { grid-template-columns: repeat(auto-fill, minmax(var(--connect-right-min), 1fr)); } }
     .rights li { display: flex; align-items: center; gap: var(--space-6); }
+    .rights-more { margin: var(--space-8) 0 0; font-size: var(--type-body-s-size); line-height: var(--type-body-s-line); color: var(--field-label-fg); }
     .hint, .advice { margin: 0 0 0 var(--space-4); font-size: var(--type-body-s-size); line-height: var(--type-body-s-line); color: var(--field-label-fg); }
   `];
 
@@ -128,6 +129,7 @@ export class MhConnectScreen extends LitElement {
         <li><div>${richText(this.t('connect.step1'))}</div></li>
         <li><div>${richText(this.t('connect.step2'))}
           <ul class="rights">${RIGHTS.map((right) => html`<li><mh-icon name="check_circle" filled></mh-icon>${this.t(`rights.${right}` as MessageKey)}</li>`)}</ul>
+          <p class="rights-more">${richText(this.t('connect.rightsMore'))}</p>
         </div></li>
         <li><div>${richText(this.t('connect.step3'))}</div></li>
       </ol>
@@ -177,6 +179,7 @@ export class MhConnectScreen extends LitElement {
             <mh-button block small variant="text" @click=${() => this.emit('demo', { which: 'camper' })}>${this.t('connect.demoCamper')}</mh-button>`}
       </div>
       <mh-note icon="lan">${richText(this.t('connect.lan'))}</mh-note>
+      <mh-note icon="key">${richText(this.t('connect.ownKey'))}</mh-note>
     </div>`;
   }
 

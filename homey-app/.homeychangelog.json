@@ -1,4 +1,16 @@
 {
+  "1.4.0": {
+    "en": "The weather and the energy of your Homey as widgets, and the weather on the rest screen. Tiles of their own for a fan, a robot vacuum, a washing machine or dishwasher, a charge point and a car. With Fully Kiosk a wall tablet really dims its screen at rest and at night, and light and dark can follow the sun. Widgets of apps change live.",
+    "nl": "Het weer en de energie van je Homey als widgets, en het weer op het rustbeeld. Eigen tegels voor een ventilator, een robotstofzuiger, een wasmachine of vaatwasser, een laadpaal en een auto. Met Fully Kiosk dimt een wandtablet echt zijn scherm in rust en ’s nachts, en licht en donker kunnen de zon volgen. Widgets van apps veranderen live mee."
+  },
+  "1.3.0": {
+    "en": "Own CSS: give a theme CSS of your own, written against named parts of the dashboard, and see it change as you type. What could hide or move something falls away with a note per line, and an alarm always stays an alarm. When you take in someone else’s theme, you see its CSS first and choose whether to allow it on this device.",
+    "nl": "Eigen CSS: geef een thema je eigen CSS, geschreven voor de onderdelen van het dashboard die een naam hebben, en zie het veranderen terwijl je typt. Wat iets zou kunnen verbergen of verschuiven valt weg, met een melding per regel, en een alarm blijft altijd een alarm. Haal je een thema van een ander binnen, dan zie je eerst de CSS en kies je of die op dit apparaat mag werken."
+  },
+  "1.2.0": {
+    "en": "All values: set every colour, size, corner, letter and motion of a theme yourself, for light, dark or both, or start from an empty base without Material. Themes with values of their own are shared as before and never lost by an older version. The settings of the app are in clear sections, with a choice of key for flows.",
+    "nl": "Alle waarden: zet elke kleur, maat, hoek, letter en beweging van een thema zelf, voor licht, donker of beide, of begin bij een lege basis zonder Material. Thema’s met eigen waarden deel je zoals altijd, en een oudere versie raakt ze nooit kwijt. De instellingen van het appje staan in duidelijke delen, met een keuze voor de sleutel voor flows."
+  },
   "1.1.0": {
     "en": "Themes: choose a style, adjust it and share it. Charts of what your devices measure, in a device’s window, on a sensor tile and in the highlight; the app records the sun, the use and the shore power that Homey does not keep. Widgets of Homey and of apps on the dashboard.",
     "nl": "Thema’s: kies een stijl, stel hem bij en deel hem. Grafieken van wat je apparaten meten, in het venster van een apparaat, op een sensortegel en in de blikvanger; het appje neemt zon, verbruik en walstroom op die Homey zelf niet bijhoudt. Widgets van Homey en van apps op het dashboard."

@@ -1597,3 +1597,46 @@ test('the theme panel knows when the dashboard that is open shows a theme of its
   await openBoard(app, 'd-1');
   expect(panel.boardTheme).toBeNull();
 });
+
+test('the weather and the energy of one hub are forgotten when another is opened, so they are never shown as of the next', async () => {
+  const app = await startApp();
+  app.shadowRoot!.querySelector('mh-connect-screen')!.dispatchEvent(new CustomEvent('demo'));
+  await settle(app);
+  const { weather, energy } = (app as unknown as { ctx: { widgets: { weather: { listen(l: () => void): () => void; get(): { value: unknown } }; energy(p: string): { listen(l: () => void): () => void; get(): { value: unknown } } } } }).ctx.widgets;
+  const stops = [weather.listen(() => {}), energy('day').listen(() => {})];
+  await vi.waitFor(() => expect([weather.get().value, energy('day').get().value].every((value) => value !== null)).toBe(true));
+  for (const stop of stops) stop();
+  app.shadowRoot!.querySelector('mh-settings-panel')!.dispatchEvent(new CustomEvent('leave-demo'));
+  await settle(app);
+  expect([weather.get().value, energy('day').get().value]).toEqual([null, null]);
+});
+
+test('with the sun: dark at night and light by day at the place of the hub, as its weather tells; the panel knows it', async () => {
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(new Date(2026, 10, 26, 23, 0));
+  try {
+    const app = await startApp();
+    app.shadowRoot!.querySelector('mh-connect-screen')!.dispatchEvent(new CustomEvent('demo'));
+    await settle(app);
+    app.shadowRoot!.querySelector('mh-dashboard')!.dispatchEvent(new CustomEvent('navigate', { detail: { to: 'theme' } }));
+    await settle(app);
+    const panel = app.shadowRoot!.querySelector('mh-theme-panel') as HTMLElement & { sunDark: boolean | null };
+    panel.dispatchEvent(new CustomEvent('look-choose', { detail: { target: 'device', mode: 'sun' } }));
+    await vi.waitFor(() => expect(document.documentElement.dataset['mode']).toBe('dark'));
+    expect(panel.sunDark).toBe(true);
+    // the system is light all the while: this is the sun
+    expect(window.matchMedia('(prefers-color-scheme: dark)').matches).toBe(false);
+    const kept = JSON.parse(window.localStorage.getItem('dashboard.sun')!) as { dark: boolean };
+    expect(kept.dark).toBe(true);
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+test('with light and dark as they were, the weather of the hub is not asked for it', async () => {
+  const app = await startApp();
+  app.shadowRoot!.querySelector('mh-connect-screen')!.dispatchEvent(new CustomEvent('demo'));
+  await settle(app);
+  const { weather } = (app as unknown as { ctx: { widgets: { weather: { get(): { at: number | null; error: unknown } } } } }).ctx.widgets;
+  expect(weather.get()).toMatchObject({ at: null, error: null });
+});

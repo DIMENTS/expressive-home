@@ -20,6 +20,7 @@ import { layoutGroup, placeChanged, type SectionAction, type SectionPlace } from
 import { chosenSeed, colourGroups } from './section-menu';
 import './section-menu';
 import type { MhSectionMenu } from './section-menu';
+import { CHART_PARTS } from '../part-names';
 
 // The geometry of the wavy progress line, in SVG units, which are pixels here; the sizes come from the theme.
 const WAVE_LENGTH = themePixels('hero-wave-length');
@@ -131,6 +132,10 @@ export class MhHero extends LitElement {
     path { fill: none; stroke-linecap: round; stroke-width: var(--hero-wave-stroke); }
     .active { stroke: var(--hero-wave-fg); animation: shift var(--motion-wave) linear infinite; }
     .rest { stroke: var(--hero-wave-track); }
+    /* the wave at its height; at 0 it is not drawn, and the straight line below takes its place */
+    .wave { transform: scaleY(var(--hero-wave-scale)); transform-box: fill-box; transform-origin: center; }
+    /* a theme without a wave has a straight line instead; with a wave it is not drawn (a width of 0) */
+    .flat { stroke: var(--hero-wave-fg); stroke-width: calc(var(--hero-wave-stroke) * clamp(0, (.01 - var(--hero-wave-scale)) * 1000, 1)); }
     @keyframes shift { to { transform: translateX(var(--hero-wave-length)); } }
     .stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--tile-gap); }
     .stat {
@@ -238,9 +243,10 @@ export class MhHero extends LitElement {
     const width = this.width;
     const end = (width * progress) / 100;
     const mid = WAVE_HEIGHT / 2;
-    return html`<svg viewBox="0 0 ${width} ${WAVE_HEIGHT}" aria-hidden="true">
+    return html`<svg part="hero-line" viewBox="0 0 ${width} ${WAVE_HEIGHT}" aria-hidden="true">
       <defs><clipPath id="clip"><rect x="0" y="-10" width=${end} height=${WAVE_HEIGHT * 2}></rect></clipPath></defs>
-      <g clip-path="url(#clip)"><path class="active" d=${wavePath(end, WAVE_LENGTH, WAVE_AMPLITUDE, mid)}></path></g>
+      <g clip-path="url(#clip)"><g class="wave"><path class="active" d=${wavePath(end, WAVE_LENGTH, WAVE_AMPLITUDE, mid)}></path></g></g>
+      <path class="flat" d="M0 ${mid} L${end} ${mid}"></path>
       <path class="rest" d="M${Math.min(width, end + WAVE_GAP)} ${mid} L${width} ${mid}"></path>
     </svg>`;
   }
@@ -267,7 +273,7 @@ export class MhHero extends LitElement {
       ...charts.map((chart) => ({ id: chart, label: ctx.t(chart === 'battery' ? 'chart.hero.battery' : chart === 'solar' ? 'chart.hero.solar' : 'chart.hero.solarUse'), checked: this.chart === chart })),
     ] }];
     const groups = this.editing ? [layoutGroup('hero', this.place, ctx.t), ...chartGroup, ...colours] : [...chartGroup, ...colours];
-    return html`<div class="head">${this.editing ? html`<button class="grip hit" data-grip aria-label=${ctx.t('edit.grip', { name: title })} @click=${() => this.openMenu()}><mh-icon name="drag_indicator"></mh-icon></button>` : nothing}<mh-icon name=${icon} filled></mh-icon><h2 id="hero-title"><span class="title">${title}</span></h2>${ctx.status().canArrange === false ? nothing : html`<mh-section-menu
+    return html`<div class="head">${this.editing ? html`<button class="grip hit" data-grip aria-label=${ctx.t('edit.grip', { name: title })} @click=${() => this.openMenu()}><mh-icon name="drag_indicator"></mh-icon></button>` : nothing}<mh-icon name=${icon} filled></mh-icon><h2 id="hero-title"><span class="title" part="hero-title">${title}</span></h2>${ctx.status().canArrange === false ? nothing : html`<mh-section-menu
         label=${title} .t=${ctx.t} .groups=${groups}
         @select=${(e: CustomEvent<{ group: string; id: string }>) => this.onSelect(e)}
         @toggle=${(e: CustomEvent<{ open: boolean }>) => { e.stopPropagation(); this.menuOpen = e.detail.open; }}></mh-section-menu>`}</div>`;
@@ -285,11 +291,11 @@ export class MhHero extends LitElement {
     const words = view.stats.filter((stat) => isWords(stat.value)).length;
     const labels = view.stats.some((stat) => hasLongWord(stat.label)) ? 'labels' : view.stats.some((stat) => hasLongWord(stat.label, 9)) ? 'label' : '';
     const open = (deviceId: string) => { if (!editing) ctx.actions.openDevice(deviceId); };
-    return html`<section aria-labelledby="hero-title">
+    return html`<section part=${this.seed === null ? 'hero' : 'hero own-colour'} aria-labelledby="hero-title">
       ${this.renderTitle(view.title, view.icon)}
       <div class="grid" @click=${() => { if (editing) this.openSettings(); }}>
         <button class="main" aria-label=${editing ? ctx.t('edit.hero.open', { name: view.title }) : ctx.t('hero.more', { name: view.title, value: joinValue(view.number) })} @click=${() => open(view.primaryDeviceId)}>
-          <p class="number ${isWords(view.number.text) ? 'long' : ''}">${view.number.text}${view.number.unit ? html`<span class="unit">${view.number.unit}</span>` : nothing}</p>
+          <p class="number ${isWords(view.number.text) ? 'long' : ''}" part="hero-number">${view.number.text}${view.number.unit ? html`<span class="unit" part="hero-unit">${view.number.unit}</span>` : nothing}</p>
           ${view.line ? html`<p class="line">${view.line}</p>` : nothing}
           ${view.progress !== null ? this.wave(view.progress) : nothing}
         </button>
@@ -297,10 +303,10 @@ export class MhHero extends LitElement {
           const inner = html`<mh-icon name=${stat.icon}></mh-icon><b>${stat.value}</b><span>${stat.label}</span>`;
           const deviceId = stat.deviceId;
           const kind = `stat ${isWords(stat.value) ? 'long' : ''}`;
-          return deviceId && !editing ? html`<button class=${kind} @click=${() => open(deviceId)}>${inner}</button>` : html`<div class=${kind}>${inner}</div>`;
+          return deviceId && !editing ? html`<button class=${kind} part="hero-stat" @click=${() => open(deviceId)}>${inner}</button>` : html`<div class=${kind} part="hero-stat">${inner}</div>`;
         })}</div>` : nothing}
       </div>
-      ${this.chart && heroChartsOf(this.hero, this.sources).includes(this.chart) ? html`<mh-hero-chart .ctx=${ctx} .hero=${this.hero} chart=${this.chart} .sources=${this.sources} ?readable=${!editing}></mh-hero-chart>` : nothing}
+      ${this.chart && heroChartsOf(this.hero, this.sources).includes(this.chart) ? html`<mh-hero-chart exportparts=${CHART_PARTS} .ctx=${ctx} .hero=${this.hero} chart=${this.chart} .sources=${this.sources} ?readable=${!editing}></mh-hero-chart>` : nothing}
     </section>`;
   }
 }

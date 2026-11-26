@@ -4,7 +4,10 @@ export interface Rgba { r: number; g: number; b: number; a: number }
 const CLEAR: Rgba = { r: 0, g: 0, b: 0, a: 0 };
 const DEPTH = 12;
 
-const hex = (value: string): Rgba => ({ r: parseInt(value.slice(1, 3), 16) / 255, g: parseInt(value.slice(3, 5), 16) / 255, b: parseInt(value.slice(5, 7), 16) / 255, a: 1 });
+const hex = (value: string): Rgba => ({
+  r: parseInt(value.slice(1, 3), 16) / 255, g: parseInt(value.slice(3, 5), 16) / 255, b: parseInt(value.slice(5, 7), 16) / 255,
+  a: value.length === 9 ? parseInt(value.slice(7, 9), 16) / 255 : 1,
+});
 
 /** Splits on the commas at the top level of a value. */
 function parts(text: string): string[] {
@@ -38,7 +41,7 @@ function mix(a: Rgba, pa: number, b: Rgba, pb: number): Rgba {
 export function coloursOf(value: string, tokens: Record<string, string>, current: Rgba | null = null, depth = 0): Rgba[] | null {
   const text = value.trim();
   if (depth > DEPTH) return null;
-  if (/^#[0-9a-f]{6}$/i.test(text)) return [hex(text)];
+  if (/^#[0-9a-f]{6}(?:[0-9a-f]{2})?$/i.test(text)) return [hex(text)];
   if (text === 'transparent') return [{ ...CLEAR }];
   if (/^currentcolor$/i.test(text)) return current ? [current] : null;
   const reference = /^var\((--[a-z0-9-]+)\)$/i.exec(text);
@@ -160,4 +163,41 @@ export function legibility(tokens: Record<string, string>, pairs: readonly Pair[
     }
     return { id, ratio: Math.round(ratio * 100) / 100, ok: ratio >= min };
   });
+}
+
+/** Every colour a stack of layers can show, from the top down to a white page. Null when one is no colour. */
+function groundsOf(tokens: Record<string, string>, stack: readonly string[]): Rgba[] | null {
+  let grounds: Rgba[] = [{ r: 1, g: 1, b: 1, a: 1 }];
+  for (const name of [...stack].reverse()) {
+    const value = tokens[name];
+    const colours = value === undefined ? null : coloursOf(value, tokens);
+    if (!colours) return null;
+    grounds = grounds.flatMap((ground) => colours.map((colour) => over(colour, ground)));
+  }
+  return grounds;
+}
+
+/** How far apart two colours lie, 0 to 1. */
+const distance = (a: Rgba, b: Rgba): number => Math.hypot(a.r - b.r, a.g - b.g, a.b - b.b) / Math.sqrt(3);
+const DANGER_DISTANCE = 0.04;
+
+/** Whether a tile with an alarm still looks different from a plain tile: danger must always read as danger. */
+export function dangerStandsOut(tokens: Record<string, string>): boolean {
+  const plain = groundsOf(tokens, ['--tile-bg', '--section-bg', '--page-bg']);
+  const alert = groundsOf(tokens, ['--tile-alert-bg', '--section-bg', '--page-bg']);
+  if (!plain || !alert) return false;
+  return plain.every((a) => alert.every((b) => distance(a, b) >= DANGER_DISTANCE));
+}
+
+const BLACK: Rgba = { r: 17 / 255, g: 17 / 255, b: 17 / 255, a: 1 };
+const WHITE: Rgba = { r: 1, g: 1, b: 1, a: 1 };
+
+/** For a place that is hard to read: black or white, whichever stands out most at its worst. Null for an unknown place. */
+export function betterText(tokens: Record<string, string>, id: string): '#111111' | '#ffffff' | null {
+  const pair = TEXT_PAIRS.find((item) => item.id === id);
+  if (!pair) return null;
+  const grounds = groundsOf(tokens, pair.stack);
+  if (!grounds) return null;
+  const worst = (text: Rgba): number => Math.min(...grounds.map((ground) => contrastOf(text, ground)));
+  return worst(BLACK) >= worst(WHITE) ? '#111111' : '#ffffff';
 }

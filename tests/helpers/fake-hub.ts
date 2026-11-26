@@ -51,6 +51,11 @@ export function fakeHub(snapshot: HomeySnapshot = camperSnapshot()) {
     listHistory: vi.fn(async (_known?: readonly HistoryRef[]): Promise<HistorySource[]> => []),
     readSeries: vi.fn(async (_source: HistorySource, _period: HistoryPeriod): Promise<HistorySeries | null> => null),
     readSwitches: vi.fn(async (_source: HistorySource): Promise<HistorySwitches | null> => null),
+    /** What the hub answers for its weather and its energy; an Error is thrown. */
+    weather: { temperature: 3, iconId: 'clear_day', when: '2026-11-25T23:00:00.000Z', city: 'Somewhere', forecast: [], forecastHourly: [] } as unknown,
+    energy: { electricity: { consumedPeriod: 4.8, generatedMeasurePower: [{ t: 1, v: 0 }], devices: { consumed: { d1: 1 } } }, subReports: {} } as unknown,
+    readWeather: vi.fn(async (): Promise<unknown> => { if (hub.weather instanceof Error) throw hub.weather; return structuredClone(hub.weather); }),
+    readEnergy: vi.fn(async (_period: string, _timeZone: string): Promise<unknown> => { if (hub.energy instanceof Error) throw hub.energy; return structuredClone(hub.energy); }),
     readStructure: vi.fn(async (): Promise<{ zones: Record<string, Zone>; flows: Flow[] } | null> => structuredClone(hub.structure ?? { zones: snapshot.zones, flows: snapshot.flows })),
     subscribe: vi.fn((listener: (event: ClientEvent) => void) => { listeners.add(listener); return () => listeners.delete(listener); }),
     disconnect: vi.fn(() => { listeners = new Set(); }),

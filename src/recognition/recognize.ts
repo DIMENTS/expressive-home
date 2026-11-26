@@ -1,3 +1,6 @@
+import { isCar } from '../controls/car';
+import { chargerOf } from '../controls/charger';
+import { vacuumOf, vacuumState } from '../controls/vacuum';
 import type { Capability, Device } from '../homey/types';
 import { ALARM_ACTIVITY, ALARM_DANGER, BATTERY, LOW_BATTERY_PERCENT, MEANINGS, MINOR_CAPABILITIES, type Meaning } from './table';
 
@@ -11,6 +14,8 @@ export function firstByBaseId(device: Device, baseId: string): Capability | unde
 
 /** A home battery is a battery-class device, an energy-flagged one, or one with an app state of charge. */
 export function isHomeBattery(device: Device): boolean {
+  // a car has a state of charge too
+  if (isCar(device)) return false;
   return device.energy.homeBattery || device.deviceClass === 'battery' || firstByBaseId(device, BATTERY.homeSoc) !== undefined;
 }
 
@@ -56,9 +61,15 @@ export function mainValues(device: Device): Capability[] {
   return all(device).filter((c) => c.type === 'number' && c.getable && !isMinor(c.baseId));
 }
 
-/** A battery-powered device is low on alarm_battery or a measure_battery below the threshold. A home battery never is. */
+/**
+ * A battery-powered device is low on alarm_battery or a measure_battery below the threshold. A home battery and a car never are:
+ * theirs is a charge; a vacuum cleaner is not while it is in its dock.
+ */
 export function hasLowBattery(device: Device): boolean {
-  if (isHomeBattery(device)) return false;
+  if (isHomeBattery(device) || isCar(device)) return false;
+  const vacuum = vacuumOf(device);
+  const stand = vacuum ? vacuumState(vacuum).stand : null;
+  if (stand === 'docked' || stand === 'charging') return false;
   if (firstByBaseId(device, BATTERY.alarm)?.value === true) return true;
   const level = firstByBaseId(device, BATTERY.level)?.value;
   return typeof level === 'number' && level < LOW_BATTERY_PERCENT;
@@ -77,7 +88,13 @@ export function alarmKind(baseId: string): AlarmKind {
   return 'status';
 }
 
+/** Whether an alarm of this device is danger: a charge point or a car names its own states this way ("car_connected"). */
+export function isDangerAlarm(device: Device, cap: Capability): boolean {
+  if (alarmKind(cap.baseId) !== 'danger') return false;
+  return !(cap.baseId === 'alarm_generic' && cap.id !== cap.baseId && (isCar(device) || chargerOf(device) !== null));
+}
+
 /** The capabilities of the danger kind that are true now. */
 export function dangerAlarms(device: Device): Capability[] {
-  return all(device).filter((c) => alarmKind(c.baseId) === 'danger' && c.value === true);
+  return all(device).filter((c) => c.value === true && isDangerAlarm(device, c));
 }

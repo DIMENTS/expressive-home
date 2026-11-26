@@ -7,7 +7,8 @@ import type { Life, LifeHub } from './mock-client';
 /** In Dutch and in English. */
 type Words = readonly [nl: string, en: string];
 interface RawCap { id: string; title: Words; type: 'boolean' | 'number' | 'enum' | 'string'; value: CapabilityValue | Words; getable?: boolean; setable?: boolean; units?: string; min?: number; max?: number; step?: number; decimals?: number; when?: readonly [yes: Words, no: Words]; options?: readonly (readonly [id: string, title: Words])[] }
-interface RawDevice { id: string; room: string; name: Words; class: string; caps: RawCap[]; energy?: { cumulative?: boolean; homeBattery?: boolean } }
+/** `virtual`: what a plug says it is. */
+interface RawDevice { id: string; room: string; name: Words; class: string; virtual?: string; caps: RawCap[]; energy?: { cumulative?: boolean; homeBattery?: boolean; evCharger?: boolean; electricCar?: boolean; meterPowerImportedCapability?: string } }
 
 const ONOFF: Words = ['Aan/uit', 'On/off'];
 const onoff = (value: boolean): RawCap => ({ id: 'onoff', title: ONOFF, type: 'boolean', setable: true, value });
@@ -33,6 +34,11 @@ const mute = (): RawCap => ({ id: 'volume_mute', title: ['Gedempt', 'Muted'], ty
 const playing = (value: boolean): RawCap => ({ id: 'speaker_playing', title: ['Speelt', 'Playing'], type: 'boolean', setable: true, value });
 const text = (id: string, title: Words, value: Words | string): RawCap => ({ id, title, type: 'string', value });
 const skip = (): RawCap[] => [press('speaker_prev', ['Vorige', 'Previous']), press('speaker_next', ['Volgende', 'Next'])];
+const readOnly = (cap: RawCap): RawCap => ({ ...cap, setable: false });
+const STATE: Words = ['Stand', 'State'];
+const VACUUM: readonly (readonly [string, Words])[] = [['cleaning', ['Zuigt', 'Cleaning']], ['spot_cleaning', ['Zuigt een plek', 'Spot cleaning']], ['docked', ['In het dock', 'Docked']], ['charging', ['Laadt op', 'Charging']], ['stopped', ['Gestopt', 'Stopped']]];
+const RUNS: readonly (readonly [string, Words])[] = [['stopped', ['Niet bezig', 'Not running']], ['running', ['Bezig', 'Running']], ['paused', ['Gepauzeerd', 'Paused']], ['error', ['Storing', 'Fault']]];
+const PLUGGED: readonly (readonly [string, Words])[] = [['plugged_in_charging', ['Laadt', 'Charging']], ['plugged_in_discharging', ['Levert terug', 'Discharging']], ['plugged_in_paused', ['Gepauzeerd', 'Paused']], ['plugged_in', ['Aangesloten', 'Plugged in']], ['plugged_out', ['Niet aangesloten', 'Plugged out']]];
 
 /** What the speaker plays, one after the other: title, artist, album and seconds. */
 const SONGS: readonly { title: Words; artist: Words; album: Words; seconds: number }[] = [
@@ -69,13 +75,17 @@ const DEVICES: readonly RawDevice[] = [
   { id: 'living-speaker', room: 'living', name: ['Muziek', 'Music'], class: 'speaker', caps: [playing(true), ...skip(), { id: 'speaker_shuffle', title: ['Willekeurig', 'Shuffle'], type: 'boolean', setable: true, value: false }, choice('speaker_repeat', ['Herhalen', 'Repeat'], [['none', ['Niet', 'Off']], ['track', ['Nummer', 'Track']], ['playlist', ['Afspeellijst', 'Playlist']]], 'none'), text('speaker_track', ['Nummer', 'Track'], SONGS[0]!.title), text('speaker_artist', ['Artiest', 'Artist'], SONGS[0]!.artist), text('speaker_album', ['Album', 'Album'], SONGS[0]!.album), reading('speaker_duration', ['Duur', 'Duration'], 's', SONGS[0]!.seconds, 0), reading('speaker_position', ['Plaats', 'Place'], 's', 94, 0), volume(0.32), mute()] },
   { id: 'living-motion', room: 'living', name: ['Bewegingssensor', 'Motion sensor'], class: 'sensor', caps: [motion(true), temperature(20.8), reading('measure_luminance', ['Lichtsterkte', 'Luminance'], 'lx', 210, 0), battery(72)] },
   { id: 'living-plug', room: 'living', name: ['Tv-meubel', 'TV cabinet'], class: 'socket', caps: [onoff(true), power(74)] },
+  { id: 'living-robot', room: 'living', name: ['Robotstofzuiger', 'Robot vacuum'], class: 'vacuumcleaner', caps: [choice('vacuumcleaner_state', STATE, VACUUM, 'docked'),
+    choice('vacuumcleaner_job_mode', ['Zuigkracht', 'Suction'], [['normal', ['Normaal', 'Normal']], ['high', ['Hoog', 'High']], ['turbo', ['Turbo', 'Turbo']], ['mop', ['Dweilen', 'Mop']]], 'normal'),
+    { id: 'docked', title: ['In het dock', 'Docked'], type: 'boolean', value: true, when: [['Ja', 'Yes'], ['Nee', 'No']] }, battery(100),
+    alarm('alarm_bin_full', ['Stofbak vol', 'Bin full'], [['Vol', 'Full'], ['Niet vol', 'Not full']]), alarm('alarm_stuck', ['Vast', 'Stuck'], [['Vast', 'Stuck'], ['Vrij', 'Free']])] },
   // the kitchen
   { id: 'kitchen-ceiling', room: 'kitchen', name: ['Keukenlamp', 'Kitchen lamp'], class: 'light', caps: [onoff(true), dim(1)] },
   { id: 'kitchen-counter', room: 'kitchen', name: ['Werkblad', 'Worktop'], class: 'light', caps: [onoff(false), dim(0.6)] },
   { id: 'kitchen-speaker', room: 'kitchen', name: ['Keukenradio', 'Kitchen radio'], class: 'speaker', caps: [playing(false), ...skip(), volume(0.2), mute()] },
   { id: 'kitchen-smoke', room: 'kitchen', name: ['Rookmelder', 'Smoke alarm'], class: 'sensor', caps: [alarm('alarm_smoke', ['Rookalarm', 'Smoke alarm'], [['Rook', 'Smoke'], ['Geen rook', 'No smoke']]), battery(91)] },
   { id: 'kitchen-fridge', room: 'kitchen', name: ['Koelkast', 'Fridge'], class: 'fridge', caps: [target(4, 2, 8, 1), temperature(4.2), contact()] },
-  { id: 'kitchen-dishwasher', room: 'kitchen', name: ['Vaatwasser', 'Dishwasher'], class: 'socket', caps: [onoff(true), power(3)] },
+  { id: 'kitchen-dishwasher', room: 'kitchen', name: ['Vaatwasser', 'Dishwasher'], class: 'socket', virtual: 'dishwasher', caps: [onoff(true), power(3)] },
   { id: 'kitchen-leak', room: 'kitchen', name: ['Lekmelder', 'Leak sensor'], class: 'sensor', caps: [alarm('alarm_water', ['Wateralarm', 'Water alarm'], [['Water', 'Water'], ['Droog', 'Dry']]), battery(13)] },
   // the hall
   { id: 'hall-lamp', room: 'hall', name: ['Hanglamp', 'Pendant lamp'], class: 'light', caps: [onoff(false), dim(0.5)] },
@@ -89,6 +99,7 @@ const DEVICES: readonly RawDevice[] = [
   { id: 'bedroom-valve', room: 'bedroom', name: ['Radiator', 'Radiator'], class: 'thermostat', caps: [target(17, 4, 28), battery(47)] },
   { id: 'bedroom-climate', room: 'bedroom', name: ['Klimaatsensor', 'Climate sensor'], class: 'sensor', caps: [temperature(17.6), humidity(52), battery(80)] },
   { id: 'bedroom-window', room: 'bedroom', name: ['Raam', 'Window'], class: 'sensor', caps: [contact(true), battery(66)] },
+  { id: 'bedroom-fan', room: 'bedroom', name: ['Ventilator', 'Fan'], class: 'fan', caps: [onoff(true), part('fan_speed', ['Snelheid', 'Speed'], 0.4), { id: 'oscillating', title: ['Zwenken', 'Oscillating'], type: 'boolean', setable: true, value: true }] },
   { id: 'bedroom-tv', room: 'bedroom', name: ['Slaapkamer-tv', 'Bedroom TV'], class: 'tv', caps: [onoff(false), press('volume_up', ['Harder', 'Louder']), press('volume_down', ['Zachter', 'Softer']), press('channel_up', ['Volgende zender', 'Next channel']), press('channel_down', ['Vorige zender', 'Previous channel'])] },
   // the study
   { id: 'study-desk', room: 'study', name: ['Bureaulamp', 'Desk lamp'], class: 'light', caps: [onoff(false), dim(0.9)] },
@@ -100,11 +111,20 @@ const DEVICES: readonly RawDevice[] = [
   { id: 'bathroom-zone', room: 'bathroom', name: ['Vloerverwarming', 'Underfloor heating'], class: 'thermostat', caps: [target(22), temperature(22.1), { id: 'onoff', title: ONOFF, type: 'boolean', setable: true, value: true }] },
   { id: 'bathroom-climate', room: 'bathroom', name: ['Vochtsensor', 'Humidity sensor'], class: 'sensor', caps: [humidity(63), temperature(22.3), battery(55)] },
   { id: 'bathroom-fan', room: 'bathroom', name: ['Ventilatie', 'Ventilation'], class: 'fan', caps: [onoff(true), power(9)] },
+  { id: 'bathroom-washer', room: 'bathroom', name: ['Wasmachine', 'Washing machine'], class: 'washer', caps: [readOnly(choice('operational_state', STATE, RUNS, 'running')),
+    { id: 'progress', title: ['Voortgang', 'Progress'], type: 'number', units: '%', min: 0, max: 100, decimals: 0, value: 60 },
+    readOnly(choice('laundry_washer_program', ['Programma', 'Programme'], [['normal', ['Katoen 40°', 'Cotton 40°']], ['quick', ['Snel', 'Quick']], ['whites', ['Witte was', 'Whites']]], 'normal')),
+    reading('remaining_time', ['Resterende tijd', 'Time remaining'], 'min', 42, 0), onoff(true), power(450)] },
   // the garage
   { id: 'garage-door', room: 'garage', name: ['Garagedeur', 'Garage door'], class: 'garagedoor', caps: [{ id: 'garagedoor_closed', title: ['Gesloten', 'Closed'], type: 'boolean', setable: true, value: true }] },
   { id: 'garage-solar', room: 'garage', name: ['Zonnepanelen', 'Solar panels'], class: 'solarpanel', caps: [power(1840), reading('meter_power', ['Energie', 'Energy'], 'kWh', 5120.3)] },
   { id: 'garage-battery', room: 'garage', name: ['Thuisaccu', 'Home battery'], class: 'battery', energy: { homeBattery: true }, caps: [battery(76), power(620)] },
-  { id: 'garage-charger', room: 'garage', name: ['Laadpaal', 'Charge point'], class: 'evcharger', caps: [{ id: 'evcharger_charging', title: ['Laadt op', 'Charging'], type: 'boolean', setable: true, value: false }, power(0), reading('meter_power', ['Energie', 'Energy'], 'kWh', 913.4)] },
+  { id: 'garage-charger', room: 'garage', name: ['Laadpaal', 'Charge point'], class: 'evcharger', energy: { evCharger: true, meterPowerImportedCapability: 'meter_power' }, caps: [
+    { id: 'evcharger_charging', title: ['Laadt op', 'Charging'], type: 'boolean', setable: true, value: false }, readOnly(choice('evcharger_charging_state', STATE, PLUGGED, 'plugged_in')), power(0),
+    reading('meter_power.session', ['Deze keer', 'This time'], 'kWh', 0), reading('meter_power', ['Energie', 'Energy'], 'kWh', 913.4),
+    { id: 'target_power', title: ['Laadvermogen', 'Charging power'], type: 'number', setable: true, units: 'W', min: 1400, max: 11000, step: 100, decimals: 0, value: 11000 }] },
+  { id: 'garage-car', room: 'garage', name: ['Auto', 'Car'], class: 'car', energy: { electricCar: true }, caps: [battery(64), reading('measure_distance.range', ['Actieradius', 'Range'], 'km', 240, 0),
+    readOnly(choice('ev_charging_state', ['Laden', 'Charging'], PLUGGED, 'plugged_in')), locked(true), target(20, 15, 28, 0.5), temperature(9)] },
   // the garden
   { id: 'garden-awning', room: 'garden', name: ['Zonwering', 'Awning'], class: 'sunshade', caps: [coverState(), coverSet(1)] },
   { id: 'garden-lights', room: 'garden', name: ['Tuinverlichting', 'Garden lights'], class: 'light', caps: [onoff(false)] },
@@ -127,7 +147,7 @@ export function houseRaw(language: Language): RawHomey {
   return {
     homeyId: 'example-house', softwareVersion: null, scopes: ['homey'],
     devices: Object.fromEntries(DEVICES.map((d) => [d.id, {
-      id: d.id, name: say(d.name), zone: d.room, class: d.class, driverId: 'homey:app:example:device', available: true,
+      id: d.id, name: say(d.name), zone: d.room, class: d.class, ...(d.virtual ? { virtualClass: d.virtual } : {}), driverId: 'homey:app:example:device', available: true,
       capabilities: d.caps.map((c) => c.id), capabilitiesObj: Object.fromEntries(d.caps.map((c) => [c.id, cap(c)])), energyObj: d.energy ?? {},
     }])),
     zones: Object.fromEntries(ROOMS.map((room, order) => [room.id, { id: room.id, name: say(room.name), parent: room.parent, icon: room.icon, order }])),
@@ -148,6 +168,54 @@ const SECOND_TICKS = 1000 / LIFE_MS;
 const WARM_TICKS = 10;
 
 const round = (value: number, digits: number): number => Math.round(value * 10 ** digits) / 10 ** digits;
+/** How fast the robot vacuum runs down and charges, and the washing machine goes on: a percent this often. */
+const ROBOT_TICKS = 4;
+const WASH_TICKS = 2;
+/** What the charge point gives, in W, and how much of the battery of the car that is a tick. */
+const CHARGE_W = 11_040;
+const CHARGE_TICKS = 6;
+/** How far the car goes on a percent of its battery, in km. */
+const KM_PER_PERCENT = 3.75;
+
+/** The robot vacuum runs down while it cleans and charges in its dock; the washing machine goes on; the charge point fills the car. */
+function live(hub: LifeHub, device: Device, ticks: number): void {
+  const cap = (id: string) => device.capabilities[id];
+  const num = (id: string): number => (typeof cap(id)?.value === 'number' ? cap(id)!.value as number : 0);
+  const robot = cap('vacuumcleaner_state')?.value;
+  if (ticks % ROBOT_TICKS === 0 && (robot === 'cleaning' || robot === 'spot_cleaning')) {
+    const left = Math.max(0, num('measure_battery') - 1);
+    hub.report(device.id, 'measure_battery', left);
+    if (left <= 15) { hub.report(device.id, 'vacuumcleaner_state', 'charging'); hub.report(device.id, 'docked', true); }
+  }
+  if (ticks % ROBOT_TICKS === 0 && robot === 'charging') {
+    const full = Math.min(100, num('measure_battery') + 2);
+    hub.report(device.id, 'measure_battery', full);
+    if (full === 100) hub.report(device.id, 'vacuumcleaner_state', 'docked');
+  }
+  if (ticks % WASH_TICKS === 0 && cap('operational_state')?.value === 'running') {
+    const done = Math.min(100, num('progress') + 1);
+    hub.report(device.id, 'progress', done);
+    hub.report(device.id, 'remaining_time', Math.max(0, Math.round((100 - done) * 42 / 40)));
+    if (done === 100) { hub.report(device.id, 'operational_state', 'stopped'); hub.report(device.id, 'measure_power', 1); }
+  }
+  if (ticks % CHARGE_TICKS === 0 && cap('evcharger_charging')?.value === true) {
+    hub.report(device.id, 'meter_power.session', round(num('meter_power.session') + 0.1, 2));
+    hub.report(device.id, 'meter_power', round(num('meter_power') + 0.1, 1));
+    for (const car of Object.values(hub.devices)) {
+      if (car.capabilities['ev_charging_state'] === undefined) continue;
+      const now = typeof car.capabilities['measure_battery']?.value === 'number' ? car.capabilities['measure_battery'].value : 0;
+      const more = Math.min(100, now + 1);
+      hub.report(car.id, 'measure_battery', more);
+      if (car.capabilities['measure_distance.range']) hub.report(car.id, 'measure_distance.range', Math.round(more * KM_PER_PERCENT));
+      if (more < 100) continue;
+      // full: it stops by itself
+      hub.report(device.id, 'evcharger_charging', false);
+      hub.report(device.id, 'evcharger_charging_state', 'plugged_in');
+      hub.report(device.id, 'measure_power', 0);
+      hub.report(car.id, 'ev_charging_state', 'plugged_in');
+    }
+  }
+}
 
 /** How the example house answers: a lock takes a moment, a curtain moves bit by bit, music goes on. */
 export function houseLife(): Life {
@@ -202,6 +270,27 @@ export function houseLife(): Life {
           if (typeof at === 'number' && at !== value) hub.report(deviceId, 'windowcoverings_state', value > at ? 'up' : 'down');
           return true;
         }
+        case 'vacuumcleaner_state': {
+          // in the dock it charges
+          hub.report(deviceId, 'docked', value === 'docked');
+          if (value === 'docked') { hub.report(deviceId, 'vacuumcleaner_state', 'charging'); return true; }
+          return false;
+        }
+        case 'evcharger_charging': {
+          const to = value === true ? 'plugged_in_charging' : 'plugged_in';
+          hub.report(deviceId, 'evcharger_charging_state', to);
+          const may = device?.capabilities['target_power']?.value;
+          hub.report(deviceId, 'measure_power', value === true ? Math.min(CHARGE_W, typeof may === 'number' ? may : CHARGE_W) : 0);
+          for (const car of Object.values(hub.devices)) if (has(car, 'ev_charging_state')) hub.report(car.id, 'ev_charging_state', to);
+          return false;
+        }
+        case 'onoff': {
+          // white goods that are switched off stop; switched on they begin a program again
+          if (!has(device, 'operational_state')) return false;
+          if (value === false) { hub.report(deviceId, 'operational_state', 'stopped'); hub.report(deviceId, 'measure_power', 0); }
+          else { hub.report(deviceId, 'operational_state', 'running'); hub.report(deviceId, 'progress', 0); hub.report(deviceId, 'remaining_time', 42); hub.report(deviceId, 'measure_power', 450); }
+          return false;
+        }
         case 'speaker_next': if (has(device, 'speaker_track')) play(hub, deviceId, 1); return true;
         case 'speaker_prev': if (has(device, 'speaker_track')) play(hub, deviceId, -1); return true;
         default: return false;
@@ -224,8 +313,9 @@ export function houseLife(): Life {
           if (typeof length === 'number' && position + 1 >= length) play(hub, device.id, 1);
           else hub.report(device.id, 'speaker_position', position + 1);
         }
+        live(hub, device, ticks);
         const [measured, wanted] = [cap('measure_temperature')?.value, cap('target_temperature')?.value];
-        if (ticks % WARM_TICKS === 0 && device.deviceClass !== 'fridge' && typeof measured === 'number' && typeof wanted === 'number' && cap('onoff')?.value !== false && cap('thermostat_mode')?.value !== 'off' && Math.abs(wanted - measured) >= 0.1) {
+        if (ticks % WARM_TICKS === 0 && device.deviceClass !== 'fridge' && device.deviceClass !== 'car' && typeof measured === 'number' && typeof wanted === 'number' && cap('onoff')?.value !== false && cap('thermostat_mode')?.value !== 'off' && Math.abs(wanted - measured) >= 0.1) {
           hub.report(device.id, 'measure_temperature', round(measured + Math.sign(wanted - measured) * 0.1, 1));
         }
       }

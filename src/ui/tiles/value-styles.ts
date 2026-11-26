@@ -23,5 +23,5 @@ export const valueStyles = css`
 /** A value with its unit apart, so the unit can be set smaller. */
 export function valueTemplate(value: Formatted | null): TemplateResult | typeof nothing {
   if (!value) return nothing;
-  return html`<span class="value">${value.text}${value.unit ? html`<span class="unit">${value.unit}</span>` : nothing}</span>`;
+  return html`<span class="value" part="tile-value">${value.text}${value.unit ? html`<span class="unit">${value.unit}</span>` : nothing}</span>`;
 }

@@ -80,19 +80,19 @@ export class MhHeader extends LitElement {
     const t = this.ctx.t;
     switch (chip.kind) {
       case 'route':
-        if (chip.connecting) return html`<mh-chip icon="progress_activity" spinning>${t('chip.connecting')}</mh-chip>`;
-        if (chip.route === null) return html`<mh-chip icon="cloud_off" tone="alert">${t('chip.offline')}</mh-chip>`;
+        if (chip.connecting) return html`<mh-chip part="chip" icon="progress_activity" spinning>${t('chip.connecting')}</mh-chip>`;
+        if (chip.route === null) return html`<mh-chip part="chip" icon="cloud_off" tone="alert">${t('chip.offline')}</mh-chip>`;
         return chip.route === 'local'
-          ? html`<mh-chip icon="home">${t('chip.local')}</mh-chip>`
-          : html`<mh-chip icon="cloud">${t('chip.cloud')}</mh-chip>`;
+          ? html`<mh-chip part="chip" icon="home">${t('chip.local')}</mh-chip>`
+          : html`<mh-chip part="chip" icon="cloud">${t('chip.cloud')}</mh-chip>`;
       case 'alarm':
-        return html`<mh-chip icon="warning" tone="alert" interactive @click=${() => this.ctx.actions.openDevice(chip.deviceId)}>${chip.text}</mh-chip>`;
+        return html`<mh-chip part="chip alert" icon="warning" tone="alert" interactive @click=${() => this.ctx.actions.openDevice(chip.deviceId)}>${chip.text}</mh-chip>`;
       case 'more':
-        return html`<mh-chip tone="alert">${t('chip.more', { n: chip.count })}</mh-chip>`;
+        return html`<mh-chip part="chip alert" tone="alert">${t('chip.more', { n: chip.count })}</mh-chip>`;
       case 'readonly':
-        return html`<mh-chip icon="visibility" interactive @click=${() => this.navigate()}>${t('chip.readonly')}</mh-chip>`;
+        return html`<mh-chip part="chip" icon="visibility" interactive @click=${() => this.navigate()}>${t('chip.readonly')}</mh-chip>`;
       case 'demo':
-        return html`<mh-chip icon="science" interactive @click=${() => this.navigate()}>${t('chip.demo')}</mh-chip>`;
+        return html`<mh-chip part="chip" icon="science" interactive @click=${() => this.navigate()}>${t('chip.demo')}</mh-chip>`;
     }
   }
 
@@ -104,11 +104,11 @@ export class MhHeader extends LitElement {
   }
 
   override render() {
-    const title = html`<div><p>${dateLine(this.now, this.ctx.t)}</p><h1>${this.ctx.t(greetingKey(this.now))}</h1></div>`;
-    if (!this.phone) return html`<header>${title}<div class="chips">${this.chips.map((chip) => this.chip(chip))}</div></header>`;
+    const title = html`<div><p part="date">${dateLine(this.now, this.ctx.t)}</p><h1 part="greeting">${this.ctx.t(greetingKey(this.now))}</h1></div>`;
+    if (!this.phone) return html`<header part="header">${title}<div class="chips">${this.chips.map((chip) => this.chip(chip))}</div></header>`;
     const route = this.routeIcon();
     const rest = route ? this.chips.filter((chip) => chip.kind !== 'route') : this.chips;
-    return html`<header>${title}${route ? html`<mh-chip .iconOnly=${true} icon=${route.icon} label=${route.label}></mh-chip>` : nothing}</header>
+    return html`<header part="header">${title}${route ? html`<mh-chip part="chip" .iconOnly=${true} icon=${route.icon} label=${route.label}></mh-chip>` : nothing}</header>
       ${rest.length > 0 ? html`<div class="chips">${rest.map((chip) => this.chip(chip))}</div>` : nothing}`;
   }
 }

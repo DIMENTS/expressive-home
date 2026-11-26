@@ -14,6 +14,15 @@ const deepActive = (): Element | null => {
   return active;
 };
 
+/** What had the focus is taken away: the focus falls back to the page. */
+function loseFocus(): void {
+  const gone = document.createElement('button');
+  document.body.append(gone);
+  gone.focus();
+  gone.remove();
+  expect(document.activeElement === null || document.activeElement === document.body).toBe(true);
+}
+
 async function openSheet(): Promise<MhSheet> {
   const sheet = await mount<MhSheet>('mh-sheet', { heading: 'Plafond', subheading: 'Woonkamer', icon: 'lightbulb' },
     '<mh-switch label="Aan"></mh-switch><mh-button variant="tonal">Uitvoeren</mh-button>');
@@ -135,4 +144,73 @@ test('in a wide window it cannot be swept away', async () => {
   point('pointerup', 200);
   expect(closes).toHaveLength(0);
   vi.unstubAllGlobals();
+});
+
+test('when what had the focus is taken away, Escape still closes the sheet and Tab goes into it', async () => {
+  const sheet = await openSheet();
+  const closes = record(sheet, 'close');
+  const button = sheet.querySelector<HTMLElement>('mh-button')!;
+  button.focus();
+  // a list drawn anew takes away what was clicked: the focus falls back to the page
+  button.remove();
+  (document.activeElement as HTMLElement | null)?.blur();
+  expect(document.activeElement === null || document.activeElement === document.body).toBe(true);
+  key(document.body, 'Escape');
+  expect(closes).toHaveLength(1);
+  sheet.querySelector('mh-switch')!.remove();
+  (document.activeElement as HTMLElement | null)?.blur();
+  const tab = key(document.body, 'Tab');
+  expect(tab.defaultPrevented).toBe(true);
+  // through the shadow roots up to the sheet
+  let at: Node | null = deepActive();
+  while (at && at !== sheet) at = at.parentNode ?? (at instanceof ShadowRoot ? at.host : null);
+  expect(at).toBe(sheet);
+});
+
+test('a sheet that is closed does nothing with keys on the page', async () => {
+  const sheet = await openSheet();
+  const closes = record(sheet, 'close');
+  sheet.open = false;
+  await settle(sheet);
+  (document.activeElement as HTMLElement | null)?.blur();
+  expect(key(document.body, 'Escape').defaultPrevented).toBe(false);
+  expect(key(document.body, 'Tab').defaultPrevented).toBe(false);
+  expect(closes).toHaveLength(0);
+});
+
+test('a sheet that is open but hidden, as on a narrow window, takes no keys from the page', async () => {
+  const wrapper = document.createElement('div');
+  document.body.append(wrapper);
+  const sheet = await mount<MhSheet>('mh-sheet', { heading: 'Plafond' }, '<mh-button>Iets</mh-button>');
+  wrapper.append(sheet);
+  sheet.open = true;
+  await settle(sheet);
+  const closes = record(sheet, 'close');
+  wrapper.hidden = true;
+  loseFocus();
+  expect(key(document.body, 'Tab').defaultPrevented).toBe(false);
+  expect(key(document.body, 'Escape').defaultPrevented).toBe(false);
+  expect(closes).toHaveLength(0);
+});
+
+test('opened, closed and opened again in one go, a sheet leaves nothing behind once it is closed', async () => {
+  const sheet = await openSheet();
+  sheet.open = false;
+  sheet.open = true;
+  await settle(sheet);
+  sheet.open = false;
+  await settle(sheet);
+  loseFocus();
+  expect(key(document.body, 'Tab').defaultPrevented).toBe(false);
+});
+
+test('a sheet taken off the page takes no keys from it', async () => {
+  const sheet = await openSheet();
+  const parent = sheet.parentNode!;
+  const holder = document.createElement('div');
+  holder.append(sheet);
+  expect(sheet.isConnected).toBe(false);
+  loseFocus();
+  expect(key(document.body, 'Tab').defaultPrevented).toBe(false);
+  parent.append(sheet);
 });

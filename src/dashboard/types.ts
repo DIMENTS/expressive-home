@@ -1,12 +1,12 @@
-export type SectionKind = 'lights' | 'switches' | 'climate' | 'covers' | 'media' | 'water' | 'security' | 'other' | 'flows';
-export const SECTION_ORDER: SectionKind[] = ['lights', 'switches', 'climate', 'covers', 'media', 'water', 'security', 'other', 'flows'];
+export type SectionKind = 'lights' | 'switches' | 'climate' | 'covers' | 'media' | 'household' | 'vehicles' | 'water' | 'security' | 'other' | 'flows';
+export const SECTION_ORDER: SectionKind[] = ['lights', 'switches', 'climate', 'covers', 'media', 'household', 'vehicles', 'water', 'security', 'other', 'flows'];
 export interface CapRef { deviceId: string; capabilityId: string }
 export type TileSize = 'single' | 'wide';
 /** What every tile can carry: an own name and icon; absent or null follows the hub and the app. */
 type TileLook = { label?: string | null; icon?: string | null };
 /** A tile of a device of a house: it looks up what the device can do every time, so it holds only the device. */
-export type HouseKind = 'climate' | 'cover' | 'media' | 'guard';
-export const HOUSE_KINDS: readonly HouseKind[] = ['climate', 'cover', 'media', 'guard'];
+export type HouseKind = 'climate' | 'cover' | 'media' | 'guard' | 'fan' | 'vacuum' | 'appliance' | 'charger' | 'car';
+export const HOUSE_KINDS: readonly HouseKind[] = ['climate', 'cover', 'media', 'guard', 'fan', 'vacuum', 'appliance', 'charger', 'car'];
 export type TileSpec =
   | TileLook & { kind: 'light'; id: string; deviceId: string; size: TileSize; onoffCapabilityId: string | null; dimCapabilityId: string }
   | TileLook & { kind: 'switch'; id: string; deviceId: string; size: TileSize; onoffCapabilityId: string; detailCapabilityId: string | null }

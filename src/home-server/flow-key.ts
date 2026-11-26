@@ -109,6 +109,14 @@ export function createFlowKey(deps: FlowKeyDeps) {
       if (!used || used.refused || !used.wide) return null;
       return deps.request(method, path, used.key, body);
     },
+    /**
+     * Something made with the key that may do everything (a live connection with the hub itself), made here so the key
+     * does not go anywhere else; null when there is no such key.
+     */
+    wideSession<T>(make: (key: string) => T): T | null {
+      const used = kept;
+      return used && !used.refused && used.wide ? make(used.key) : null;
+    },
     /** Hears when the state may have changed. */
     subscribe(listener: () => void): () => void {
       listeners.add(listener);

@@ -151,3 +151,23 @@ test('while there is nothing to look at, there are no buttons for it', async () 
   const s = await open({ canPreview: false });
   expect([s.button('Rustbeeld bekijken'), s.button('Nacht bekijken'), s.text().includes('Zo ziet het eruit')]).toEqual([undefined, undefined, false]);
 });
+
+test('with Fully Kiosk: how bright the rest screen is and what the night does to the screen', async () => {
+  const s = await open({ fully: true });
+  expect(s.headings()).toEqual(['Rustbeeld', 'Nacht', 'Scherm', 'Temperatuur', 'Wat aandacht vraagt']);
+  const rest = s.named('mh-choice-group', 'Helderheid van het rustbeeld')!;
+  const night = s.named('mh-choice-group', 'Het scherm in de nacht')!;
+  expect([rest.options.map((o) => o.label), rest.value]).toEqual([['Niet dimmen', '50%', '25%', '10%'], 'none']);
+  expect([night.options.map((o) => o.label), night.value]).toEqual([['Heel zwak', 'Niet dimmen'], 'none']);
+  s.change(rest, { value: '10' });
+  s.change(night, { value: 'dim' });
+  s.change(night, { value: 'off' });
+  expect(s.changes.map((c) => c.wall!.screen)).toEqual([{ rest: 10, night: 'none' }, { rest: 'none', night: 'dim' }]);
+  expect(s.text()).not.toContain('Enable JavaScript Interface');
+});
+
+test('without Fully Kiosk: one sentence on how the screen could be dimmed, and no choices for it', async () => {
+  const s = await open();
+  expect(s.headings()).not.toContain('Scherm');
+  expect(s.text()).toContain('Met Fully Kiosk op een Android-tablet kan het dashboard het scherm echt dimmen. Zet daarvoor in Fully onder Advanced Web Settings “Enable JavaScript Interface” aan.');
+});

@@ -8,6 +8,12 @@ import './own-widget';
 import { lampOn } from '../../rooms/rooms';
 import { daysUntil, gaugeShare, groupIds } from '../../widgets/more';
 import { formatValue } from '../../i18n/format';
+import type { ReadState } from '../../widgets/live-reads';
+import type { Weather } from '../../widgets/weather';
+import type { EnergyPeriod } from '../../widgets/energy';
+import { weatherFace, weatherStyles } from './weather-face';
+import { energyFace, energyStyles } from './energy-face';
+import type { EnergyReport } from '../../widgets/energy';
 
 /** The length of the arc of the gauge, in its own units: half a circle of radius 64. */
 const ARC = Math.PI * 64;
@@ -19,6 +25,10 @@ import { deviceTileStyles, TileElement } from './tile-base';
 import '../parts/icon';
 
 const text = (value: unknown): string => (typeof value === 'string' ? value : '');
+/** The period an energy widget shows; today unless another is chosen. */
+const periodOf = (spec: WidgetTileSpec): EnergyPeriod => (spec.settings['period'] === 'week' || spec.settings['period'] === 'month' ? spec.settings['period'] : 'day');
+/** The widgets that read something of the hub, and the setting that gives them a second row. */
+const SECOND_ROW: Record<string, string> = { weather: 'days', energy: 'devices' };
 
 /**
  * A widget on a dashboard: the clock, a note, a link to another dashboard, an own widget or one of another app.
@@ -35,7 +45,7 @@ export class MhWidgetTile extends TileElement<WidgetTileSpec> {
     this.now = new Date();
   }
 
-  static override styles: CSSResultGroup = [TileElement.styles, deviceTileStyles, css`
+  static override styles: CSSResultGroup = [TileElement.styles, deviceTileStyles, weatherStyles, energyStyles, css`
     :host([hidden]) { display: none; }
     .tile { cursor: default; }
     :host([editing]) .tile { cursor: grab; }
@@ -98,8 +108,27 @@ export class MhWidgetTile extends TileElement<WidgetTileSpec> {
     return { seconds: this.spec.settings['seconds'] === true, date: this.spec.settings['date'] !== false };
   }
 
+  /** What the widget shows of the hub (the weather, a period of energy), and how to stop listening to it. */
+  protected read: ReadState<unknown> | null = null;
+  private watching: { key: string; stop(): void } | null = null;
+
+  /** Listens to what the widget shows of the hub while it is on the page; another period is another source. */
+  private watch(): void {
+    const key = !this.isConnected || !this.spec || !this.ctx ? null
+      : this.spec.widget === 'weather' ? 'weather' : this.spec.widget === 'energy' ? `energy:${periodOf(this.spec)}` : null;
+    if (this.watching?.key === key) return;
+    this.watching?.stop();
+    this.watching = null;
+    this.read = null;
+    const source = key === null ? undefined : key === 'weather' ? this.ctx.widgets?.weather : this.ctx.widgets?.energy?.(periodOf(this.spec));
+    if (!key || !source) return;
+    const stop = (source as { listen(listener: (state: ReadState<unknown>) => void): () => void }).listen((state) => { this.read = state; this.requestUpdate(); });
+    this.watching = { key, stop };
+  }
+
   override connectedCallback(): void {
     super.connectedCallback();
+    this.watch();
     this.tick();
     this.addEventListener('widget-height', this.onHeight);
   }
@@ -128,6 +157,8 @@ export class MhWidgetTile extends TileElement<WidgetTileSpec> {
   override disconnectedCallback(): void {
     super.disconnectedCallback();
     this.removeEventListener('widget-height', this.onHeight);
+    this.watching?.stop();
+    this.watching = null;
     if (this.timer !== null) clearTimeout(this.timer);
     this.timer = null;
   }
@@ -146,6 +177,15 @@ export class MhWidgetTile extends TileElement<WidgetTileSpec> {
 
   protected override willUpdate(changed: PropertyValues<this>): void {
     super.willUpdate(changed);
+    this.watch();
+    // the weather and the energy have a second row when wide and asked for; never when every tile is one line
+    const second = this.spec ? SECOND_ROW[this.spec.widget] : undefined;
+    if (second !== undefined) {
+      const rows = this.spec.size === 'wide' && this.density !== 'compact' && this.spec.settings[second] === true ? 2 : 1;
+      if (rows > 1) this.style.setProperty('grid-row', `span ${rows}`);
+      else this.style.removeProperty('grid-row');
+      this.rows = rows;
+    }
     // on a phone a tall widget takes the whole width, as Homey shows widgets there; everything else follows under it
     if (this.spec && this.density === 'phone' && this.rows > 1) this.wide = true;
     if (changed.has('spec')) this.tick();
@@ -263,6 +303,19 @@ export class MhWidgetTile extends TileElement<WidgetTileSpec> {
     return this.editing ? this.editFace(body) : html`<div class="tile">${body}</div>`;
   }
 
+  private renderWeather(): TemplateResult {
+    const body = weatherFace(this.read as ReadState<Weather> | null, this.ctx.t, { wide: this.wide, days: this.rows > 1, compact: this.density === 'compact', now: Date.now() });
+    return this.editing ? this.editFace(body) : html`<div class="tile">${body}</div>`;
+  }
+
+  private renderEnergy(): TemplateResult {
+    const body = energyFace(this.read as ReadState<EnergyReport> | null, this.ctx.t, {
+      period: periodOf(this.spec), wide: this.wide, devices: this.rows > 1, compact: this.density === 'compact',
+      nameOf: (id) => this.ctx.store.getDevice(id)?.name,
+    });
+    return this.editing ? this.editFace(body) : html`<div class="tile">${body}</div>`;
+  }
+
   private renderGroup(): TemplateResult {
     const { t } = this.ctx;
     const ids = groupIds(this.spec.settings['devices']);
@@ -287,6 +340,8 @@ export class MhWidgetTile extends TileElement<WidgetTileSpec> {
       case 'group': return this.renderGroup();
       case 'note': return this.renderNote();
       case 'board': return this.renderLink();
+      case 'weather': return this.renderWeather();
+      case 'energy': return this.renderEnergy();
       default: return this.renderOwn();
     }
   }

@@ -1,3 +1,4 @@
+import { randomBytes } from 'node:crypto';
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import { can, FEATURE_SCOPES } from '../homey/permissions';
 import { isButton } from '../homey/buttons';
@@ -13,6 +14,9 @@ import type { SharedLayouts } from './shared-layouts';
 import type { SharedLooks } from './shared-looks';
 import type { SharedWidgets } from './shared-widgets';
 import type { AppWidgets } from './app-widgets';
+import { parseWants, type HubLive } from './app-live';
+import { slimWeather } from '../widgets/weather';
+import { ENERGY_PERIODS, periodArgs, slimEnergy, type EnergyPeriod } from '../widgets/energy';
 import { parseWidgetOps } from '../widgets/widget-library';
 import { parseLookOps } from '../theme/look-ops';
 
@@ -25,6 +29,8 @@ export interface HomeServerDeps {
   widgets: SharedWidgets;
   /** Widgets of other apps on the hub, through this app; absent where it cannot be done. */
   appWidgets?: AppWidgets;
+  /** The live news of those apps for their widgets; absent where it cannot be had. */
+  appLive?: HubLive;
   /** What a flow said of the night of the wall tablets. */
   night: Night;
   /** The key with which flows are started, when the app itself may not. */
@@ -40,10 +46,15 @@ export interface HomeServerDeps {
   homeyId(): string | null;
   setInterval(fn: () => void, ms: number): unknown;
   clearInterval(handle: unknown): void;
+  /** The time zone of the hub, for the days of Homey Energy; UTC without it. */
+  timeZone?(): string;
   /** The clock for how long history is kept; the system's without it. */
   now?(): number;
   log?(message: string): void;
 }
+
+/** How long the weather and a report of Homey Energy are kept before the hub is asked again. */
+export const READ_KEPT_MS = { weather: 10 * 60_000, day: 5 * 60_000, week: 30 * 60_000, month: 30 * 60_000 } as const;
 
 /** The periods a page may ask history for, and the changes of on and off. */
 const PERIODS: readonly string[] = ['today', 'last24Hours', 'last7Days', 'last31Days', 'year'];
@@ -75,8 +86,32 @@ const isHomeyWidgetFile = (path: string): boolean => path === '/js/crossframe.js
 const LAYOUT_BODY = 4 * 1024 * 1024;
 /** A few themes at their largest. */
 const LOOKS_BODY = 512 * 1024;
+/** Twenty widgets of apps with fifty long names each. */
+const APP_LIVE_BODY = 128 * 1024;
 /** A stream that a browser no longer reads is closed instead of kept in memory. */
 const MAX_UNSENT = 4 * 1024 * 1024;
+/** A stream this far behind gets no news of apps until it caught up: what it shows of the hub goes first. */
+export const NEWS_LAG = 256 * 1024;
+
+/** What news of apps is written to: a stream, with the apps it missed news of while it was behind. */
+interface NewsStream { response: Pick<ServerResponse, 'writableLength' | 'writableEnded' | 'destroyed'> & { write(text: string): unknown }; missed: Set<string> }
+
+const open = (stream: NewsStream): boolean => !stream.response.writableEnded && !stream.response.destroyed;
+
+/** A stream that caught up hears of the apps it missed news of, so their widgets start anew. */
+export function catchUp(stream: NewsStream): void {
+  if (stream.missed.size === 0 || !open(stream) || stream.response.writableLength > NEWS_LAG) return;
+  for (const app of stream.missed) stream.response.write(`event: app-gap\ndata: ${JSON.stringify({ app })}\n\n`);
+  stream.missed.clear();
+}
+
+/** News of an app on a stream, as text made once; skipped, and remembered, while the stream is too far behind. */
+export function writeNews(stream: NewsStream, app: string, event: string, text: string): void {
+  if (!open(stream)) return;
+  if (stream.response.writableLength > NEWS_LAG) { stream.missed.add(app); return; }
+  catchUp(stream);
+  stream.response.write(`event: ${event}\ndata: ${text}\n\n`);
+}
 const MAX_STREAMS = 120;
 
 class HttpError extends Error {
@@ -146,7 +181,7 @@ const text = (value: unknown): string => (typeof value === 'string' ? value : ''
  * hub has, its live reports, controlling, and the shared layouts. The browser only ever talks to this server.
  */
 export function createHomeServer(deps: HomeServerDeps) {
-  const streams = new Set<{ response: ServerResponse; deviceId: string }>();
+  const streams = new Set<{ response: ServerResponse; deviceId: string; id: string; missed: Set<string> }>();
   /** Streams that got their last word; what a browser does not take by the next ping is cut off. */
   const ending = new Set<ServerResponse>();
 
@@ -190,14 +225,15 @@ export function createHomeServer(deps: HomeServerDeps) {
     const { id, role } = device(request);
     if (streams.size >= MAX_STREAMS) throw new HttpError(503, 'busy');
     response.writeHead(200, { 'content-type': 'text/event-stream; charset=utf-8', 'cache-control': 'no-store', 'x-accel-buffering': 'no' });
-    const stream = { response, deviceId: id };
+    const stream = { response, deviceId: id, id: randomBytes(12).toString('hex'), missed: new Set<string>() };
     streams.add(stream);
     response.on('close', () => {
       streams.delete(stream);
       ending.delete(response);
+      deps.appLive?.drop(stream.id);
     });
     const looks = deps.looks.get();
-    send(stream, 'hello', { revision: deps.layouts.get().revision, looks: looks.revision, rescue: looks.rescue, widgets: deps.widgets.get().revision, role, route: deps.hub.route(), ready: deps.hub.snapshot() !== null, night: deps.night.get(), build: deps.build() });
+    send(stream, 'hello', { revision: deps.layouts.get().revision, looks: looks.revision, rescue: looks.rescue, widgets: deps.widgets.get().revision, role, route: deps.hub.route(), ready: deps.hub.snapshot() !== null, night: deps.night.get(), build: deps.build(), ...(deps.appLive ? { stream: stream.id } : {}) });
   }
 
   async function control(request: IncomingMessage, response: ServerResponse): Promise<void> {
@@ -266,6 +302,48 @@ export function createHomeServer(deps: HomeServerDeps) {
     }
   }
 
+  /**
+   * What the hub answered for its weather and its energy, slimmed and kept a while: every page asks, the hub is asked seldom.
+   * One answer per kind, with what it is of: the report of another day takes the place of the one before.
+   */
+  const kept = new Map<string, { at: number; of: string; value: unknown }>();
+  async function keptRead(slot: string, of: string, maxAge: number, read: () => Promise<unknown>, slim: (raw: unknown) => unknown): Promise<unknown> {
+    const hit = kept.get(slot);
+    if (hit && hit.of === of && Math.abs(now() - hit.at) < maxAge) return hit.value;
+    try {
+      const value = slim(await read());
+      kept.set(slot, { at: now(), of, value });
+      return value;
+    } catch (error) {
+      const { statusCode, status } = (typeof error === 'object' && error !== null ? error : {}) as { statusCode?: unknown; status?: unknown };
+      const code = typeof statusCode === 'number' ? statusCode : typeof status === 'number' ? status : null;
+      if (code === 401 || code === 403) throw new HttpError(403, 'no-right');
+      if (code === 404) throw new HttpError(404, 'none');
+      deps.log?.(`Not read: ${withoutSecrets(error)}`);
+      throw new HttpError(502, 'hub-refused');
+    }
+  }
+  deps.hub.subscribe((event) => { if (event.type === 'reset') kept.clear(); });
+
+  async function readWeather(request: IncomingMessage, response: ServerResponse): Promise<void> {
+    device(request);
+    const weather = await keptRead('weather', '', READ_KEPT_MS.weather, () => deps.hub.readWeather(), slimWeather);
+    device(request);
+    json(response, 200, { weather });
+  }
+
+  async function readEnergy(request: IncomingMessage, response: ServerResponse): Promise<void> {
+    device(request);
+    const period = new URLSearchParams((request.url ?? '').split('?')[1] ?? '').get('period') ?? '';
+    if (!(ENERGY_PERIODS as readonly string[]).includes(period)) throw new HttpError(400, 'bad-period');
+    const timeZone = deps.timeZone?.() ?? 'UTC';
+    // another day, week or month is another report
+    const of = JSON.stringify(periodArgs(period as EnergyPeriod, new Date(now()), timeZone));
+    const report = await keptRead(`energy:${period}`, of, READ_KEPT_MS[period as EnergyPeriod], () => deps.hub.readEnergy(period as EnergyPeriod, timeZone), slimEnergy);
+    device(request);
+    json(response, 200, { report });
+  }
+
   async function readHistory(request: IncomingMessage, response: ServerResponse): Promise<void> {
     device(request);
     const query = new URLSearchParams((request.url ?? '').split('?')[1] ?? '');
@@ -297,6 +375,7 @@ export function createHomeServer(deps: HomeServerDeps) {
     if (device(request).role !== 'edit') throw new HttpError(403, 'use-only');
     const ops = parseLookOps(body['ops']);
     if (!ops) throw new HttpError(400, 'bad-looks');
+    if (!deps.looks.fits(ops)) throw new HttpError(413, 'too-big');
     json(response, 200, deps.looks.apply(ops));
   }
 
@@ -323,6 +402,22 @@ export function createHomeServer(deps: HomeServerDeps) {
     if (answer === null) throw new HttpError(404, 'unknown-route');
     if (answer === undefined) throw new HttpError(502, 'hub-refused');
     json(response, 200, { status: answer.status, body: answer.body });
+  }
+
+  /** What the widgets of apps on a page listen to, for one stream of that page's own device. */
+  async function appLivePost(request: IncomingMessage, response: ServerResponse): Promise<void> {
+    const { id } = device(request);
+    if (!deps.appLive) throw new HttpError(404, 'not-found');
+    const body = await bodyOf(request, APP_LIVE_BODY);
+    device(request);
+    const streamId = text(body['stream']);
+    const stream = [...streams].find((one) => one.id === streamId && one.deviceId === id);
+    if (!stream) throw new HttpError(404, 'unknown-stream');
+    const wants = parseWants(body['wants']);
+    if (!wants) throw new HttpError(400, 'bad-wants');
+    // whether a widget stands on a dashboard is looked at whenever news is listened to: it may be saved just after this
+    deps.appLive.want(stream.id, wants);
+    json(response, 200, {});
   }
 
   /** A file of a widget of another app, from the hub's own web server, kept in its sandbox. */
@@ -394,10 +489,13 @@ export function createHomeServer(deps: HomeServerDeps) {
       case 'POST /api/looks': await postLooks(request, response); return;
       case 'GET /api/history/sources': device(request); json(response, 200, { sources: await fromHub(historySources) }); return;
       case 'GET /api/history': await readHistory(request, response); return;
+      case 'GET /api/weather': await readWeather(request, response); return;
+      case 'GET /api/energy': await readEnergy(request, response); return;
       case 'GET /api/widgets': device(request); json(response, 200, deps.widgets.get()); return;
       case 'POST /api/widgets': await postWidgets(request, response); return;
       case 'GET /api/app-widgets': device(request); json(response, 200, deps.appWidgets ? await deps.appWidgets.list() : { state: 'no-key', widgets: [] }); return;
       case 'POST /api/app-widget-api': await appWidgetApi(request, response); return;
+      case 'POST /api/app-live': await appLivePost(request, response); return;
       case 'GET /api/app-widget-autocomplete': {
         // choosing a setting is arranging
         if (device(request).role !== 'edit') throw new HttpError(403, 'use-only');
@@ -452,16 +550,24 @@ export function createHomeServer(deps: HomeServerDeps) {
   }
 
   const tell = (event: HubEvent): void => { for (const stream of [...streams]) send(stream, 'hub', event); };
-  const stopHub = deps.hub.subscribe((event) => tell(event.type === 'structure' ? { ...event, flows: flowsOf(event.flows) } : event));
+  const stopHub = deps.hub.subscribe((event) => {
+    // a new connection of this app with the hub: the live news of apps begins anew too
+    if (event.type === 'reset') deps.appLive?.restart();
+    tell(event.type === 'structure' ? { ...event, flows: flowsOf(event.flows) } : event);
+  });
   const stopButtons = deps.buttons.subscribe(() => {
     const snapshot = deps.hub.snapshot();
     if (snapshot) tell({ type: 'structure', zones: snapshot.zones, flows: flowsOf(snapshot.flows) });
   });
-  const stopLayouts = deps.layouts.subscribe((revision) => { for (const stream of [...streams]) send(stream, 'layouts', { revision }); });
+  const stopLayouts = deps.layouts.subscribe((revision) => {
+    for (const stream of [...streams]) send(stream, 'layouts', { revision });
+    deps.appLive?.placedChanged();
+  });
   const stopLooks = deps.looks.subscribe((revision, reset) => { for (const stream of [...streams]) send(stream, 'looks', { revision, reset }); });
   const stopWidgets = deps.widgets.subscribe((revision) => { for (const stream of [...streams]) send(stream, 'widgets', { revision }); });
   const stopNight = deps.night.subscribe(() => { for (const stream of [...streams]) send(stream, 'night', deps.night.get()); });
   const stopFlowKey = deps.flowKey.subscribe(() => {
+    deps.appLive?.restart();
     const snapshot = deps.hub.snapshot();
     if (snapshot) for (const stream of [...streams]) send(stream, 'hub', { type: 'scopes', scopes: scopes(snapshot.scopes), flowAccess: flowAccess(snapshot.scopes) });
   });
@@ -475,10 +581,15 @@ export function createHomeServer(deps: HomeServerDeps) {
     }
   });
   const stopRole = deps.pairing.onRole((id, role) => { for (const stream of [...streams]) if (stream.deviceId === id) send(stream, 'role', { role }); });
+  const stopAppLive = deps.appLive?.subscribe((ids, event, text, app) => {
+    const wanted = new Set(ids);
+    for (const stream of [...streams]) if (wanted.has(stream.id)) writeNews(stream, app, event, text);
+  });
   const ping = deps.setInterval(() => {
     for (const response of [...ending]) response.destroy();
     for (const stream of [...streams]) {
       send(stream, 'ping', {});
+      catchUp(stream);
       deps.pairing.touch(stream.deviceId);
     }
     // the hub does not tell of a new flow or room: it is asked while someone looks
@@ -503,6 +614,7 @@ export function createHomeServer(deps: HomeServerDeps) {
       stopFlowKey();
       stopPairing();
       stopRole();
+      stopAppLive?.();
       deps.clearInterval(ping);
       for (const stream of [...streams]) {
         streams.delete(stream);

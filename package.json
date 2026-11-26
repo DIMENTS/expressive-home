@@ -1,11 +1,12 @@
 {
   "name": "expressive-home",
   "private": true,
-  "version": "1.1.0",
+  "version": "1.4.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
+    "build:pages": "tsc --noEmit && vite build -c vite.pages.config.ts",
     "start": "npm run build && vite preview --open",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",

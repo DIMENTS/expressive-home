@@ -175,6 +175,24 @@ test('not while something is asked', async () => {
   expect(s.rest()).not.toBeNull();
 });
 
+test('not while a theme is tried out, for ten minutes at the most', async () => {
+  const s = await launch({ layout: two() });
+  s.app.panel = 'theme';
+  await settle(s.app);
+  const panel = s.app.shadowRoot!.querySelector('mh-theme-panel')!;
+  panel.dispatchEvent(new CustomEvent('look-preview', { detail: { file: { format: 2, id: 't-0000000000000001', name: '', maker: '', base: 'leeg', seed: null, userSeed: true, knobs: {}, app: '', values: {} } }, bubbles: true, composed: true }));
+  await settle(s.app);
+  await s.wait(9 * MINUTE);
+  expect(s.rest()).toBeNull();
+  // a change of the try-out: ten minutes again from now
+  panel.dispatchEvent(new CustomEvent('look-preview', { detail: { file: { format: 2, id: 't-0000000000000001', name: '', maker: '', base: 'leeg', seed: null, userSeed: true, knobs: {}, app: '', values: { both: { 'tile-bg': '#ffffff' } } } }, bubbles: true, composed: true }));
+  await settle(s.app);
+  await s.wait(9 * MINUTE);
+  expect(s.rest()).toBeNull();
+  await s.wait(3 * MINUTE);
+  expect(s.rest()).not.toBeNull();
+});
+
 test('not while the settings ask whether to disconnect', async () => {
   const s = await launch();
   await s.go('settings');
@@ -651,4 +669,78 @@ test('a look that was left alone becomes the rest screen: touched, the dashboard
   send('click', s.rest()!);
   await s.wait(300);
   expect([s.rest(), s.app.panel]).toEqual([null, 'none']);
+});
+
+// ----- the screen, with Fully Kiosk -----
+
+function fakeFully(brightness = 200) {
+  const calls: string[] = [];
+  const fully = {
+    getScreenBrightness: () => brightness,
+    setScreenBrightness: (level: number) => { calls.push(`level ${level}`); },
+  };
+  vi.stubGlobal('fully', fully);
+  return calls;
+}
+
+test('with Fully Kiosk the rest screen dims the screen, and the touch that wakes gives its brightness back', async () => {
+  const calls = fakeFully();
+  const s = await launch({ wall: { ...ON, screen: { rest: 25, night: 'dim' } } });
+  expect(calls).toEqual([]);
+  await s.wait(2 * MINUTE);
+  expect(calls).toEqual(['level 64']);
+  touchOnce();
+  await s.wait(1000);
+  expect([s.rest(), calls]).toEqual([null, ['level 64', 'level 200']]);
+});
+
+test('with Fully Kiosk the night is nearly off, a touch then is as bright as the rest screen, and the day gives the brightness back', async () => {
+  vi.setSystemTime(at('22:00'));
+  const calls = fakeFully();
+  const s = await launch({ wall: { ...ON, screen: { rest: 25, night: 'dim' } } });
+  await s.wait(2 * MINUTE);
+  expect(calls).toEqual(['level 64']);
+  await s.wait(30 * MINUTE);
+  expect(calls).toEqual(['level 64', 'level 1']);
+  touchOnce();
+  await s.wait(1000);
+  expect([s.rest(), calls.at(-1)]).toEqual([null, 'level 64']);
+  await s.wait(MINUTE);
+  expect(calls.at(-1)).toBe('level 1');
+  vi.setSystemTime(at('07:29'));
+  await s.wait(2 * MINUTE);
+  expect(calls.at(-1)).toBe('level 64');
+});
+
+test('with Fully Kiosk but nothing chosen, the screen is left alone', async () => {
+  const calls = fakeFully();
+  const s = await launch();
+  await s.wait(2 * MINUTE);
+  expect([s.rest() !== null, calls]).toEqual([true, []]);
+});
+
+test('without Fully Kiosk nothing of the screen is touched, and the panel tells how it could be', async () => {
+  const s = await launch();
+  await s.wait(2 * MINUTE);
+  expect(s.rest()).not.toBeNull();
+  expect((s.app.shadowRoot!.querySelector('mh-wall-panel') as HTMLElement & { fully: boolean }).fully).toBe(false);
+});
+
+test('with Fully Kiosk, arranging or a window as narrow as a phone at night is not dimmed: there is no rest screen there', async () => {
+  vi.setSystemTime(at('23:00'));
+  const calls = fakeFully();
+  const s = await launch({ layout: two(), wall: { ...ON, screen: { rest: 25, night: 'dim' } } });
+  // used at night on the wall: as bright as its rest screen
+  expect(calls).toEqual(['level 64']);
+  s.dashboard().dispatchEvent(new CustomEvent('toggle-edit'));
+  await settle(s.app);
+  expect(calls).toEqual(['level 64', 'level 200']);
+  s.dashboard().dispatchEvent(new CustomEvent('done'));
+  await settle(s.app);
+  expect(calls).toEqual(['level 64', 'level 200', 'level 64']);
+  // as narrow as a phone: as it was
+  phone.matches = true;
+  for (const listener of [...phoneListeners]) listener();
+  await settle(s.app);
+  expect(calls).toEqual(['level 64', 'level 200', 'level 64', 'level 200']);
 });

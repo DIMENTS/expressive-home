@@ -260,13 +260,13 @@ export class MhSlider extends LitElement {
   }
 
   override render() {
-    return html`<div class="slider" role="slider" aria-label=${this.label} aria-valuemin="0" aria-valuemax="100"
+    return html`<div class="slider" part=${this.dimmed ? 'slider off' : 'slider on'} role="slider" aria-label=${this.label} aria-valuemin="0" aria-valuemax="100"
       aria-valuenow=${Math.round(clean(this.position()) * 100)} aria-valuetext=${this.valueText || nothing}
       aria-disabled=${this.disabled ? 'true' : 'false'} tabindex=${this.disabled ? '-1' : '0'}
       @pointerdown=${(e: PointerEvent) => this.onPointerDown(e)} @pointermove=${(e: PointerEvent) => this.onPointerMove(e)}
       @pointerup=${(e: PointerEvent) => this.onPointerEnd(e)} @pointercancel=${(e: PointerEvent) => this.onPointerEnd(e)} @lostpointercapture=${(e: PointerEvent) => this.onPointerEnd(e)}
       @click=${(e: Event) => e.stopPropagation()} @keydown=${(e: KeyboardEvent) => this.onKey(e)}
-    ><span class="fill"></span><span class="rest"></span><span class="handle"></span></div>`;
+    ><span class="fill" part="slider-fill"></span><span class="rest" part="slider-track"></span><span class="handle"></span></div>`;
   }
 }
 

@@ -30,7 +30,7 @@ There is no account and no server of ours. You can look around without a Homey, 
 
 | | In the browser | Through the app on the Homey |
 |---|---|---|
-| For | Trying it out, also away from home | Every device at home, also without internet |
+| For | Trying it out, and [away from home](#away-from-home) | Every device at home, also without internet |
 | Signing in | One API key of your Homey, which stays in that browser | Scan a code once on every device |
 | Dashboards | Per browser | On the Homey, the same on every device |
 
@@ -45,6 +45,15 @@ npm start
 ```
 
 `npm run vendor` fetches the browser build of `homey-api` from Athom and checks it against a fixed checksum. Without it only the example Homey works. `npm start` builds the app and opens `http://localhost:5274/`. You make the key on my.homey.app at Settings → API Keys; the connect screen says which rights are needed.
+
+## Away from home
+
+The dashboard is also online, at **https://diments.github.io/expressive-home/**. You can look around the example house or the camper van there straight away. With a key it talks to your Homey directly at home, and through the Homey cloud when you are away.
+
+- Make a **key of its own** for every phone, named after that phone. If you lose the phone, remove only that key on my.homey.app.
+- **Add the page to your home screen first**, then connect from there. On an iPhone a web app on the home screen has storage of its own, which Safari does not clear after seven days.
+- The page comes from GitHub, your key does not: it stays in your browser and only goes to your Homey. Whoever has your unlocked phone can do what your key allows; lock, garage and alarm always ask you to hold or confirm.
+- Inside another website the dashboard does not open; open it in a tab of its own.
 
 ## On the Homey
 
@@ -75,6 +84,7 @@ Open an [issue](https://github.com/DIMENTS/expressive-home/issues): what you did
 |---|---|
 | `npm run dev` | Development server on `http://localhost:5273/`, with `galerij.html` for all parts side by side |
 | `npm run check` | Types and tests |
+| `npm run build:pages` | The app alone, as it goes onto GitHub Pages, in `dist-pages/`; on every push to `main`, `.github/workflows/pages.yml` does that |
 | `npm run smoke` | The built app in Chromium and WebKit (once before: `npm run vendor` and `npx playwright install chromium webkit`) |
 | `npm run smoke:homey` | The app on the Homey and its settings, with a stand-in for the hub |
 | `npm run readme-images` and `npm run store-images` | The pictures, from the example house (once before: `npm run build`) |

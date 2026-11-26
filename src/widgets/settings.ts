@@ -46,6 +46,11 @@ export function builtInSettings(widget: string, t: Translate): SettingDef[] {
       { id: 'title', type: 'text', title: t('widget.setting.title'), default: '' },
       { id: 'devices', type: 'devices', title: t('widget.setting.devices') },
     ];
+    case 'weather': return [{ id: 'days', type: 'checkbox', title: t('widget.setting.days'), default: false }];
+    case 'energy': return [
+      { id: 'period', type: 'dropdown', title: t('widget.setting.period'), default: 'day', values: [{ id: 'day', title: t('widget.period.day') }, { id: 'week', title: t('widget.period.week') }, { id: 'month', title: t('widget.period.month') }] },
+      { id: 'devices', type: 'checkbox', title: t('widget.setting.perDevice'), default: false },
+    ];
     default: return [];
   }
 }
@@ -55,8 +60,8 @@ export function settingValue(spec: WidgetTileSpec, def: SettingDef): WidgetSetti
   return Object.hasOwn(spec.settings, def.id) ? spec.settings[def.id]! : def.default ?? null;
 }
 
-/** Whether a widget wants its settings before it is any use: everything but the clock and a widget of an app. */
-export const wantsSettings = (widget: string): boolean => widget !== 'clock' && !widget.startsWith('app:');
+/** Whether a widget wants its settings before it is any use: everything but the clock, the weather, the energy and a widget of an app. */
+export const wantsSettings = (widget: string): boolean => !['clock', 'weather', 'energy'].includes(widget) && !widget.startsWith('app:');
 
 /** The settings of an own widget as its file describes them, in the language of the app. */
 export function ownSettings(widget: WidgetFile, language: string): SettingDef[] {

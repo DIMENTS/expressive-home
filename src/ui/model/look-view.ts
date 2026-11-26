@@ -43,7 +43,7 @@ export function lookChoice(role: LookRole, device: DeviceLook, house: HouseLook 
   };
 }
 
-const MODE_KEYS: Record<ModePreference, MessageKey> = { light: 'theme.mode.light', dark: 'theme.mode.dark', auto: 'theme.mode.auto' };
+const MODE_KEYS: Record<ModePreference, MessageKey> = { light: 'theme.mode.light', dark: 'theme.mode.dark', auto: 'theme.mode.auto', sun: 'theme.mode.sun' };
 
 /** "Glas, automatisch": a look in a few words. */
 export function lookWords(theme: string, mode: ModePreference, themes: readonly ThemeFile[], t: Translate): string {

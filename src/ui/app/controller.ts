@@ -27,6 +27,8 @@ import type { ChosenLook, DeviceLook, HouseLook } from '../../theme/choose';
 import type { LookOp } from '../../theme/look-ops';
 import type { LooksDoc } from '../../theme/looks-doc';
 import type { ThemeFile } from '../../theme/look';
+import type { CssFrom } from '../../theme/looks-doc';
+import type { EnergyPeriod } from '../../widgets/energy';
 
 export type ConnectIssue = 'none' | 'invalid-address' | 'ambiguous-address' | 'missing-key' | 'unreachable' | 'auth' | 'revoked';
 
@@ -825,8 +827,21 @@ export function createController(deps: ControllerDeps) {
     now: () => Date.now(),
   });
 
+  /** The hub that is open now, for something to ask it; throws without one (not now), or 404 when it has no such thing. */
+  const asked = <K extends 'readWeather' | 'readEnergy'>(kind: K): NonNullable<HomeyClient[K]> => {
+    const open = state.route === null ? null : client;
+    if (!open) throw new Error('No hub now');
+    const read = open[kind];
+    if (!read) throw Object.assign(new Error(`This hub cannot ${kind}`), { statusCode: 404 });
+    return read.bind(open) as NonNullable<HomeyClient[K]>;
+  };
+
   return {
     history,
+    /** The weather of the hub that is open. */
+    readWeather: async (): Promise<unknown> => asked('readWeather')(),
+    /** A report of Homey Energy of the hub that is open; the days are those of this device's time zone (the app on the hub uses its own). */
+    readEnergy: async (period: EnergyPeriod): Promise<unknown> => asked('readEnergy')(period, Intl.DateTimeFormat().resolvedOptions().timeZone),
     getState: () => state,
     subscribe(listener: () => void) { listeners.add(listener); return () => { listeners.delete(listener); }; },
     /** The hub that is open, or 'demo'; null on the connect screen. */
@@ -860,7 +875,7 @@ export function createController(deps: ControllerDeps) {
     chosenLook: (boardId: string | null): ChosenLook => looks.chosen(boardId),
     setDeviceLook: (change: Partial<DeviceLook>): boolean => looks.setDevice(change),
     followHouse: (): boolean => looks.followHouse(),
-    saveTheme: (file: ThemeFile): boolean => looks.saveTheme(file),
+    saveTheme: (file: ThemeFile, cssFrom?: CssFrom, takenIn = false): boolean => looks.saveTheme(file, cssFrom, takenIn),
     removeTheme: (id: string): boolean => looks.removeTheme(id),
     setBoardTheme: (boardId: string, themeId: string | null): boolean => looks.setBoardTheme(boardId, themeId),
     setHouse: (house: Partial<HouseLook>): boolean => looks.setHouse(house),

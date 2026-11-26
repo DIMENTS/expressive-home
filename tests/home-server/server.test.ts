@@ -7,13 +7,14 @@ import { createFlowKey } from '../../src/home-server/flow-key';
 import { createHubLink } from '../../src/home-server/hub-link';
 import { createNight } from '../../src/home-server/night';
 import { createPairing } from '../../src/home-server/pairing';
-import { createHomeServer, filePath, isLocalAddress, isLocalHost } from '../../src/home-server/server';
+import { catchUp, createHomeServer, filePath, isLocalAddress, isLocalHost, NEWS_LAG, writeNews } from '../../src/home-server/server';
 import { createSharedLayouts } from '../../src/home-server/shared-layouts';
 import { createSharedLooks } from '../../src/home-server/shared-looks';
 import { createSharedWidgets } from '../../src/home-server/shared-widgets';
 import { createAppWidgets } from '../../src/home-server/app-widgets';
 import type { HomeServerDeps } from '../../src/home-server/server';
-import { hubLayout, overview, ownSection } from '../helpers/layout';
+import { hubLayout, overview, ownSection, tileLayout } from '../helpers/layout';
+import { placedAppWidgets } from '../../src/home-server/app-live';
 import { camperSnapshot, fakeHub, HOMEY_ID } from '../helpers/fake-hub';
 
 const open: { close(): Promise<void> }[] = [];
@@ -567,6 +568,23 @@ test('the looks of the house: every paired device reads them, a device that may 
   expect(stream.events.at(-1)).toEqual(['looks', { revision: 1, reset: false }]);
 });
 
+test('a theme of format 2 is kept whole, and a save that makes all themes together too big is refused', async () => {
+  const s = await setup();
+  const { as } = await s.paired('edit');
+  const strak = { format: 2, id: 't-bbbbbbbbbbbbbbbb', name: 'Strak', maker: '', base: 'leeg', seed: null, userSeed: true, knobs: {}, app: '1.2.0', values: { both: { 'tile-bg': '#ffffff' } } };
+  expect((await as('POST', '/api/looks', { ops: [{ save: strak }] })).body).toMatchObject({ themes: [strak] });
+  // themes just under the limit of one each, until all of them together near the limit of all
+  const big = (n: number) => ({ ...strak, id: `t-${String(n).padStart(16, '0')}`, values: { both: Object.fromEntries(Array.from({ length: 300 }, (_, k) => [`x${k}`, 'a'.repeat(190)])) } });
+  let n = 0;
+  while (JSON.stringify(s.looks.get().themes).length < 1_048_576 - 70_000) expect((await as('POST', '/api/looks', { ops: [{ save: big((n += 1)) }] })).status).toBe(200);
+  const before = s.looks.get();
+  const refused = await as('POST', '/api/looks', { ops: [{ save: big(99) }] });
+  expect([refused.status, refused.body]).toEqual([413, { error: 'too-big' }]);
+  expect(s.looks.get()).toEqual(before);
+  // what makes it smaller is always allowed
+  expect((await as('POST', '/api/looks', { ops: [{ remove: big(1).id }] })).status).toBe(200);
+});
+
 test('a device that may only use cannot change the looks of the house, whatever it sends', async () => {
   const s = await setup();
   const { as } = await s.paired('use');
@@ -688,4 +706,143 @@ test('the files Homey adds to a widget page are passed on with what a sandboxed 
   const page = await fetch(`http://${s.host}/app-widget/com.example/today/index.html`);
   expect(page.headers.get('content-security-policy')).toContain(`default-src http://${s.host} 'unsafe-inline'`);
   expect(page.headers.get('content-security-policy')).toMatch(/^sandbox allow-scripts;/);
+});
+
+function fakeLive() {
+  const calls: unknown[][] = [];
+  let tell: (streams: string[], event: 'app-event' | 'app-gap', text: string, app: string) => void = () => {};
+  const live = {
+    want: (stream: string, wants: unknown) => { calls.push(['want', stream, wants]); },
+    drop: (stream: string) => { calls.push(['drop', stream]); },
+    placedChanged: () => { calls.push(['placed']); },
+    restart: () => { calls.push(['restart']); },
+    subscribe: (listener: typeof tell) => { tell = listener; return () => {}; },
+    state: () => ({ state: 'idle' as const, apps: 0 }),
+    stop: () => { calls.push(['stop']); },
+  };
+  return { live, calls, tell: (streams: string[], event: 'app-event' | 'app-gap', text: string, app: string) => tell(streams, event, text, app) };
+}
+
+test('a page says per stream which widgets of apps listen to what, only for its own stream; whether they stand on a dashboard is for later', async () => {
+  const f = fakeLive();
+  const s = await setup({ appLive: f.live });
+  const widget = tileLayout({ kind: 'widget', id: 'w1', size: 'single', widget: 'app:com.example/channels', settings: {} });
+  s.layouts.put(0, { knows: ['widget'], layouts: { [HOMEY_ID]: hubLayout([overview([ownSection('own:s1', [widget])])]) }, sectionSeeds: {} });
+  expect(placedAppWidgets(s.layouts.get())).toEqual(new Set(['app:com.example/channels']));
+  const one = await s.paired('use', 'Tablet');
+  const two = await s.paired('edit', 'Phone');
+  const stream = await s.listen(one.cookie);
+  const hello = stream.events[0]![1] as { stream: string };
+  expect(hello.stream).toMatch(/^[0-9a-f]{24}$/);
+  const wants = [{ ref: 'app:com.example/channels', events: ['state'] }, { ref: 'app:com.example/elsewhere', events: ['state'] }];
+  expect((await one.as('POST', '/api/app-live', { stream: hello.stream, wants })).status).toBe(200);
+  // a widget just placed may be there before its dashboard is saved
+  expect(f.calls.filter(([kind]) => kind === 'want')).toEqual([['want', hello.stream, wants]]);
+  // twenty widgets with fifty long names each fit
+  const many = Array.from({ length: 20 }, (_, i) => ({ ref: `app:com.example/w${i}`, events: Array.from({ length: 50 }, (_, n) => `${'x'.repeat(60)}${n}`) }));
+  expect((await one.as('POST', '/api/app-live', { stream: hello.stream, wants: many })).status).toBe(200);
+  expect((await two.as('POST', '/api/app-live', { stream: hello.stream, wants })).status).toBe(404);
+  expect((await one.as('POST', '/api/app-live', { stream: hello.stream, wants: 'all' })).status).toBe(400);
+  expect((await one.as('POST', '/api/app-live', { stream: 'nonsense', wants })).status).toBe(404);
+  stream.response.destroy();
+  await settle();
+  expect(f.calls.at(-1)).toEqual(['drop', hello.stream]);
+});
+
+test('news of apps goes only to the streams it is for, as it came', async () => {
+  const f = fakeLive();
+  const s = await setup({ appLive: f.live });
+  const one = await s.paired('use', 'Tablet');
+  const a = await s.listen(one.cookie);
+  const b = await s.listen(one.cookie);
+  const idA = (a.events[0]![1] as { stream: string }).stream;
+  f.tell([idA], 'app-event', JSON.stringify({ app: 'com.example', event: 'state', data: { on: true } }), 'com.example');
+  f.tell([idA, 'gone'], 'app-gap', JSON.stringify({ app: 'com.example' }), 'com.example');
+  await settle();
+  expect(a.events.slice(1)).toEqual([['app-event', { app: 'com.example', event: 'state', data: { on: true } }], ['app-gap', { app: 'com.example' }]]);
+  expect(b.events.slice(1)).toEqual([]);
+});
+
+test('without live news there is no number of a stream and nowhere to say what is listened to', async () => {
+  const s = await setup();
+  const one = await s.paired('use');
+  const stream = await s.listen(one.cookie);
+  expect(stream.events[0]![1]).not.toHaveProperty('stream');
+  expect((await one.as('POST', '/api/app-live', { stream: 'x', wants: [] })).status).toBe(404);
+});
+
+test('other dashboards, another key or a new connection with the hub reach the live news', async () => {
+  const f = fakeLive();
+  const s = await setup({ appLive: f.live });
+  // the connection of the app with the hub began when it started
+  expect(f.calls).toContainEqual(['restart']);
+  f.calls.length = 0;
+  s.layouts.put(0, { knows: ['widget'], layouts: { [HOMEY_ID]: hubLayout([overview(null)]) }, sectionSeeds: {} });
+  expect(f.calls).toEqual([['placed']]);
+  await s.flowKey.set('k'.repeat(30));
+  expect(f.calls).toEqual([['placed'], ['restart']]);
+});
+
+test('a stream that does not keep up gets no news of apps and is not closed for it; once it caught up it hears what it missed', () => {
+  const written: string[] = [];
+  const response = { writableLength: 0, writableEnded: false, destroyed: false, write: (text: string) => { written.push(text); return true; } };
+  const stream = { response, missed: new Set<string>() };
+  writeNews(stream, 'com.example', 'app-event', '{"a":1}');
+  response.writableLength = NEWS_LAG + 1;
+  writeNews(stream, 'com.example', 'app-event', '{"a":2}');
+  writeNews(stream, 'org.radio', 'app-gap', '{"app":"org.radio"}');
+  catchUp(stream);
+  expect(written).toEqual(['event: app-event\ndata: {"a":1}\n\n']);
+  response.writableLength = 0;
+  catchUp(stream);
+  writeNews(stream, 'com.example', 'app-event', '{"a":3}');
+  expect(written.slice(1)).toEqual([
+    'event: app-gap\ndata: {"app":"com.example"}\n\n', 'event: app-gap\ndata: {"app":"org.radio"}\n\n', 'event: app-event\ndata: {"a":3}\n\n',
+  ]);
+});
+
+test('the weather and the energy of the hub come to every paired device, only what the dashboard uses, kept a while', async () => {
+  const s = await setup({ timeZone: () => 'Europe/Amsterdam' });
+  expect((await s.call('GET', '/api/weather')).status).toBe(401);
+  const { as } = await s.paired('use');
+  const weather = await as('GET', '/api/weather');
+  expect(weather.status).toBe(200);
+  expect(weather.body).toEqual({ weather: { temperature: 3, iconId: 'clear_day', when: '2026-11-25T23:00:00.000Z', forecast: [], forecastHourly: [] } });
+  await as('GET', '/api/weather');
+  expect(s.hub.readWeather).toHaveBeenCalledTimes(1);
+  const energy = await as('GET', '/api/energy?period=week');
+  expect(energy.status).toBe(200);
+  expect(JSON.stringify(energy.body)).not.toContain('MeasurePower');
+  expect((energy.body as { report: { electricity: { consumedPeriod: number } } }).report.electricity.consumedPeriod).toBe(4.8);
+  expect(s.hub.readEnergy).toHaveBeenCalledWith('week', 'Europe/Amsterdam');
+  await as('GET', '/api/energy?period=week');
+  expect(s.hub.readEnergy).toHaveBeenCalledTimes(1);
+  expect((await as('GET', '/api/energy?period=year')).status).toBe(400);
+});
+
+test('a hub that may not, or has no weather, is said as such and not kept', async () => {
+  const s = await setup();
+  const { as } = await s.paired('use');
+  s.hub.weather = Object.assign(new Error('Missing Scopes'), { statusCode: 403 });
+  expect((await as('GET', '/api/weather')).body).toEqual({ error: 'no-right' });
+  s.hub.weather = Object.assign(new Error('none'), { statusCode: 404 });
+  expect((await as('GET', '/api/weather')).status).toBe(404);
+  s.hub.weather = { temperature: 1 };
+  expect((await as('GET', '/api/weather')).status).toBe(200);
+  s.hub.energy = new Error('away');
+  expect((await as('GET', '/api/energy?period=day')).status).toBe(502);
+});
+
+test('one report is kept per period, the one of now: what was read of yesterday is gone', async () => {
+  let at = Date.UTC(2026, 10, 25, 23, 57);
+  const s = await setup({ timeZone: () => 'UTC', now: () => at });
+  const { as } = await s.paired('use');
+  await as('GET', '/api/energy?period=day');
+  at = Date.UTC(2026, 10, 26, 0, 1);
+  await as('GET', '/api/energy?period=day');
+  expect(s.hub.readEnergy).toHaveBeenCalledTimes(2);
+  // within the while it would be kept, but it is no longer there
+  at = Date.UTC(2026, 10, 25, 23, 58);
+  await as('GET', '/api/energy?period=day');
+  expect(s.hub.readEnergy).toHaveBeenCalledTimes(3);
 });

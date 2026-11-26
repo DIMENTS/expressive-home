@@ -17,8 +17,10 @@ import { qrCode } from './qr';
 import { createHomeServer, isLocalHost } from './server';
 import { createSharedLayouts } from './shared-layouts';
 import { createSharedLooks, type ThemeChoice } from './shared-looks';
+import { looksFromStore, looksToStore } from '../theme/full-themes';
 import { createSharedWidgets } from './shared-widgets';
 import { createAppWidgets } from './app-widgets';
+import { createHubLive, listedFrom, placedAppWidgets, type LiveSession, type LiveState } from './app-live';
 import type { ModePreference } from '../theme/types';
 import type { HomeySnapshot } from '../homey/types';
 import type { HubLayout } from '../layout/types';
@@ -32,6 +34,8 @@ export interface HomeySdk {
   cloud: { getHomeyId(): Promise<string>; getLocalAddress(): Promise<string> };
   flow?: { getTriggerCard(id: string): ButtonCard };
   i18n?: { getLanguage(): string };
+  /** The time zone the owner set for the hub; an app itself runs in UTC. */
+  clock?: { getTimezone(): string };
   insights?: SdkInsights;
 }
 
@@ -54,7 +58,7 @@ const TYPES: Record<string, string> = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.woff2': 'font/woff2',
   '.svg': 'image/svg+xml', '.json': 'application/json; charset=utf-8', '.webmanifest': 'application/manifest+json; charset=utf-8', '.png': 'image/png', '.ico': 'image/x-icon',
 };
-const KEYS = { recording: 'recordedHistory', record: 'recordHistory', devices: 'pairedDevices', layouts: 'sharedLayouts', looks: 'sharedLooks', widgets: 'sharedWidgets', homeyId: 'homeyId', night: 'wallNight', flowKey: 'flowKey', address: 'homeAddress', buttons: 'dashboardButtons' } as const;
+const KEYS = { recording: 'recordedHistory', record: 'recordHistory', devices: 'pairedDevices', layouts: 'sharedLayouts', looks: 'sharedLooks', looksFull: 'sharedLooksFull', looksCss: 'sharedLooksCss', looksTakenIn: 'sharedLooksTakenIn', widgets: 'sharedWidgets', homeyId: 'homeyId', night: 'wallNight', flowKey: 'flowKey', address: 'homeAddress', buttons: 'dashboardButtons' } as const;
 const HUB_MS = 10_000;
 /** The settings do not wait longer than this for the address of the hub. */
 export const ADDRESS_MS = 3000;
@@ -216,7 +220,19 @@ export async function startHomeServer(options: StartOptions) {
     fingerprint: (token) => createHash('sha256').update(token).digest('hex'),
   });
   const layouts = createSharedLayouts({ load: () => homey.settings.get(KEYS.layouts), save: (doc) => homey.settings.set(KEYS.layouts, doc) });
-  const looks = createSharedLooks({ load: () => homey.settings.get(KEYS.looks), save: (doc) => homey.settings.set(KEYS.looks, doc) });
+  // whole themes of format 2 apart, with a shadow in the place a hub of 1.1 reads, and the CSS and the themes taken in
+  // from someone else apart again: going back loses nothing
+  const looks = createSharedLooks({
+    load: () => looksFromStore(homey.settings.get(KEYS.looks), homey.settings.get(KEYS.looksFull), homey.settings.get(KEYS.looksCss), homey.settings.get(KEYS.looksTakenIn)),
+    save: (doc) => {
+      const stored = looksToStore(doc);
+      // what an older version cannot read first: an app that stops halfway leaves shadows that still have it
+      homey.settings.set(KEYS.looksTakenIn, stored.takenIn);
+      homey.settings.set(KEYS.looksCss, stored.css);
+      homey.settings.set(KEYS.looksFull, stored.full);
+      homey.settings.set(KEYS.looks, stored.doc);
+    },
+  });
   const widgets = createSharedWidgets({ load: () => homey.settings.get(KEYS.widgets), save: (doc) => homey.settings.set(KEYS.widgets, doc) });
   const night = createNight({ load: () => homey.settings.get(KEYS.night), save: (value) => homey.settings.set(KEYS.night, value), now: () => Date.now() });
   const ownAddress = addressOf(homey, options.addressTimeout ?? ADDRESS_MS);
@@ -270,8 +286,31 @@ export async function startHomeServer(options: StartOptions) {
       return { status: response.status, type: response.headers.get('content-type') ?? 'application/octet-stream', body: new Uint8Array(await response.arrayBuffer()) };
     },
   });
+  const appLive = createHubLive({
+    hasKey: () => flowKey.state() === 'wide',
+    open: async () => {
+      const Api = options.HomeyAPIV3Local;
+      if (!Api) return null;
+      homeyId ??= await readHomeyId(homey);
+      const id = homeyId;
+      if (id === null) throw new Error('The id of the hub is not known yet');
+      const baseUrl = await homey.api.getLocalUrl();
+      // the key goes only into the library, for this hub's own address
+      return flowKey.wideSession((key) => new Api({ token: key, baseUrl, strategy: [], properties: { id, softwareVersion: homey.version }, debug: () => {} }) as unknown as LiveSession);
+    },
+    listed: async () => listedFrom(await flowKey.wideRequest('GET', '/api/manager/dashboards/appwidget').catch(() => null)),
+    placed: () => placedAppWidgets(layouts.get()),
+    setTimeout: (fn, ms) => setTimeout(fn, ms), clearTimeout: (handle) => clearTimeout(handle as ReturnType<typeof setTimeout>), now: () => Date.now(), log,
+  });
   const http = createHomeServer({
-    appWidgets, pairing, layouts, looks, widgets, night, flowKey, buttons, build: () => build, hub, file: filesOf(options.folder), homeyId: () => homeyId ?? hub.snapshot()?.homeyId ?? null,
+    timeZone: () => {
+      try {
+        return homey.clock?.getTimezone() || 'UTC';
+      } catch {
+        return 'UTC';
+      }
+    },
+    appWidgets, appLive, pairing, layouts, looks, widgets, night, flowKey, buttons, build: () => build, hub, file: filesOf(options.folder), homeyId: () => homeyId ?? hub.snapshot()?.homeyId ?? null,
     setInterval: (fn, ms) => setInterval(fn, ms), clearInterval: (handle) => clearInterval(handle as ReturnType<typeof setInterval>), log,
   });
   await new Promise<void>((done, fail) => {
@@ -320,6 +359,8 @@ export async function startHomeServer(options: StartOptions) {
     flowKey: (): FlowKeyState => flowKey.state(),
     setFlowKey: (key: unknown): Promise<FlowKeyResult> => flowKey.set(key),
     removeFlowKey: (): void => flowKey.remove(),
+    /** How the live news of apps for their widgets is doing, for the settings of the app. */
+    appLive: (): LiveState => appLive.state(),
     /** The address to open on another device; null when the hub does not say. */
     address,
     /** The code to pair with, the address that brings it along, and the squares to scan. */
@@ -364,6 +405,7 @@ export async function startHomeServer(options: StartOptions) {
       stopLayouts();
       hub.stop();
       await http.close();
+      appLive.stop();
     },
   };
 }

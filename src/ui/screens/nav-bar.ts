@@ -22,6 +22,7 @@ export class MhNavBar extends LitElement {
     panel: { type: String },
     open: { state: true },
     tight: { state: true },
+    ownCss: { type: Boolean, attribute: 'own-css', reflect: true },
   };
   /** The texts, in the language of the app; Dutch until the app sets it. */
   declare t: Translate;
@@ -32,6 +33,8 @@ export class MhNavBar extends LitElement {
   declare open: boolean;
   /** Not everything fits: the rooms stand in the menu. */
   declare tight: boolean;
+  /** Own CSS is on: the button with Thema and Instellingen keeps a ground and colour of its own. */
+  declare ownCss: boolean;
   private resized: ResizeObserver | null = null;
 
   constructor() {
@@ -42,6 +45,7 @@ export class MhNavBar extends LitElement {
     this.panel = 'none';
     this.open = false;
     this.tight = false;
+    this.ownCss = false;
   }
 
   static override styles = [sharedStyles, css`
@@ -58,6 +62,7 @@ export class MhNavBar extends LitElement {
       font-size: var(--type-label-s-size); line-height: var(--type-label-s-line); font-weight: var(--weight-strong); color: var(--rail-item-fg);
       -webkit-tap-highlight-color: transparent; --icon-size: var(--icon-l);
     }
+    :host([own-css]) button.kept { background: var(--sheet-bg); color: var(--sheet-fg); }
     button:focus-visible { outline: var(--focus-width) solid var(--focus-color); outline-offset: calc(-1 * var(--focus-width)); border-radius: var(--shape-lg); }
     .indicator {
       width: var(--rail-indicator-width); height: var(--rail-indicator-height); border-radius: var(--rail-indicator-radius);
@@ -117,7 +122,7 @@ export class MhNavBar extends LitElement {
   private board(board: RailBoard) {
     const open = board.id === this.activeBoard;
     const active = open && this.panel === 'none';
-    return html`<button class="${open ? 'open' : ''} ${active ? 'active' : ''}" aria-current=${active ? 'page' : 'false'} title=${board.name}
+    return html`<button part=${active ? 'nav-item active' : 'nav-item'} class="${open ? 'open' : ''} ${active ? 'active' : ''}" aria-current=${active ? 'page' : 'false'} title=${board.name}
       @click=${() => this.emit(`board:${board.id}`)}>${this.face(board.icon, board.name, active)}</button>`;
   }
 
@@ -152,10 +157,10 @@ export class MhNavBar extends LitElement {
     const { t } = this;
     const shown = this.tight ? this.boards.filter((board) => board.id !== ROOMS_ID) : this.boards;
     const more = this.panel !== 'none' || (this.tight && this.activeBoard === ROOMS_ID);
-    return html`<nav aria-label=${t('nav.label')}>
+    return html`<nav part="nav-bar" aria-label=${t('nav.label')}>
       <div class="boards">${repeat(shown, (board) => board.id, (board) => this.board(board))}</div>
       <div class="more">
-        <button class=${more ? 'active' : ''} aria-haspopup="menu" aria-expanded=${this.open ? 'true' : 'false'} @click=${() => { this.open = !this.open; }}>${this.face('more_vert', t('nav.more'), more)}</button>
+        <button class=${more ? 'active kept' : 'kept'} aria-haspopup="menu" aria-expanded=${this.open ? 'true' : 'false'} @click=${() => { this.open = !this.open; }}>${this.face('more_vert', t('nav.more'), more)}</button>
         <div class="anchor"><mh-menu .t=${t} .open=${this.open} label=${t('nav.more')} .groups=${this.groups()} .anchor=${this.trigger}
           @select=${(e: CustomEvent<{ id: string }>) => this.onSelect(e)} @close=${(e: Event) => this.onClose(e)}></mh-menu></div>
       </div>

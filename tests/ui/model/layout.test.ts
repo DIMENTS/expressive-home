@@ -39,5 +39,5 @@ test('the count line', () => {
 });
 
 test('every kind of section has its icon', () => {
-  expect(SECTION_ORDER.map(sectionIcon)).toEqual(['lightbulb', 'power', 'thermostat', 'blinds', 'speaker', 'water_drop', 'shield', 'category', 'play_circle']);
+  expect(SECTION_ORDER.map(sectionIcon)).toEqual(['lightbulb', 'power', 'thermostat', 'blinds', 'speaker', 'local_laundry_service', 'ev_station', 'water_drop', 'shield', 'category', 'play_circle']);
 });

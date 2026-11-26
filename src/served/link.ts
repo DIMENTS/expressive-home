@@ -21,9 +21,11 @@ export type Role = 'use' | 'edit';
 export type LinkEvents = {
   /**
    * The stream is there: again, or for the first time. `looks`: the number of the looks of the house, null from a hub
-   * that has none; `rescue`: how often the owner put every device back in Rustig, absent where that is not counted.
+   * that has none; `rescue`: how often the owner put every device back in Rustig, absent where that is not counted;
+   * `stream`: the number the hub gave this stream; `gap`: how long in ms nothing came from the hub before it, absent
+   * the first time.
    */
-  open: { revision: number; role: Role | null; looks: number | null; rescue?: number; widgets?: number };
+  open: { revision: number; role: Role | null; looks: number | null; rescue?: number; widgets?: number; stream?: string; gap?: number };
   /** The stream went, or did not come; it is tried again by itself. */
   lost: null;
   hub: unknown;
@@ -40,6 +42,10 @@ export type LinkEvents = {
   role: Role;
   /** This device was taken away by the owner. */
   unpaired: null;
+  /** A piece of news of an app on the hub, for its widgets. */
+  'app-event': { app: string; event: string; data: unknown };
+  /** The hub missed news of an app for a while: its widgets start anew. */
+  'app-gap': { app: string };
 };
 
 /** Without any sign of life for this long the stream counts as gone: the server sends one every twenty seconds. */
@@ -64,7 +70,7 @@ export class RequestError extends Error {
 }
 
 export function createLink(deps: LinkDeps) {
-  const listeners: { [K in keyof LinkEvents]: Set<(value: LinkEvents[K]) => void> } = { open: new Set(), lost: new Set(), hub: new Set(), layouts: new Set(), looks: new Set(), widgets: new Set(), night: new Set(), build: new Set(), role: new Set(), unpaired: new Set() };
+  const listeners: { [K in keyof LinkEvents]: Set<(value: LinkEvents[K]) => void> } = { open: new Set(), lost: new Set(), hub: new Set(), layouts: new Set(), looks: new Set(), widgets: new Set(), night: new Set(), build: new Set(), role: new Set(), unpaired: new Set(), 'app-event': new Set(), 'app-gap': new Set() };
   /** Who needs the stream: it is open, or tried again, as long as there is one. */
   const holders = new Set<object>();
   let stream: EventStream | null = null;
@@ -73,6 +79,9 @@ export function createLink(deps: LinkDeps) {
   let up = false;
   let asleep = false;
   let heardAt = 0;
+  /** When the hub last said anything, over any stream; null before it ever did. */
+  let lastSign: number | null = null;
+  let signBefore: number | null = null;
 
   const emit = <K extends keyof LinkEvents>(type: K, value: LinkEvents[K]): void => { for (const listener of [...listeners[type]]) listener(value); };
   const parse = (data: string | undefined): Record<string, unknown> => {
@@ -121,6 +130,8 @@ export function createLink(deps: LinkDeps) {
       own.addEventListener(type, (event) => {
         if (stream !== own) return;
         heardAt = deps.now();
+        signBefore = lastSign;
+        lastSign = heardAt;
         watch(SILENT_MS);
         act(parse(event.data));
       });
@@ -132,6 +143,8 @@ export function createLink(deps: LinkDeps) {
         revision: Number(data['revision']) || 0, role: data['role'] === 'use' || data['role'] === 'edit' ? data['role'] : null, looks: typeof data['looks'] === 'number' ? data['looks'] : null,
         ...(typeof data['rescue'] === 'number' ? { rescue: data['rescue'] } : {}),
         ...(typeof data['widgets'] === 'number' ? { widgets: data['widgets'] } : {}),
+        ...(typeof data['stream'] === 'string' ? { stream: data['stream'] } : {}),
+        ...(signBefore !== null && heardAt >= signBefore ? { gap: heardAt - signBefore } : {}),
       });
       if (data['night'] !== undefined) night(data['night']);
       if (typeof data['build'] === 'string' && data['build'] !== '') emit('build', data['build']);
@@ -144,6 +157,10 @@ export function createLink(deps: LinkDeps) {
     on('night', night);
     on('role', ({ role }) => { if (role === 'use' || role === 'edit') emit('role', role); });
     on('unpaired', unpaired);
+    on('app-event', (data) => {
+      if (typeof data['app'] === 'string' && typeof data['event'] === 'string') emit('app-event', { app: data['app'], event: data['event'], data: data['data'] });
+    });
+    on('app-gap', (data) => { if (typeof data['app'] === 'string') emit('app-gap', { app: data['app'] }); });
     own.addEventListener('error', () => {
       if (stream !== own) return;
       // refused (not paired any more), or the server is away: the browser gives up on the first, and tries the second again

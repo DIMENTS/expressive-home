@@ -1,4 +1,9 @@
+import { applianceOf } from '../../controls/appliance';
+import { carOf } from '../../controls/car';
+import { chargerOf } from '../../controls/charger';
 import { climateOf } from '../../controls/climate';
+import { fanOf } from '../../controls/fan';
+import { vacuumOf, vacuumState } from '../../controls/vacuum';
 import { coverOf, coverState, type Cover } from '../../controls/cover';
 import { guardOf } from '../../controls/guard';
 import { mediaOf, mediaState, type Media } from '../../controls/media';
@@ -39,12 +44,18 @@ export function shownOnTop(device: Device, kind: HouseKind): ReadonlySet<string>
       return ids(...Object.values(rest) as (Capability | null)[], media.playing ? null : onoff);
     }
     case 'guard': return ids(guardOf(device)?.cap);
+    case 'fan': { const fan = fanOf(device); return ids(fan?.onoff, fan?.speed, fan?.oscillating, fan?.mode); }
+    case 'vacuum': { const vacuum = vacuumOf(device); return ids(vacuum?.state, vacuum?.onoff, vacuum?.docked, vacuum?.battery, vacuum?.job, vacuum ? vacuumState(vacuum).problem : null); }
+    case 'appliance': { const appliance = applianceOf(device); return ids(appliance?.operational, appliance?.running, appliance?.progress, appliance?.remaining, appliance?.onoff); }
+    case 'charger': { const charger = chargerOf(device); return ids(charger?.charging, charger?.onoff, charger?.state, charger?.power, charger?.session, charger?.target); }
+    case 'car': { const car = carOf(device); return ids(car?.battery, car?.range, car?.charging, car?.lock); }
   }
 }
 
 /** The line under the name at the top of the window. */
 export function topLine(device: Device, kind: HouseKind, view: TileView, t: Translate): string {
-  if (kind === 'guard') return '';
+  // what these say stands large under it
+  if (kind === 'guard' || kind === 'fan' || kind === 'vacuum' || kind === 'appliance' || kind === 'charger' || kind === 'car') return '';
   if (kind === 'climate') {
     const measure = climateOf(device)?.measure;
     const now = measure && typeof measure.value === 'number' ? degrees(measure.value, t) : null;

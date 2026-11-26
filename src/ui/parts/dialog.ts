@@ -59,6 +59,8 @@ export class MhDialog extends LitElement {
   protected override updated(changed: PropertyValues<this>): void {
     if (!changed.has('open')) return;
     if (this.open) {
+      // opened again before the last update: the trap of before goes first
+      this.releaseFocus?.();
       this.releaseFocus = trapFocus(this.shadowRoot!, this);
       this.querySelector<HTMLElement>('[data-autofocus]')?.focus();
     } else if (this.releaseFocus) {

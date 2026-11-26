@@ -194,3 +194,17 @@ test('the permission hint also mentions a mistyped address', async () => {
   const screen = await open({ busy: true, waitingForPermission: true });
   expect(text(screen)).toContain('Wacht op toestemming van je browser… Duurt het lang, kijk dan ook of het adres klopt.');
 });
+
+test('for the weather and the energy two more rights are named, as a choice: the seven stay the seven', async () => {
+  const screen = await open();
+  expect(screen.shadowRoot!.querySelectorAll('.rights li')).toHaveLength(7);
+  expect(inside(screen, '.rights-more').textContent?.replace(/\s+/g, ' ').trim()).toBe('Voor de widgets Weer en Energie ook Locatie en Energie, als je Homey die rechten aanbiedt.');
+});
+
+test('it advises a key of its own for every device, and says where the key goes', async () => {
+  const screen = await open();
+  expect(text(screen)).toContain('Maak een nieuwe sleutel voor dit apparaat en vink deze zeven rechten aan:');
+  const notes = [...screen.shadowRoot!.querySelectorAll('mh-note')].map((note) => note.textContent!.replace(/\s+/g, ' ').trim());
+  expect(notes).toContain('Een eigen sleutel per apparaat. Raak je er een kwijt, dan verwijder je in my.homey.app alleen die sleutel.');
+  expect(fields(screen)[1]!.getAttribute('help')).toBe('Blijft in deze browser en gaat alleen naar je Homey: thuis rechtstreeks, onderweg via de Homey-cloud.');
+});

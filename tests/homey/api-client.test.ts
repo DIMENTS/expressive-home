@@ -21,6 +21,9 @@ function fakeLib(options: { sessionError?: Error; controlError?: Error; flowsErr
     zones = { getZones: async () => ({}) };
     system = { getInfo: async () => { if (options.systemError) throw options.systemError; return options.systemInfo ?? {}; } };
     flow = { getFlows: async () => { if (options.flowsGate) await options.flowsGate; if (state.flowsGateFor) await state.flowsGateFor(this.index); if (options.flowsError) throw options.flowsError; return { f1: { id: 'f1', name: 'Alles uit' } }; }, getAdvancedFlows: async () => ({}), triggerFlow: async (a: unknown) => { calls.push(['flow', a]); }, triggerAdvancedFlow: async (a: unknown) => { calls.push(['advanced', a]); } };
+    weather = { getWeather: async () => { calls.push(['weather', 'getWeather']); return { temperature: 12 }; } };
+    energy = { getReportDay: async (args: unknown) => { calls.push(['energy', args]); return { items: [] }; }, getReportWeek: async (args: unknown) => { calls.push(['energy', args]); return { week: true }; }, getReportMonth: async (args: unknown) => { calls.push(['energy', args]); return { month: true }; }, deleteReports: async () => { calls.push(['energy', 'delete']); } };
+    async subscribe(uri: string, handlers: { onEvent(event: string, data: unknown): void }) { calls.push(['subscribe', uri]); handlers.onEvent('report.update', {}); return { unsubscribe: () => { calls.push(['unsubscribe', uri]); } }; }
     insights = {
       getLogs: async () => { if (options.insightsError) throw options.insightsError; return { a: { id: 'homey:device:d1:measure_power', type: 'number' }, b: { id: 'cpu', ownerUri: 'homey:manager:system', type: 'number' }, c: { id: 'onoff', ownerUri: 'homey:device:d1', type: 'boolean' }, r: { id: `homey:app:app.expressive.home:${recordedLogId('d2', 'ac_input_source')}`, type: 'number' } }; },
       getLogEntries: async (args: { id: string; resolution?: string }) => {
@@ -887,4 +890,35 @@ test('for measuring, the history comes as the hub gives it, with every period or
   expect((calls as [string, unknown][]).filter(([name]) => name === 'entries').map(([, args]) => args)).toEqual([{ id: 'homey:device:d1:measure_power', resolution: 'last7Days' }, { id: 'homey:device:d1:measure_power' }]);
   client.disconnect();
   await expect(client.rawHistory!.logs()).rejects.toThrow();
+});
+
+test('for measuring weather and energy, only reading is passed on, and news of a manager can be heard', async () => {
+  const { lib, calls } = fakeLib();
+  const client = createHomeyApiClient(lib, settings, deps(localOk));
+  await client.connect();
+  expect(await client.rawManagers!.call('weather', 'getWeather')).toEqual({ temperature: 12 });
+  expect(await client.rawManagers!.call('energy', 'getReportDay', { date: '2026-11-24' })).toEqual({ items: [] });
+  await expect(client.rawManagers!.call('energy', 'deleteReports')).rejects.toThrow();
+  const heard: string[] = [];
+  const stop = await client.rawManagers!.listen('homey:manager:energy', (event) => heard.push(event));
+  stop();
+  expect(heard).toEqual(['report.update']);
+  expect((calls as [string, unknown][]).filter(([name]) => ['weather', 'energy', 'subscribe', 'unsubscribe'].includes(name))).toEqual([
+    ['weather', 'getWeather'], ['energy', { date: '2026-11-24' }], ['subscribe', 'homey:manager:energy'], ['unsubscribe', 'homey:manager:energy'],
+  ]);
+  client.disconnect();
+  await expect(client.rawManagers!.call('weather', 'getWeather')).rejects.toThrow();
+});
+
+test('the weather and a report of Homey Energy are read as the hub gives them, for the period that holds now in the zone asked for', async () => {
+  const { lib, calls } = fakeLib();
+  const client = createHomeyApiClient(lib, settings, { ...deps(localOk), now: () => Date.parse('2026-11-25T23:30:00Z') });
+  await client.connect();
+  expect(await client.readWeather!()).toEqual({ temperature: 12 });
+  expect(await client.readEnergy!('day', 'Europe/Amsterdam')).toEqual({ items: [] });
+  expect(await client.readEnergy!('week', 'Europe/Amsterdam')).toEqual({ week: true });
+  expect(await client.readEnergy!('month', 'UTC')).toEqual({ month: true });
+  expect((calls as [string, unknown][]).filter(([name]) => name === 'energy').map(([, args]) => args)).toEqual([{ date: '2026-11-26' }, { isoWeek: '2026-W48' }, { yearMonth: '2026-11' }]);
+  client.disconnect();
+  await expect(client.readWeather!()).rejects.toThrow();
 });

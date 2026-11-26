@@ -200,17 +200,23 @@ test('the right of a device, and taking it away', async ({ browser }) => {
   await s.context.close();
 });
 
-test('the buttons of the flows are named, and the key is under more', async ({ browser }) => {
+test('the buttons of the flows are named, and the key for flows is one of three choices', async ({ browser }) => {
   await hand('buttons', { names: ['Welterusten', 'Film <i>kijken</i>'] });
   const s = await settings(browser);
   await expect(s.page.getByText('Knoppen nu: Film <i>kijken</i>, Welterusten')).toBeVisible();
-  await expect(s.page.getByLabel('Sleutel voor flows')).toBeHidden();
-  await s.page.getByText('Meer mogelijkheden').click();
-  await s.page.getByLabel('Sleutel voor flows').fill('geen sleutel');
+  // without a key nothing has to be typed; a choice shows its own steps
+  await expect(s.page.getByRole('radio', { name: /^Geen sleutel/ })).toBeChecked();
+  await expect(s.page.getByLabel('Plak hier de nieuwe sleutel')).toBeHidden();
+  await s.page.getByRole('radio', { name: /^Volledige toegang/ }).check();
+  await expect(s.page.getByText('Maak een nieuwe sleutel en vink alle rechten aan.')).toBeVisible();
+  await s.page.getByRole('radio', { name: /^Alleen flows starten/ }).check();
+  await expect(s.page.getByText('Maak een nieuwe sleutel en vink alleen Flows starten aan.')).toBeVisible();
+  await s.page.getByLabel('Plak hier de nieuwe sleutel').fill('geen sleutel');
   await s.page.getByRole('button', { name: 'Bewaren' }).click();
   await expect(s.page.getByText('Dit is geen sleutel.')).toBeVisible();
   await hand('flowkey');
-  await expect(s.page.getByText('De sleutel werkt: ook je andere flows starten vanaf het dashboard.')).toBeVisible({ timeout: 10_000 });
+  await expect(s.page.getByText('Nu: een sleutel die alleen flows mag starten. Al je flows werken op het dashboard.')).toBeVisible({ timeout: 10_000 });
+  await expect(s.page.getByRole('radio', { name: /^Alleen flows starten/ })).toBeChecked();
   await hand('buttons', { names: [] });
   await expect(s.page.locator('#buttons')).toBeHidden({ timeout: 10_000 });
   await s.context.close();
@@ -223,7 +229,6 @@ for (const [lang, width] of [['nl', 320], ['en', 320], ['nl', 900], ['en', 390]]
     await expect(s.page.locator('#qr')).toBeVisible();
     await pairWith(link, 'Een apparaat met een heel lange naam die ergens afgebroken moet worden');
     await hand('buttons', { names: ['Een-knop-met-een-heel-lange-naam-zonder-spaties-die-niet-past', 'Film'] });
-    await s.page.locator('details > summary').click();
     await expect(s.page.locator('.device')).toHaveCount(1, { timeout: 10_000 });
     await s.page.locator('#add').click();
     await expect(s.page.locator('#qr')).toBeVisible();
@@ -371,7 +376,6 @@ test('without the last device there is a code to scan at once, also when there w
 
 test('recording what Homey does not keep is on, can be switched off, and wiped after a question', async ({ browser }) => {
   const s = await settings(browser);
-  await s.page.getByText('Meer mogelijkheden').click();
   const record = s.page.getByLabel('Zelf opnemen wat Homey niet bijhoudt');
   await expect(record).toBeChecked();
   await record.uncheck();

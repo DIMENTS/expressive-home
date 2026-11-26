@@ -305,3 +305,61 @@ test('the colours of the night are its own, also with forced colours', async () 
   const css = MhRestScreen.styles.slice(1).map((s) => ('cssText' in s ? s.cssText : '')).join('\n');
   expect(css).toMatch(/\.screen\.night \{[^}]*forced-color-adjust: none/);
 });
+
+// ----- the weather -----
+
+async function withWeather(props: Partial<MhRestScreen>, when: Date) {
+  const { readWeather } = await import('../../../src/widgets/weather');
+  const fake = fakeContext(home());
+  const weather = readWeather({ when: when.toISOString(), iconId: 'clouds_light_night', state: 'x', temperature: 7.6, temperatureMax: 12.4, temperatureMin: 3, forecast: [], forecastHourly: [] });
+  let active = 0;
+  let listened = 0;
+  fake.ctx.widgets = { boards: () => [], openBoard: () => {}, weather: { get: () => ({ value: weather, at: Date.now(), error: null }), refresh: () => {}, listen: (fn: (s: unknown) => void) => { active += 1; listened += 1; fn({ value: weather, at: Date.now(), error: null }); return () => { active -= 1; }; } } as never };
+  const element = await mount<MhRestScreen>('mh-rest-screen', { ctx: fake.ctx, hero: HERO, battery: BATTERY, wall: { ...defaultWall(), on: true }, hub: { ...emptyWallHub(), inside: HUB.inside }, now: NOW, ...props });
+  const text = (selector: string) => [...element.shadowRoot!.querySelectorAll<HTMLElement>(selector)].map((e) => e.textContent!.replace(/\s+/g, ' ').trim());
+  return { element, text, active: () => active, listened: () => listened };
+}
+
+test('by day the weather stands under the date: its icon, the temperature, the state and the highest of today', async () => {
+  const s = await withWeather({}, new Date(2026, 10, 23, 20, 0));
+  expect(s.text('.weather')).toEqual(['8° · half bewolkt · ↑ 12°']);
+  expect(s.element.shadowRoot!.querySelector('.weather')!.getAttribute('part')).toBe('rest-weather');
+  expect(s.element.shadowRoot!.querySelector('.weather mh-icon')!.getAttribute('name')).toBe('partly_cloudy_night');
+  expect(s.active()).toBe(1);
+  s.element.remove();
+  expect(s.active()).toBe(0);
+});
+
+test('with an outside sensor the weather leaves out its own temperature; at night, or older than three hours, there is no weather', async () => {
+  const outside = await withWeather({ hub: { ...emptyWallHub(), inside: HUB.inside, outside: HUB.outside } }, new Date(2026, 10, 23, 20, 0));
+  expect(outside.text('.weather')).toEqual(['half bewolkt · ↑ 12°']);
+  document.body.replaceChildren();
+  const night = await withWeather({ night: true }, new Date(2026, 10, 23, 20, 0));
+  expect(night.text('.weather')).toEqual([]);
+  document.body.replaceChildren();
+  const old = await withWeather({}, new Date(2026, 10, 23, 17, 40));
+  expect(old.text('.weather')).toEqual([]);
+});
+
+test('the rest screen without weather is as it was', async () => {
+  const s = await setup();
+  expect(s.text('.weather')).toEqual([]);
+});
+
+test('the weather is a part own CSS reaches, as every other part of the rest screen', async () => {
+  const { REST_PARTS } = await import('../../../src/ui/part-names');
+  const s = await withWeather({}, new Date(2026, 10, 23, 20, 0));
+  const listed = REST_PARTS.split(',').map((name) => name.trim());
+  const used = [...s.element.shadowRoot!.querySelectorAll('[part]')].flatMap((element) => element.getAttribute('part')!.split(/\s+/));
+  expect(used).toContain('rest-weather');
+  expect(used.filter((name) => !listed.includes(name))).toEqual([]);
+});
+
+test('the same hub told anew does not listen to the weather anew', async () => {
+  const s = await withWeather({}, new Date(2026, 10, 23, 20, 0));
+  s.element.hub = { ...emptyWallHub(), inside: HUB.inside };
+  await s.element.updateComplete;
+  s.element.hub = { ...emptyWallHub(), inside: HUB.inside };
+  await s.element.updateComplete;
+  expect([s.listened(), s.active()]).toEqual([1, 1]);
+});

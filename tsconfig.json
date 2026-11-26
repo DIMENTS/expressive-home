@@ -11,5 +11,5 @@
     "skipLibCheck": true,
     "types": []
   },
-  "include": ["src", "tests", "smoke", "vite.config.ts", "vite.homey.config.ts", "vite.server.config.ts", "playwright.config.ts", "playwright.perf.config.ts", "playwright.homey.config.ts"]
+  "include": ["src", "tests", "theme-gallery-src", "smoke", "vite.config.ts", "vite.homey.config.ts", "vite.pages.config.ts", "vite.server.config.ts", "vite.gallery.config.ts", "playwright.config.ts", "playwright.perf.config.ts", "playwright.homey.config.ts", "playwright.gallery.config.ts"]
 }

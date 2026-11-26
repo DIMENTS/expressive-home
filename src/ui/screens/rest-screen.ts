@@ -12,6 +12,11 @@ import { heroView, isWords } from '../model/hero-view';
 import { attention, shiftAt, temperature, type AttentionItem } from '../model/rest-view';
 import { sharedStyles } from '../parts/shared-styles';
 import '../parts/icon';
+import type { ReadSource, ReadState } from '../../widgets/live-reads';
+import { formatDegrees, weatherIconName, weatherState, type Weather } from '../../widgets/weather';
+
+/** Weather older than this is not on the rest screen: it would be read as now from across the room. */
+export const REST_WEATHER_MS = 3 * 3_600_000;
 
 /** The wave of the battery, in the units of the rest screen; its line has round ends. */
 const WAVE = { height: 44, stroke: 14, length: 96, amplitude: 10, gap: 12, width: 1152 };
@@ -108,6 +113,10 @@ export class MhRestScreen extends LitElement {
     .top { display: flex; justify-content: space-between; align-items: flex-start; gap: calc(var(--_u) * var(--rest-gap) * 2); }
     .clock { font-size: calc(var(--_u) * var(--_clock)); line-height: var(--rest-clock-line); font-weight: var(--weight-strong); letter-spacing: var(--rest-tracking); font-variant-numeric: tabular-nums; white-space: nowrap; margin-left: calc(var(--_u) * var(--rest-clock-inset)); }
     .date { margin-top: calc(var(--_u) * var(--rest-gap) * 1.6); font-size: calc(var(--_u) * var(--rest-date)); line-height: var(--type-title-line); font-weight: var(--weight-medium); color: var(--rest-fg-muted); }
+    .weather { display: flex; align-items: center; gap: calc(var(--_u) * var(--rest-gap)); margin-top: calc(var(--_u) * var(--rest-gap)); font-size: calc(var(--_u) * var(--rest-date)); line-height: var(--type-title-line);
+      font-weight: var(--weight-medium); color: var(--rest-fg-muted); --icon-size: calc(var(--_u) * var(--rest-date) * 1.2); }
+    .weather mh-icon { color: var(--rest-accent); }
+    .stale .weather mh-icon { color: var(--rest-fg-muted); }
     .temps { display: grid; gap: calc(var(--_u) * var(--rest-gap) * 2); padding-top: calc(var(--_u) * var(--rest-gap)); }
     .temp, .stat { display: flex; align-items: center; gap: calc(var(--_u) * var(--rest-gap)); --icon-size: calc(var(--_u) * var(--rest-icon)); }
     .temp > mh-icon { color: var(--rest-fg-muted); }
@@ -129,7 +138,7 @@ export class MhRestScreen extends LitElement {
     .name { display: flex; min-width: 0; max-width: 100%; white-space: pre; }
     .cut { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
     .what { min-width: 0; max-width: 100%; overflow: hidden; overflow-wrap: anywhere; hyphens: auto; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
-    .pill.alarm { background: var(--rest-alarm-bg); color: var(--rest-alarm-fg); }
+    .pill.alarm { background: var(--rest-alarm-bg) !important; color: var(--rest-alarm-fg) !important; text-shadow: none !important; }
     .pill.more { flex: none; background: none; color: var(--rest-fg-muted); padding: 0; }
     .number.long { font-size: calc(var(--_u) * var(--rest-unit-text)); line-height: var(--type-value-line); letter-spacing: var(--tracking-display); white-space: normal; }
     .title { margin-bottom: calc(var(--_u) * var(--rest-gap)); font-size: calc(var(--_u) * var(--rest-line)); line-height: var(--type-title-line); font-weight: var(--weight-medium); color: var(--rest-fg-muted); overflow-wrap: anywhere; }
@@ -166,6 +175,7 @@ export class MhRestScreen extends LitElement {
   override disconnectedCallback(): void {
     super.disconnectedCallback();
     this.deafen();
+    this.hearWeather();
     this.resize?.disconnect();
     this.resize = null;
     this.watched = null;
@@ -180,6 +190,14 @@ export class MhRestScreen extends LitElement {
     this.listening = [];
   }
 
+  /** Hears of the weather of the hub, once for as long as the screen is there: a hub told anew is no reason to ask again. */
+  private hearWeather(): void {
+    const weather = this.isConnected ? this.ctx?.widgets?.weather ?? null : null;
+    if (weather === this.weatherHeard?.source) return;
+    this.weatherHeard?.stop();
+    this.weatherHeard = weather ? { source: weather, stop: weather.listen((state) => { this.weather = state; this.requestUpdate(); }) } : null;
+  }
+
   /** Hears of the devices it shows something of, and of those that can raise an alarm. */
   private listen(): void {
     this.deafen();
@@ -192,6 +210,7 @@ export class MhRestScreen extends LitElement {
       ...store.getDevices().filter((device) => Object.values(device.capabilities).some((cap) => alarmKind(cap.baseId) === 'danger')).map((device) => device.id),
     ]);
     const redraw = (): void => this.requestUpdate();
+    this.hearWeather();
     this.listening = [
       store.subscribeStructure(() => {
         this.listen();
@@ -257,10 +276,29 @@ export class MhRestScreen extends LitElement {
       <div class="values">
         <div class="number ${long}">${view.number.text}${view.number.unit ? html`<span class="unit">${view.number.unit}</span>` : nothing}</div>
         ${view.line ? html`<div class="line">${view.line}</div>` : nothing}
-        ${view.stats.length ? html`<div class="stats">${view.stats.map((stat) => html`<div class="stat ${isWords(stat.value) ? 'long' : ''}"><mh-icon name=${stat.icon}></mh-icon><div><b>${stat.value}</b> <span>${stat.label}</span></div></div>`)}</div>` : nothing}
+        ${view.stats.length ? html`<div class="stats">${view.stats.map((stat) => html`<div class="stat ${isWords(stat.value) ? 'long' : ''}" part="rest-stat"><mh-icon name=${stat.icon}></mh-icon><div><b>${stat.value}</b> <span>${stat.label}</span></div></div>`)}</div>` : nothing}
       </div>
       ${view.progress !== null ? this.renderWave(view.progress) : nothing}
     </div>`;
+  }
+
+  /** What the rest screen knows of the weather of the hub. */
+  private weather: ReadState<Weather> | null = null;
+  /** The weather it hears of, and how to stop. */
+  private weatherHeard: { source: ReadSource<Weather>; stop: () => void } | null = null;
+
+  /** One line under the date: the weather of now, without its temperature when an outside sensor already says it. */
+  private renderWeather() {
+    const weather = this.weather?.value;
+    if (!weather || weather.at === null || this.now.getTime() - weather.at >= REST_WEATHER_MS) return nothing;
+    const { t } = this.ctx;
+    const outside = this.hub.outside ? temperature(this.hub.outside, (id) => this.ctx.store.getDevice(id), t) !== null : false;
+    const parts = [
+      ...(outside ? [] : [formatDegrees(weather.temperature, t)]),
+      weatherState(weather, t).toLocaleLowerCase(t.locale),
+      ...(weather.max === null ? [] : [`↑ ${formatDegrees(weather.max, t)}`]),
+    ];
+    return html`<div class="weather" part="rest-weather"><mh-icon name=${weatherIconName(weather.icon)}></mh-icon><span>${parts.join(' · ')}</span></div>`;
   }
 
   private renderTemperatures() {
@@ -283,12 +321,12 @@ export class MhRestScreen extends LitElement {
     const time = timeText(this.now, ctx.t);
     const rest = more > 0 ? ctx.t('rest.more', { n: more }) : '';
     const picture = night
-      ? html`<div class="clock">${time}</div>
+      ? html`<div class="clock" part="rest-clock night">${time}</div>
         ${items.map((item) => html`<div class="faint"><mh-icon name=${item.icon} filled></mh-icon>${itemText(item)}</div>`)}${rest ? html`<div class="faint more">${rest}</div>` : nothing}`
-      : html`<div class="top"><div><div class="clock">${time}</div><div class="date">${dayText(this.now, ctx.t)}</div></div>${this.renderTemperatures()}</div>
+      : html`<div class="top"><div><div class="clock" part="rest-clock">${time}</div><div class="date" part="rest-date">${dayText(this.now, ctx.t)}</div>${this.renderWeather()}</div>${this.renderTemperatures()}</div>
         <div class="attention">${items.map((item) => html`<div class="pill ${item.tone}"><mh-icon name=${item.icon} filled></mh-icon>${itemText(item)}</div>`)}${rest ? html`<div class="pill more">${rest}</div>` : nothing}</div>
         ${this.renderHero()}`;
-    return html`<div class="screen ${night ? 'night' : ''} ${!night && this.away ? 'stale' : ''}"><div class="picture" aria-hidden="true">${picture}</div></div>
+    return html`<div class="screen ${night ? 'night' : ''} ${!night && this.away ? 'stale' : ''}" part=${night ? 'rest night' : 'rest'}><div class="picture" aria-hidden="true">${picture}</div></div>
       <button class="wake" aria-label=${ctx.t('rest.label')}></button>`;
   }
 }

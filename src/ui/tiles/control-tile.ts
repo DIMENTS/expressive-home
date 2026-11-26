@@ -6,6 +6,7 @@ import { goesAlong, valueAt } from '../model/slider-math';
 import { controlStyles } from './control-styles';
 import { DeviceTileElement } from './tile-base';
 import '../parts/slider';
+import { SLIDER_PARTS } from '../part-names';
 
 export interface TileSlider { cap: Capability; fraction: number; label: string; valueText: string; dimmed?: boolean; /** The other way round: an awning is out at the lowest value. */ turned?: boolean }
 
@@ -34,7 +35,7 @@ export abstract class ControlTileElement<S extends DeviceTileSpec = DeviceTileSp
   }
 
   protected renderSlider(slider: TileSlider): TemplateResult {
-    return html`<mh-slider .fraction=${live(slider.fraction)} ?dimmed=${slider.dimmed ?? false} label=${slider.label} valueText=${slider.valueText}
+    return html`<mh-slider exportparts=${SLIDER_PARTS} .fraction=${live(slider.fraction)} ?dimmed=${slider.dimmed ?? false} label=${slider.label} valueText=${slider.valueText}
       @slide=${(e: CustomEvent<{ fraction: number }>) => this.onSlide(slider, e, false)}
       @commit=${(e: CustomEvent<{ fraction: number }>) => this.onSlide(slider, e, true)}></mh-slider>`;
   }

@@ -152,7 +152,7 @@ export const rustigExpressive: ThemeDefinition = {
     'hero-number-size': 'var(--density-hero-size)', 'hero-title-size': 'var(--density-hero-title-size)', 'hero-stat-pad': 'var(--density-stat-pad)',
     'hero-stat-bg': 'color-mix(in srgb, currentColor 8%, transparent)', 'hero-stat-radius': 'var(--shape-lg)', 'hero-stat-hover': '14%', 'hero-stat-word': '100px', 'hero-wave-height': '20px',
     'hero-wave-stroke': '6px', 'hero-wave-fg': 'var(--c-primary)', 'hero-wave-track': 'color-mix(in srgb, var(--c-primary) 24%, transparent)',
-    'hero-wave-length': '28px', 'hero-wave-amplitude': '3.2px', 'hero-wave-gap': '12px',
+    'hero-wave-length': '28px', 'hero-wave-amplitude': '3.2px', 'hero-wave-gap': '12px', 'hero-wave-scale': '1',
     // chart in the hero
     'chart-height': '112px', 'chart-gap': 'var(--space-20)', 'chart-line': 'var(--c-primary)', 'chart-line-2': 'var(--c-tertiary)', 'chart-line-width': '3px',
     'chart-area': 'color-mix(in srgb, var(--c-primary) 20%, transparent)', 'chart-baseline': 'color-mix(in srgb, currentColor 18%, transparent)',
@@ -199,9 +199,9 @@ export const rustigExpressive: ThemeDefinition = {
     'look-preview-height': '84px', 'look-preview-radius': 'var(--shape-lg)', 'look-preview-mark': '40%',
     'share-code-font': 'ui-monospace, "SF Mono", Consolas, monospace',
     // sheet (device window, theme, settings) and dialog
-    'sheet-width': '420px', 'sheet-margin': 'var(--space-16)', 'sheet-radius': 'var(--shape-2xl)', 'sheet-bg': 'var(--c-surface)', 'sheet-fg': 'var(--c-on-surface)',
+    'sheet-width': '420px', 'sheet-wide-width': '560px', 'sheet-margin': 'var(--space-16)', 'sheet-radius': 'var(--shape-2xl)', 'sheet-bg': 'var(--c-surface)', 'sheet-fg': 'var(--c-on-surface)',
     'sheet-row-bg': 'var(--c-surface-container-high)', 'sheet-row-radius': 'var(--shape-xl)', 'sheet-cell-radius': 'var(--shape-lg)',
-    'sheet-phone-height': '88dvh', 'sheet-grab-width': '36px', 'sheet-grab-height': '4px', 'sheet-grab-fg': 'var(--c-outline-variant)',
+    'sheet-phone-height': '88dvh', 'sheet-wide-phone-height': '55dvh', 'sheet-grab-width': '36px', 'sheet-grab-height': '4px', 'sheet-grab-fg': 'var(--c-outline-variant)',
     'sheet-icon-box': '44px', 'sheet-row-height': '56px', 'sheet-summary-height': '40px', 'sheet-slider-height': '28px',
     'dialog-bg': 'var(--c-surface-container-high)', 'dialog-radius': 'var(--shape-2xl)', 'dialog-width': '400px', 'dialog-enter-scale': '.94',
     // feedback
@@ -245,5 +245,8 @@ export const rustigExpressive: ThemeDefinition = {
     // widgets: the clock, a note, a link to a dashboard, and a frame of an own widget
     'widget-clock-size': 'var(--density-greeting-size)', 'widget-clock-wide-size': 'calc(var(--density-greeting-size) * 1.45)', 'widget-note-accent-bg': 'var(--c-inverse-surface)', 'widget-note-accent-fg': 'var(--c-inverse-on-surface)', 'widget-note-accent-icon-bg': 'var(--c-inverse-primary)', 'widget-note-accent-icon-fg': 'var(--c-inverse-surface)', 'widget-note-lines': '6', 'widget-note-wide-lines': '4', 'widget-link-arrow-bg': 'var(--c-primary)', 'widget-link-arrow-fg': 'var(--c-on-primary)', 'widget-max-height': 'calc(var(--tile-height) * 4)', 'widget-missing-border': 'var(--c-outline)',
     'widget-gauge-width': '150px', 'widget-gauge-stroke': '14', 'widget-gauge-lift': '34px', 'widget-gauge-fill': 'var(--slider-fill)', 'widget-gauge-track': 'var(--slider-track)',
+    // the weather
+    'widget-weather-icon': 'var(--c-primary)', 'widget-weather-icon-size': '36px', 'widget-weather-small-icon-size': '22px', 'widget-weather-rule': 'var(--c-outline-variant)', 'widget-weather-rule-width': '1px',
+    'widget-energy-icon': 'var(--c-primary)', 'widget-energy-icon-size': '36px', 'widget-energy-sun': 'var(--c-primary)', 'widget-energy-use': 'var(--c-tertiary)', 'widget-energy-axis': 'var(--c-outline-variant)', 'widget-energy-chart-height': '76px', 'widget-energy-device-bar': 'var(--c-tertiary)', 'widget-energy-device-bar-height': '8px', 'widget-energy-name-width': '120px',
   },
 };

@@ -81,3 +81,17 @@ test('a section palette has its own primary and keeps the error roles out', () =
 test('dark mode gives the dark palette of the same seed', () => {
   expect(sectionTokens(rustigExpressive, '#3a5ba9', 'dark')['--c-surface']).toBe(colorTokens('#3a5ba9', 'dark', 0)['--c-surface']);
 });
+
+test('the bars of the energy widget stand out from their tile: sun and use at least 3:1, for every seed and mode', () => {
+  for (const seed of ['#3b6939', '#a6422a', '#3a5ba9', '#7a5c00']) {
+    for (const mode of ['light', 'dark'] as const) {
+      const t = colorTokens(seed, mode, 0);
+      // the energy widget draws sun in primary and use in tertiary on the tile
+      expect([seed, mode, contrast(t['--c-primary']!, t['--c-surface-container-high']!)]).toEqual([seed, mode, expect.any(Number)]);
+      expect(contrast(t['--c-primary']!, t['--c-surface-container-high']!)).toBeGreaterThanOrEqual(3);
+      expect(contrast(t['--c-tertiary']!, t['--c-surface-container-high']!)).toBeGreaterThanOrEqual(3);
+    }
+  }
+  expect(rustigExpressive.components['widget-energy-sun']).toBe('var(--c-primary)');
+  expect(rustigExpressive.components['widget-energy-use']).toBe('var(--c-tertiary)');
+});

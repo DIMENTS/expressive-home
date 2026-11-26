@@ -1,5 +1,6 @@
 import type { CapRef } from '../dashboard/types';
 import { isHomeyId } from '../homey/routes';
+import { defaultScreen, NIGHT_SCREENS, REST_BRIGHTNESS, type NightScreen, type RestBrightness, type ScreenSettings } from './screen';
 
 // What is set up for a wall tablet: a rest screen when nobody is there, and the night. It belongs to one device.
 
@@ -24,6 +25,8 @@ export interface WallSettings {
   lowBattery: boolean;
   /** By the id of the hub; the one that changed last goes last. */
   hubs: Record<string, WallHub>;
+  /** The light of the screen, where Fully Kiosk lets the page reach it. */
+  screen: ScreenSettings;
 }
 
 const MAX_HUBS = 5;
@@ -31,7 +34,7 @@ const MAX_TANKS = 100;
 const MAX_ID = 200;
 const TIME = /^(?:[01]\d|2[0-3]):[0-5]\d$/;
 
-export const defaultWall = (): WallSettings => ({ on: false, after: 2, night: { on: true, from: '22:30', to: '07:30' }, lowBattery: true, hubs: {} });
+export const defaultWall = (): WallSettings => ({ on: false, after: 2, night: { on: true, from: '22:30', to: '07:30' }, lowBattery: true, hubs: {}, screen: defaultScreen() });
 export const emptyWallHub = (): WallHub => ({ inside: null, outside: null, tanks: {} });
 
 /** Whether a text is a time of day as it is kept. */
@@ -67,6 +70,11 @@ export function normalizeWall(raw: unknown): WallSettings {
     if (typeof night['on'] === 'boolean') wall.night.on = night['on'];
     if (isTime(night['from'])) wall.night.from = night['from'];
     if (isTime(night['to'])) wall.night.to = night['to'];
+  }
+  const screen = raw['screen'];
+  if (isRecord(screen)) {
+    if (REST_BRIGHTNESS.includes(screen['rest'] as RestBrightness)) wall.screen.rest = screen['rest'] as RestBrightness;
+    if (NIGHT_SCREENS.includes(screen['night'] as NightScreen)) wall.screen.night = screen['night'] as NightScreen;
   }
   if (isRecord(raw['hubs'])) {
     const hubs = Object.entries(raw['hubs']).flatMap(([id, hub]): [string, WallHub][] => (isHomeyId(id) && isRecord(hub) ? [[id.toLowerCase(), normalizeHub(hub)]] : []));

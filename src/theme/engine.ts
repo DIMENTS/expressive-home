@@ -23,8 +23,9 @@ export function isValidSeed(text: string): boolean {
   return /^#[0-9a-fA-F]{6}$/.test(text);
 }
 
+/** With the sun is decided by the page from the weather; what reaches here without it follows the system. */
 export function resolveMode(preference: ModePreference, systemPrefersDark: boolean): Mode {
-  if (preference === 'auto') return systemPrefersDark ? 'dark' : 'light';
+  if (preference === 'auto' || preference === 'sun') return systemPrefersDark ? 'dark' : 'light';
   return preference;
 }
 

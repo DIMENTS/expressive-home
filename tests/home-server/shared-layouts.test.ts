@@ -78,3 +78,20 @@ test('a widget of a section that an old page removed goes with it', () => {
   const gone = s.shared.put(1, { layouts: { [ID]: hubLayout([overview(null), board('d-1', [])]) }, sectionSeeds: {} });
   expect(gone.doc.layouts[ID]!.dashboards[1]!.sections).toEqual([]);
 });
+
+test('a page that knows widgets but not the weather or the energy cannot drop those; one that knows them can', () => {
+  const s = setup();
+  const named = (id: string, widget: string) => tileLayout({ kind: 'widget', id, size: 'wide', widget, settings: {} });
+  const all = () => ({ [ID]: hubLayout([overview(null), board('d-1', [ownSection('own:a', [sensorTile('t-1', 'device-13'), named('w-1', 'weather'), named('w-2', 'clock'), named('w-3', 'energy')])])]) });
+  const none = () => ({ [ID]: hubLayout([overview(null), board('d-1', [ownSection('own:a', [sensorTile('t-1', 'device-13')])])]) });
+  s.shared.put(0, { layouts: all(), sectionSeeds: {}, knows: ['widget', 'widget:weather', 'widget:energy'] });
+  const older = s.shared.put(1, { layouts: none(), sectionSeeds: {}, knows: ['widget'] });
+  expect(tilesOn(older.doc)).toEqual(['t-1', 'w-1', 'w-3']);
+  const newer = s.shared.put(2, { layouts: none(), sectionSeeds: {}, knows: ['widget', 'widget:weather', 'widget:energy'] });
+  expect(tilesOn(newer.doc)).toEqual(['t-1']);
+});
+
+test('a page of this version says it knows the weather and the energy', async () => {
+  const { KNOWN_KINDS } = await import('../../src/layout/keep-widgets');
+  expect(KNOWN_KINDS).toEqual(['widget', 'widget:weather', 'widget:energy']);
+});

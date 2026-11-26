@@ -147,7 +147,7 @@ test('a room has all its devices, also those of the hero, per kind and wide to o
   expect(board.hero).toBeNull();
   expect(new Set(board.sections.flatMap((x) => x.tiles.map((tile) => (tile.kind === 'flow' || tile.kind === 'widget' ? '' : tile.deviceId))))).toEqual(new Set(garage.deviceIds));
   const living = roomDashboard(roomsOf(s, nl)[0]!, s, 'nl');
-  expect(living.sections.map((x) => x.kind)).toEqual(['lights', 'switches', 'climate', 'covers', 'media', 'security']);
-  for (const tile of living.sections.flatMap((x) => x.tiles)) if (['climate', 'cover', 'media', 'guard'].includes(tile.kind)) expect([tile.kind, tile.size]).toEqual([tile.kind, 'wide']);
+  expect(living.sections.map((x) => x.kind)).toEqual(['lights', 'switches', 'climate', 'covers', 'media', 'household', 'security']);
+  for (const tile of living.sections.flatMap((x) => x.tiles)) if (['climate', 'cover', 'media', 'guard', 'vacuum'].includes(tile.kind)) expect([tile.kind, tile.size]).toEqual([tile.kind, 'wide']);
   expect(living.sections.find((x) => x.kind === 'switches')!.tiles[0]!.size).toBe('single');
 });

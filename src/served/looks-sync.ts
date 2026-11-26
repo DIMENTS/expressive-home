@@ -18,6 +18,8 @@ export interface LooksSyncDeps {
   adopt(doc: LooksDoc): void;
   /** A change was refused: this device may only use the dashboard. */
   refused(): void;
+  /** A theme was not kept: all themes together would be too big. */
+  tooBig?(): void;
   setTimeout(fn: () => void, ms: number): unknown;
   clearTimeout(handle: unknown): void;
 }
@@ -77,13 +79,25 @@ export function createLooksSync(deps: LooksSyncDeps) {
   async function flush(): Promise<void> {
     if (sending || queue.length === 0) return;
     sending = true;
-    const batch = queue.slice(0, BATCH);
+    // the mark of a theme taken in goes on its own: a hub of 1.3 refuses an operation it does not know, and with it the batch
+    const alone = (op: LookOp): boolean => 'takenIn' in op;
+    const until = queue.findIndex((op, at) => at > 0 && alone(op));
+    const batch = alone(queue[0]!) ? queue.slice(0, 1) : queue.slice(0, Math.min(BATCH, until < 0 ? BATCH : until));
     const asked = era;
     try {
       const doc = normalizeLooksDoc(await deps.link.request('POST', 'api/looks', { ops: batch }));
       queue = queue.slice(batch.length);
       if (asked === era) show(doc);
     } catch (error) {
+      if (error instanceof RequestError && error.status === 413) {
+        // the themes together would be too big: the saves of this batch are dropped and told, the rest goes again
+        queue = [...batch.filter((op) => !('save' in op)), ...queue.slice(batch.length)];
+        deps.tooBig?.();
+        sending = false;
+        await read();
+        void flush();
+        return;
+      }
       if (error instanceof RequestError && (error.status === 403 || error.status === 400)) {
         // refused: what waits is dropped and what the hub has is shown
         queue = error.status === 403 ? [] : queue.slice(batch.length);

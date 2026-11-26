@@ -57,3 +57,10 @@ test('the mapper keeps the yes and no texts of a capability', () => {
   expect(d.capabilities['alarm_contact']).toMatchObject({ titleTrue: 'Open', titleFalse: 'Dicht' });
   expect(d.capabilities['onoff']).toMatchObject({ titleTrue: null, titleFalse: null });
 });
+
+test('the flags of Homey Energy for a charge point and an electric car are kept; a camper that has none stays as it was', () => {
+  const flagged = toDevice({ id: 'c', name: 'Laadpaal', class: 'evcharger', energyObj: { evCharger: true, meterPowerImportedCapability: 'meter_power' } });
+  expect(flagged.energy).toEqual({ cumulative: false, homeBattery: false, evCharger: true });
+  expect(toDevice({ id: 'a', name: 'Auto', class: 'car', energyObj: { electricCar: true } }).energy).toEqual({ cumulative: false, homeBattery: false, electricCar: true });
+  expect(toDevice({ id: 'x', name: 'Iets', class: 'other', energyObj: { evCharger: null, electricCar: null } }).energy).toEqual({ cumulative: false, homeBattery: false });
+});

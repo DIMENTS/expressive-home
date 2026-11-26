@@ -182,6 +182,15 @@ export function createServedClient(link: Link): ServedClient {
       const answer = await askHistory(link, source, period) as { series?: unknown } | null;
       return seriesOf(answer?.series);
     },
+    async readWeather() {
+      const answer = await link.request('GET', 'api/weather') as { weather?: unknown } | null;
+      return answer?.weather ?? null;
+    },
+    // the app on the hub knows its time zone
+    async readEnergy(period) {
+      const answer = await link.request('GET', `api/energy?period=${encodeURIComponent(period)}`) as { report?: unknown } | null;
+      return answer?.report ?? null;
+    },
     async readSwitches(source) {
       const answer = await askHistory(link, source, 'switches') as { switches?: unknown } | null;
       return switchesOf(answer?.switches);

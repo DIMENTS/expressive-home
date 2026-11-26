@@ -49,6 +49,7 @@ import './room-card';
 import './rooms-screen';
 import './section';
 import './skeleton';
+import { HEADER_PARTS, HERO_PARTS, NAV_PARTS, RAIL_PARTS, SECTION_PARTS } from '../part-names';
 
 /** How long a dimmer takes to shrink back to its tile (motion-effects). */
 export const DIM_CLOSE_MS = 200;
@@ -64,6 +65,7 @@ export const DIM_CLOSE_MS = 200;
 export class MhDashboard extends LitElement {
   static override properties = {
     ctx: { attribute: false },
+    ownCss: { type: Boolean },
     board: { attribute: false },
     heroChart: { attribute: false },
     boards: { attribute: false },
@@ -97,6 +99,8 @@ export class MhDashboard extends LitElement {
   };
 
   declare ctx: UiContext;
+  /** Own CSS is on: the buttons to the theme and the settings keep their own ground. */
+  declare ownCss: boolean;
   /** The open dashboard. */
   declare board: BoardView | null;
   /** The chart in the hero of this dashboard; null for none. */
@@ -160,6 +164,7 @@ export class MhDashboard extends LitElement {
 
   constructor() {
     super();
+    this.ownCss = false;
     this.board = null;
     this.boards = [];
     this.rooms = [];
@@ -677,11 +682,13 @@ export class MhDashboard extends LitElement {
     const common = { ctx: this.ctx, seed, mode: this.mode, look: this.look, baseSeed: this.baseSeed, editing: this.editing, place };
     if (block.type === 'hero') {
       const hero = this.heroes.get(id) ?? document.createElement('mh-hero');
+      hero.setAttribute('exportparts', HERO_PARTS);
       this.heroes.set(id, hero);
       this.mark(hero, id);
       return Object.assign(hero, common, { hero: block.hero, sectionId: id, chart: this.heroChart });
     }
     const section = this.sections.get(id) ?? document.createElement('mh-section');
+    section.setAttribute('exportparts', SECTION_PARTS);
     this.sections.set(id, section);
     const note = this.flowNote(block.section.tiles);
     this.mark(section, id);
@@ -766,13 +773,13 @@ export class MhDashboard extends LitElement {
     const status = this.ctx.status();
     const chips = headerChips({ devices: this.ctx.store.getDevices(), route: status.route, connecting: this.connecting, canControl: status.canControl, demo: status.demo }, this.ctx.t);
     const editing = this.editing && this.phase === 'ready';
-    return html`<div class="app" @dim=${(e: CustomEvent<DimDetail>) => this.onDim(e)}>
-      ${this.phone ? html`<mh-nav-bar .t=${this.ctx.t} .boards=${this.boards} activeBoard=${this.isRooms ? ROOMS_ID : this.board?.id ?? ''} panel=${this.activePanel}></mh-nav-bar>` : html`<mh-rail .t=${this.ctx.t} .boards=${this.boards} activeBoard=${this.isRooms ? ROOMS_ID : this.board?.id ?? ''} panel=${this.activePanel} ?editing=${editing} ?editBlocked=${this.phase !== 'ready' || this.isRooms} ?useOnly=${status.canArrange === false}></mh-rail>`}
+    return html`<div class="app" part="page" @dim=${(e: CustomEvent<DimDetail>) => this.onDim(e)}>
+      ${this.phone ? html`<mh-nav-bar exportparts=${NAV_PARTS} ?own-css=${this.ownCss} .t=${this.ctx.t} .boards=${this.boards} activeBoard=${this.isRooms ? ROOMS_ID : this.board?.id ?? ''} panel=${this.activePanel}></mh-nav-bar>` : html`<mh-rail exportparts=${RAIL_PARTS} ?own-css=${this.ownCss} .t=${this.ctx.t} .boards=${this.boards} activeBoard=${this.isRooms ? ROOMS_ID : this.board?.id ?? ''} panel=${this.activePanel} ?editing=${editing} ?editBlocked=${this.phase !== 'ready' || this.isRooms} ?useOnly=${status.canArrange === false}></mh-rail>`}
       <main tabindex="-1">
         ${this.renderBanner()}
         ${editing ? html`<mh-edit-bar .t=${this.ctx.t} boardName=${this.boardName} ?canUndo=${this.canUndo} ?firstTime=${this.firstTime} .menu=${this.boardMenu}
           @focusin=${() => { this.barFocused = true; }} @focusout=${() => { this.barFocused = false; }}></mh-edit-bar>` : nothing}
-        <mh-header .chips=${chips} .ctx=${this.ctx} ?phone=${this.phone}></mh-header>
+        <mh-header exportparts=${HEADER_PARTS} .chips=${chips} .ctx=${this.ctx} ?phone=${this.phone}></mh-header>
         ${this.renderNews()}
         ${this.room && this.phase === 'ready' ? html`<mh-room-head .ctx=${this.ctx} .room=${this.room} @back=${(e: Event) => { e.stopPropagation(); this.goingBack = true; this.goTo(ROOMS_ID); }}></mh-room-head>` : nothing}
         ${this.renderContent()}

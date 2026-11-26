@@ -1,4 +1,9 @@
+import { applianceOf } from '../controls/appliance';
+import { isCar } from '../controls/car';
+import { chargerOf } from '../controls/charger';
 import { climateOf } from '../controls/climate';
+import { fanOf } from '../controls/fan';
+import { vacuumOf } from '../controls/vacuum';
 import { coverOf } from '../controls/cover';
 import { isGuarded } from '../controls/danger';
 import { guardOf } from '../controls/guard';
@@ -38,17 +43,27 @@ const COVER_CLASSES: readonly string[] = ['curtain', 'blinds', 'sunshade', 'shut
 
 /** Which of the kinds of a house a device is, by what it can do; null for any other device. */
 export function houseKind(device: Device): HouseKind | null {
+  // a plug its owner told Homey Energy is a charge point is one
+  if (device.deviceClass === 'socket' && chargerOf(device)) return 'charger';
   if (PLAIN_CLASSES.includes(device.deviceClass)) return null;
+  // a car has a temperature, windows, a lock or a speaker too; a charge point a switch
+  if (isCar(device)) return 'car';
+  if (chargerOf(device)) return 'charger';
   const guard = guardOf(device);
   // a lock of something that is mainly something else comes last
   if (guard && (DOORS.includes(device.deviceClass) || guard.kind !== 'lock')) return 'guard';
+  if (applianceOf(device)) return 'appliance';
+  if (vacuumOf(device)) return 'vacuum';
   if (climateOf(device)) return 'climate';
+  if (fanOf(device)) return 'fan';
   if (coverOf(device)) return 'cover';
   if (mediaOf(device)) return 'media';
   return guard ? 'guard' : null;
 }
 
-const HOUSE_SECTIONS: Record<HouseKind, Exclude<SectionKind, 'flows'>> = { climate: 'climate', cover: 'covers', media: 'media', guard: 'security' };
+const HOUSE_SECTIONS: Record<HouseKind, Exclude<SectionKind, 'flows'>> = {
+  climate: 'climate', cover: 'covers', media: 'media', guard: 'security', fan: 'climate', vacuum: 'household', appliance: 'household', charger: 'vehicles', car: 'vehicles',
+};
 
 export function sectionFor(device: Device): Exclude<SectionKind, 'flows'> {
   if (device.deviceClass === 'light') return 'lights';
@@ -63,6 +78,8 @@ export function sectionFor(device: Device): Exclude<SectionKind, 'flows'> {
   const firstValue = mainValues(device)[0];
   if (CLIMATE_CLASSES.includes(device.deviceClass) || (firstValue && !isSwitch(device) && CLIMATE_VALUES.includes(firstValue.baseId))) return 'climate';
   if (isSwitch(device)) return 'switches';
+  // a plug that is not switched off with one tap, such as that of a fridge, is still a plug
+  if (caps(device).some((c) => c.baseId === 'onoff' && c.setable) && mainValues(device).length < 3) return 'switches';
   return 'other';
 }
 

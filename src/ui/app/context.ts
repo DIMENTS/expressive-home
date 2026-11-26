@@ -5,6 +5,10 @@ import type { CapabilityValue, Route } from '../../homey/types';
 import type { Translate } from '../../i18n/index';
 import type { Store } from '../../state/store';
 import type { HistoryAccess } from './history';
+import type { LiveHandle, LiveListener } from '../../widgets/app-live';
+import type { ReadSource } from '../../widgets/live-reads';
+import type { Weather } from '../../widgets/weather';
+import type { EnergyPeriod, EnergyReport } from '../../widgets/energy';
 
 /** What the dashboard needs to know about the connection and the key's rights. */
 export interface DashboardStatus { route: Route | null; canControl: boolean; canStartFlows: boolean; demo: boolean;
@@ -48,6 +52,12 @@ export interface WidgetContext {
   appRow?(ref: string): Promise<AppWidgetRow | undefined>;
   /** A request of such a widget to its own back end; null when it is refused. */
   appApi?(ref: string, method: string, path: string, body: unknown): Promise<{ status: number; body: unknown } | null>;
+  /** The weather of the hub, shared by every tile and the rest screen. */
+  weather?: ReadSource<Weather>;
+  /** A period of Homey Energy, shared likewise. */
+  energy?(period: EnergyPeriod): ReadSource<EnergyReport>;
+  /** The live news of the app of such a widget; absent where there is none. */
+  live?(ref: string, listener: LiveListener): LiveHandle;
   /** The page was opened with #veilig: own widgets stay off. */
   safe?(): boolean;
   /** The question of the dashboard for something dangerous a widget wants; true when it was answered yes. */

@@ -387,11 +387,11 @@ test('the settings in the Homey app take a key, and keep the focus where it is',
   await expect(page.locator('#code')).toHaveText('123 456');
   expect(await page.evaluate(() => (window as unknown as { asked: unknown[] }).asked.some((a) => (a as string[])[1] === '/devices/a1'))).toBe(true);
   expect(await page.evaluate(() => (window as unknown as { asked: unknown[] }).asked.find((a) => (a as string[])[1] === '/code'))).toEqual(['POST', '/code', { slot: 'scan' }]);
-  await page.getByText('Meer mogelijkheden').click();
 
   // the key for flows: one that is refused is said and stays to be looked at, one that works is gone from the page
-  const key = page.getByLabel('Sleutel voor flows');
-  await expect(page.getByText('Er is geen sleutel.')).toBeVisible();
+  await page.getByRole('radio', { name: /^Alleen flows starten/ }).check();
+  const key = page.getByLabel('Plak hier de nieuwe sleutel');
+  await expect(page.getByText('Nu: geen sleutel.', { exact: false })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Sleutel verwijderen' })).toBeHidden();
   await key.fill('een-sleutel-zonder-recht');
   // with the keyboard: a click on a button does not focus it in every browser
@@ -405,17 +405,19 @@ test('the settings in the Homey app take a key, and keep the focus where it is',
   await page.evaluate(() => { (window as unknown as { answer: string }).answer = 'works'; });
   await key.fill('een-goede-sleutel');
   await key.press('Enter');
-  await expect(page.getByText('De sleutel werkt: ook je andere flows starten vanaf het dashboard.')).toBeVisible();
+  await expect(page.getByText('Nu: een sleutel die alleen flows mag starten.', { exact: false })).toBeVisible();
   await expect(key).toHaveValue('');
   await expect(result).toHaveText('De sleutel is bewaard.');
   await expect(key).toHaveAttribute('aria-invalid', 'false');
   await expect(page.getByText('my.homey.app')).toBeHidden();
   expect(await page.evaluate(() => (window as unknown as { asked: unknown[] }).asked.filter((a) => (a as string[])[1] === '/flow-key'))).toEqual([['POST', '/flow-key', { key: 'een-sleutel-zonder-recht' }], ['POST', '/flow-key', { key: 'een-goede-sleutel' }]]);
   await page.getByRole('button', { name: 'Sleutel verwijderen' }).click();
-  await expect(page.getByText('Er is geen sleutel.')).toBeVisible();
+  await expect(page.getByText('Nu: geen sleutel.', { exact: false })).toBeVisible();
   expect(await page.evaluate(() => (window as unknown as { question: string }).question)).toContain('verwijder hem daar ook');
   await expect(result).toHaveText('');
-  await expect(key).toBeFocused();
+  // the focus goes to the choice that is now true
+  await expect(page.getByRole('radio', { name: /^Geen sleutel/ })).toBeChecked();
+  await expect(page.getByRole('radio', { name: /^Geen sleutel/ })).toBeFocused();
   await expect(page.getByRole('button', { name: 'Sleutel verwijderen' })).toBeHidden();
 });
 
@@ -612,4 +614,53 @@ test('a widget of another app, through the app with a key that may do everything
   expect(d.problems).toEqual([]);
   expect(await d.violations()).toEqual([]);
   await d.context.close();
+});
+
+test('the theme gallery is a link on the hub too, with its address to type over; nothing is fetched from it', async ({ browser }) => {
+  const laptop = await device(browser);
+  await pair(laptop.page, 'edit', 'Laptop');
+  await laptop.page.getByRole('button', { name: 'Thema', exact: true }).click();
+  await laptop.page.getByRole('button', { name: 'Thema van een ander' }).click();
+  await expect(laptop.page.getByText('github.com/DIMENTS/expressive-home-themes')).toBeVisible();
+  const open = laptop.page.getByRole('link', { name: /^Galerij openen/ });
+  await expect(open).toHaveAttribute('href', 'https://github.com/DIMENTS/expressive-home-themes');
+  await expect(open).toHaveAttribute('target', '_blank');
+  const box = (await open.boundingBox())!;
+  expect([box.width >= 48, box.height >= 48]).toEqual([true, true]);
+  expect(laptop.problems).toEqual([]);
+  expect(await laptop.violations()).toEqual([]);
+  await laptop.context.close();
+});
+
+test('a theme taken in on one device is someone else\'s on every device: only a theme made here can be sent in to the gallery', async ({ browser }) => {
+  const laptop = await device(browser);
+  await pair(laptop.page, 'edit', 'Laptop');
+  const tablet = await device(browser);
+  await pair(tablet.page, 'edit', 'Tablet');
+  // a theme made here, and its code, taken in as someone else's under another name on the other device
+  await laptop.page.getByRole('button', { name: 'Thema', exact: true }).click();
+  await laptop.page.getByRole('button', { name: 'Bijstellen' }).click();
+  await laptop.page.getByRole('radio', { name: 'Hoekig' }).click();
+  await laptop.page.getByRole('textbox', { name: 'Naam van het thema' }).fill('Zeewind');
+  await laptop.page.getByRole('button', { name: 'Bewaren als mijn thema' }).click();
+  await laptop.page.getByRole('button', { name: /^Zeewind/ }).click();
+  await expect(laptop.page.getByRole('link', { name: /^Insturen bij de galerij/ })).toBeVisible();
+  const code = (await laptop.page.locator('mh-theme-panel').evaluate((panel) => panel.shadowRoot!.querySelector('.code')!.textContent))!;
+  await tablet.page.getByRole('button', { name: 'Thema', exact: true }).click();
+  await tablet.page.getByRole('button', { name: 'Thema van een ander' }).click();
+  await tablet.page.getByRole('textbox', { name: 'Plak een deelcode' }).fill(code);
+  await tablet.page.getByRole('radio', { name: 'Erbij' }).click();
+  await tablet.page.getByRole('button', { name: 'Bewaren en gebruiken' }).click();
+  // the copy on the laptop, which never took it in itself, knows it is someone else's
+  await laptop.page.getByRole('button', { name: 'Terug' }).click();
+  await expect.poll(() => laptop.page.locator('mh-theme-panel').evaluate((panel) => panel.shadowRoot!.querySelectorAll('.theme-row').length)).toBe(2);
+  const rows = laptop.page.locator('mh-theme-panel').getByRole('button', { name: /^Zeewind/ });
+  await rows.nth(1).click();
+  await expect(laptop.page.getByText('Deelcode')).toBeVisible();
+  await expect(laptop.page.getByRole('link', { name: /^Insturen bij de galerij/ })).toHaveCount(0);
+  for (const one of [laptop, tablet]) {
+    expect(one.problems).toEqual([]);
+    expect(await one.violations()).toEqual([]);
+    await one.context.close();
+  }
 });

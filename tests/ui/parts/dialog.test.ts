@@ -28,3 +28,44 @@ test('a closed dialog cannot be reached and ignores Escape', async () => {
   expect(cancels).toHaveLength(0);
   expect(inside(dialog, '[role="alertdialog"]').hasAttribute('inert')).toBe(true);
 });
+
+test('a dialog over a sheet: with the focus lost, Escape cancels the dialog and leaves the sheet', async () => {
+  await import('../../../src/ui/parts/sheet');
+  const sheet = await mount<HTMLElement & { open: boolean; updateComplete: Promise<unknown> }>('mh-sheet', { heading: 'Plafond' }, '<mh-button>Iets</mh-button>');
+  sheet.open = true;
+  await settle(sheet);
+  const dialog = await mount<MhDialog>('mh-dialog', { heading: 'Vraag' }, '<mh-button slot="actions" data-autofocus>Nee</mh-button>');
+  const [cancels, closes] = [record(dialog, 'cancel'), record(sheet, 'close')];
+  dialog.open = true;
+  await settle(dialog);
+  dialog.querySelector('mh-button')!.remove();
+  (document.activeElement as HTMLElement | null)?.blur();
+  key(document.body, 'Escape');
+  expect([cancels.length, closes.length]).toEqual([1, 0]);
+  // the dialog gone, the focus is back in the sheet, and Escape there closes it
+  dialog.open = false;
+  await settle(dialog);
+  key(sheet.shadowRoot!.activeElement!, 'Escape');
+  expect([cancels.length, closes.length]).toEqual([1, 1]);
+});
+
+test('a sheet closed under an open dialog leaves the focus in the dialog; the dialog gives it back to where it was before both', async () => {
+  await import('../../../src/ui/parts/sheet');
+  const before = document.createElement('button');
+  document.body.append(before);
+  before.focus();
+  const sheet = await mount<HTMLElement & { open: boolean; updateComplete: Promise<unknown> }>('mh-sheet', { heading: 'Plafond' }, '<mh-button>Iets</mh-button>');
+  sheet.open = true;
+  await settle(sheet);
+  const dialog = await mount<MhDialog>('mh-dialog', { heading: 'Vraag' }, '<mh-button slot="actions" data-autofocus>Nee</mh-button>');
+  dialog.open = true;
+  await settle(dialog);
+  const inDialog = dialog.querySelector('mh-button')!;
+  expect(document.activeElement).toBe(inDialog);
+  sheet.open = false;
+  await settle(sheet);
+  expect(document.activeElement).toBe(inDialog);
+  dialog.open = false;
+  await settle(dialog);
+  expect(document.activeElement).toBe(before);
+});

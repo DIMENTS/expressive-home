@@ -213,3 +213,19 @@ test('a listener that stopped hears nothing more', async () => {
   s.flowKey.remove();
   expect([s.heard.mock.calls.length, other.mock.calls.length]).toEqual([1, 0]);
 });
+
+test('a session with a key that may do everything is made inside, without the key coming out; otherwise none', async () => {
+  const s = setup();
+  const made: string[] = [];
+  const make = (key: string) => { made.push(key); return { kind: 'session' }; };
+  expect(s.flowKey.wideSession(make)).toBeNull();
+  s.answers.set('GET session', { status: 200, body: { intersectedScopes: ['homey.flow.start'] } });
+  await s.flowKey.set(KEY);
+  expect(s.flowKey.wideSession(make)).toBeNull();
+  s.answers.set('GET session', { status: 200, body: { intersectedScopes: ['homey'] } });
+  await s.flowKey.set(OTHER);
+  expect(s.flowKey.wideSession(make)).toEqual({ kind: 'session' });
+  expect(made).toEqual([OTHER]);
+  s.flowKey.remove();
+  expect(s.flowKey.wideSession(make)).toBeNull();
+});

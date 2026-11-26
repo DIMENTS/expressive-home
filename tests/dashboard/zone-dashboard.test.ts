@@ -41,7 +41,7 @@ test('every room is a section, in the order of the rooms, and flows keep their o
 test('its tiles are those of the app: lamps first, narrow ones for a house, without what is in the hero', () => {
   const living = perRoom(house()).sections[0]!;
   expect(living.tiles.map((tile) => [tile.kind, tile.size])).toEqual([
-    ['light', 'wide'], ['light', 'wide'], ['light', 'wide'], ['switch', 'single'], ['climate', 'single'], ['cover', 'single'], ['cover', 'single'], ['media', 'single'], ['media', 'single'], ['generic', 'single'],
+    ['light', 'wide'], ['light', 'wide'], ['light', 'wide'], ['switch', 'single'], ['climate', 'single'], ['cover', 'single'], ['cover', 'single'], ['media', 'single'], ['media', 'single'], ['vacuum', 'single'], ['generic', 'single'],
   ]);
   const garage = perRoom(house()).sections.find((s) => s.zone === 'garage')!;
   expect(garage.tiles.some((tile) => tile.kind !== 'flow' && tile.kind !== 'widget' && ['garage-solar', 'garage-battery'].includes(tile.deviceId))).toBe(false);
@@ -76,7 +76,7 @@ test('every next room goes to the shortest column; alone there is one column', (
 
 test('per kind, music and curtains go where there is room; everything else stays where it was', () => {
   const columns = (s: HomeySnapshot) => { const board = generateDashboard(s, { grouping: 'type', locale: 'nl' }); const { left, right } = splitColumns(board.sections, board.hero !== null); return [left.map((x) => x.kind), right.map((x) => x.kind)]; };
-  expect(columns(house())).toEqual([['lights', 'switches', 'covers', 'media'], ['climate', 'security', 'other', 'flows']]);
+  expect(columns(house())).toEqual([['lights', 'switches', 'covers', 'media', 'household', 'vehicles'], ['climate', 'security', 'other', 'flows']]);
   expect(columns(hub([lamp('a', null), covers.both, media.full, guards.lock], []))).toEqual([['lights', 'covers'], ['media', 'security']]);
   // the camper
   expect(columns(camperSnapshot())).toEqual([['lights', 'switches'], ['climate', 'water', 'security', 'other', 'flows']]);
@@ -146,5 +146,5 @@ test('the head of a room says its temperature, otherwise what is on', () => {
   const of = (id: string) => perRoom(s).sections.find((x) => x.zone === id)!;
   const inZone = (id: string) => Object.values(s.devices).filter((d) => d.zoneId === id);
   const count = (id: string) => sectionCount(of(id), (device_) => s.devices[device_], nl, inZone(id));
-  expect([count('living'), count('kitchen'), count('study'), count('hall'), count('garage')]).toEqual(['20,8°', '2 aan', '23,8°', 'Alles uit', '']);
+  expect([count('living'), count('kitchen'), count('study'), count('hall'), count('garage')]).toEqual(['20,8°', '1 aan', '23,8°', 'Alles uit', '']);
 });

@@ -1,6 +1,7 @@
 import { ConnectionError, type ClientEvent, type HistoryPeriod, type HistoryRef, type HistorySeries, type HistorySource, type HistorySwitches, type HomeyClient } from '../homey/client';
 import type { CapabilityValue, Flow, HomeySnapshot, Route } from '../homey/types';
 import { createStore } from '../state/store';
+import type { EnergyPeriod } from '../widgets/energy';
 
 /** What a browser hears of the hub; `reset`: read everything again. */
 export type HubEvent = Exclude<ClientEvent, { type: 'localAddress' } | { type: 'authError' }> | { type: 'reset' };
@@ -152,6 +153,18 @@ export function createHubLink(deps: HubLinkDeps) {
     listHistory: (known: readonly HistoryRef[]): Promise<HistorySource[]> => connected().listHistory(known),
     readSeries: (source: HistorySource, period: HistoryPeriod): Promise<HistorySeries | null> => connected().readSeries(source, period),
     readSwitches: (source: HistorySource): Promise<HistorySwitches | null> => connected().readSwitches(source),
+    /** The weather of the hub; it throws with a status when it cannot be had (404: this hub has none). */
+    async readWeather(): Promise<unknown> {
+      const client = connected();
+      if (!client.readWeather) throw Object.assign(new Error('No weather'), { statusCode: 404 });
+      return client.readWeather();
+    },
+    /** A report of Homey Energy for the period that holds now, in the time zone of the hub. */
+    async readEnergy(period: EnergyPeriod, timeZone: string): Promise<unknown> {
+      const client = connected();
+      if (!client.readEnergy) throw Object.assign(new Error('No Homey Energy'), { statusCode: 404 });
+      return client.readEnergy(period, timeZone);
+    },
     subscribe(listener: (event: HubEvent) => void): () => void {
       listeners.add(listener);
       return () => { listeners.delete(listener); };

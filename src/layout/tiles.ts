@@ -76,7 +76,8 @@ function adapted(spec: DeviceTileSpec, device: Device): DeviceTileSpec {
     }
     case 'button': return isGuarded(device, spec.capabilityId) ? guardedOwn() : has(spec.capabilityId) ? spec : own();
     case 'sensor': case 'generic': return has(spec.capabilityId) ? spec : own();
-    case 'climate': case 'cover': case 'media': case 'guard': return houseKind(device) === spec.kind ? spec : own();
+    case 'climate': case 'cover': case 'media': case 'guard': case 'fan': case 'vacuum': case 'appliance': case 'charger': case 'car':
+      return houseKind(device) === spec.kind ? spec : own();
     // of a later version
     default: return spec;
   }

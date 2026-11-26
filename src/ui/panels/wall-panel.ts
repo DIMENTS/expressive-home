@@ -1,3 +1,4 @@
+import { NIGHT_SCREENS, REST_BRIGHTNESS } from '../../wall/screen';
 import { LitElement, css, html, nothing, type PropertyValues } from 'lit';
 import type { CapRef } from '../../dashboard/types';
 import { t as dutch, type Translate } from '../../i18n';
@@ -32,6 +33,7 @@ export class MhWallPanel extends LitElement {
     tanks: { attribute: false },
     hasBattery: { type: Boolean },
     served: { type: Boolean },
+    fully: { type: Boolean },
     canPreview: { attribute: false },
     choosing: { state: true },
   };
@@ -47,6 +49,8 @@ export class MhWallPanel extends LitElement {
   declare hasBattery: boolean;
   /** The app on the hub served the page: it has the flow cards of the night. */
   declare served: boolean;
+  /** Fully Kiosk lets the page reach the light of the screen. */
+  declare fully: boolean;
   /** Whether there is something to look at: not while the dashboard is being arranged. */
   declare canPreview: boolean;
   /** The temperature whose list is open. */
@@ -62,6 +66,7 @@ export class MhWallPanel extends LitElement {
     this.tanks = [];
     this.hasBattery = false;
     this.served = false;
+    this.fully = false;
     this.canPreview = true;
     this.choosing = null;
   }
@@ -112,7 +117,7 @@ export class MhWallPanel extends LitElement {
             const after = Number(e.detail.value) as RestAfter;
             if (REST_AFTER.includes(after)) this.setWall({ after });
           }}></mh-choice-group></div>${this.viewRow('day', t('wall.rest'))}` : nothing}
-    </div>${wall.on ? html`<p class="help">${t('wall.keepOn')}</p>` : nothing}</section>`;
+    </div>${wall.on ? html`<p class="help">${t('wall.keepOn')}${this.fully ? '' : ` ${t('wall.fullyHint')}`}</p>` : nothing}</section>`;
   }
 
   private renderNight() {
@@ -124,6 +129,31 @@ export class MhWallPanel extends LitElement {
       ${this.switchRow('dark_mode', t('wall.night'), t('wall.nightHelp'), night.on, (on) => this.setWall({ night: { ...night, on } }))}
       ${night.on ? html`<div class="times">${time('from')}${time('to')}</div>${this.viewRow('night', t('wall.night'))}` : nothing}
     </div>${night.on && this.served ? html`<p class="help">${t('wall.flow')}</p>` : nothing}</section>`;
+  }
+
+  /** Only where Fully Kiosk lets the page reach the screen. */
+  private renderScreen() {
+    if (!this.fully) return nothing;
+    const { t, wall } = this;
+    const { screen } = wall;
+    const rest = REST_BRIGHTNESS.map((id) => ({ id: String(id), label: id === 'none' ? t('wall.screenNone') : `${id}%` }));
+    const night = NIGHT_SCREENS.map((id) => ({ id, label: t(id === 'dim' ? 'wall.screenDim' : 'wall.screenNone') }));
+    return html`<section><h3>${t('wall.screen')}</h3><div class="rows">
+      <div class="row stack"><span class="label">${t('wall.screenRest')}</span>
+        <mh-choice-group label=${t('wall.screenRest')} .options=${rest} .value=${String(screen.rest)}
+          @change=${(e: CustomEvent<{ value: string }>) => {
+            e.stopPropagation();
+            const chosen = REST_BRIGHTNESS.find((id) => String(id) === e.detail.value);
+            if (chosen !== undefined) this.setWall({ screen: { ...screen, rest: chosen } });
+          }}></mh-choice-group></div>
+      <div class="row stack"><span class="label">${t('wall.screenNight')}</span>
+        <mh-choice-group label=${t('wall.screenNight')} .options=${night} .value=${screen.night}
+          @change=${(e: CustomEvent<{ value: string }>) => {
+            e.stopPropagation();
+            const chosen = NIGHT_SCREENS.find((id) => id === e.detail.value);
+            if (chosen !== undefined) this.setWall({ screen: { ...screen, night: chosen } });
+          }}></mh-choice-group></div>
+    </div><p class="help">${t('wall.screenHelp')}</p></section>`;
   }
 
   private temperatureRow(which: 'inside' | 'outside', icon: IconName) {
@@ -175,7 +205,7 @@ export class MhWallPanel extends LitElement {
     const { t, wall } = this;
     return html`<mh-sheet .t=${t} ?open=${this.open} heading=${t('settings.wall')} subheading=${t('wall.subtitle')} icon="tablet"
       @close=${(e: Event) => { e.stopPropagation(); this.emit('close'); }}>
-      ${this.renderRest()}${wall.on ? html`${this.renderNight()}${this.renderTemperatures()}${this.renderAttention()}` : nothing}
+      ${this.renderRest()}${wall.on ? html`${this.renderNight()}${this.renderScreen()}${this.renderTemperatures()}${this.renderAttention()}` : nothing}
     </mh-sheet>`;
   }
 }

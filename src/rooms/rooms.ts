@@ -1,3 +1,4 @@
+import { isBusy, isCharging } from '../controls/doing';
 import { climateOf } from '../controls/climate';
 import { coverOf, coverState } from '../controls/cover';
 import { number } from '../controls/find';
@@ -82,6 +83,9 @@ export function roomCard(room: Room, snapshot: HomeySnapshot, t: Translate): Roo
   if (humidity) facts.push({ icon: 'humidity_percentage', text: t('media.percent', { n: Math.round(humidity.value) }) });
   const kind = (which: string): Device[] => here.filter((device) => houseKind(device) === which);
   if (kind('media').some((device) => mediaState(mediaOf(device)!).playing === true)) facts.push({ icon: 'music_note', text: t('media.plays') });
+  const busy = here.filter(isBusy).length;
+  if (busy > 0) facts.push({ icon: 'local_laundry_service', text: t('count.busy', { n: busy }) });
+  if (here.some(isCharging)) facts.push({ icon: 'ev_station', text: t('charger.plugged_in_charging') });
 
   const all = (which: string): Device[] => devices.filter((device) => houseKind(device) === which);
   const covers = kind('cover').map((device) => ({ ...coverState(coverOf(device)!), awning: coverOf(device)!.awning })).filter((cover) => cover.part !== null);

@@ -44,6 +44,7 @@ function climateIcon(device: Device): IconName {
 
 const COVER_BY_CLASS: Record<string, IconName> = { curtain: 'curtains', sunshade: 'roller_shades', shutterblinds: 'vertical_shades' };
 const MEDIA_BY_CLASS: Record<string, IconName> = { tv: 'tv', settopbox: 'tv', gameconsole: 'tv' };
+const APPLIANCE_ICONS: Record<string, IconName> = { dishwasher: 'dishwasher', fridge: 'kitchen', freezer: 'kitchen', fridge_and_freezer: 'kitchen' };
 
 function guardIcon(device: Device): IconName {
   const guard = guardOf(device);
@@ -72,6 +73,11 @@ export function iconFor(spec: TileSpec, device: Device | undefined): IconName {
     case 'cover': return (device && COVER_BY_CLASS[device.deviceClass]) ?? 'blinds';
     case 'media': return (device && MEDIA_BY_CLASS[device.deviceClass]) ?? 'speaker';
     case 'guard': return device ? guardIcon(device) : 'lock';
+    case 'fan': return device?.deviceClass === 'airpurifier' ? 'air' : 'mode_fan';
+    case 'vacuum': return 'cleaning_services';
+    case 'appliance': return (device && APPLIANCE_ICONS[device.deviceClass]) ?? 'local_laundry_service';
+    case 'charger': return 'ev_station';
+    case 'car': return 'electric_car';
     case 'multi': return spec.capabilityIds[0]?.startsWith('measure_power') ? 'bolt' : 'devices_other';
     case 'sensor': return byCapability(spec.capabilityId) ?? byClass ?? 'category';
     case 'generic': return byCapability(spec.capabilityId) ?? byClass ?? 'category';

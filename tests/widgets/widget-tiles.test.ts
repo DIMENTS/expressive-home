@@ -21,7 +21,7 @@ test('a widget of the app, an own one and one of an app come back as they were',
 
 test('a widget that names nothing known, or something odd, falls away', () => {
   const kept = tilesOf(layoutWith(
-    widget('t-1', 'weather'), widget('t-2', 'own:'), widget('t-3', 'own:__proto__'), widget('t-4', 'own:Bad Id'), widget('t-5', 'app:x'),
+    widget('t-1', 'rain'), widget('t-2', 'own:'), widget('t-3', 'own:__proto__'), widget('t-4', 'own:Bad Id'), widget('t-5', 'app:x'),
     widget('t-6', 'clock'),
   ));
   expect(kept.map((spec) => spec.id)).toEqual(['t-6']);

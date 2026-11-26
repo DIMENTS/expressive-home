@@ -375,6 +375,70 @@ test('a hub that was silent once is asked again later, also when asking fails at
   await vi.waitFor(async () => expect(await app.address()).toBe('http://192.168.1.20:0'));
 });
 
+test('a theme of format 2 is kept whole beside a shadow that 1.1 can read, also after a restart', async () => {
+  const homey = sdk();
+  const start = () => startHomeServer({ homey, createClient: async () => fakeHub(), folder: folder(), port: 0 });
+  const app = await start();
+  const strak = { format: 2 as const, id: 't-bbbbbbbbbbbbbbbb', name: 'Strak', maker: '', base: 'leeg' as const, seed: null, userSeed: true, knobs: {}, app: '1.2.0', values: { both: { 'tile-bg': '#ffffff' } } };
+  const base = `http://127.0.0.1:${app.port()}`;
+  const { code } = app.newCode('edit');
+  const pair = await fetch(`${base}/api/pair`, { method: 'POST', headers: { 'content-type': 'application/json', origin: base }, body: JSON.stringify({ code, name: 'Laptop' }) });
+  const cookie = pair.headers.get('set-cookie')!.split(';')[0]!;
+  const call = (method: string, body?: unknown) => fetch(`${base}/api/looks`, { method, headers: { 'content-type': 'application/json', origin: base, cookie }, ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
+  expect((await call('POST', { ops: [{ save: strak }, { house: { theme: strak.id } }] })).status).toBe(200);
+  await app.close();
+  expect((homey.values['sharedLooks'] as { themes: unknown[] }).themes).toEqual([{ ...strak, format: 1, base: 'rustig', values: undefined }].map(({ values: _v, ...rest }) => rest));
+  expect(homey.values['sharedLooksFull']).toEqual({ [strak.id]: strak });
+  const again = await start();
+  cleanup.push(() => again.close());
+  const againBase = `http://127.0.0.1:${again.port()}`;
+  const read = await fetch(`${againBase}/api/looks`, { headers: { origin: againBase, cookie } });
+  expect(await read.json()).toMatchObject({ themes: [strak], house: { theme: strak.id } });
+});
+
+test('the CSS of a theme is kept under a key of its own, with its origin, also after a restart', async () => {
+  const homey = sdk();
+  const start = () => startHomeServer({ homey, createClient: async () => fakeHub(), folder: folder(), port: 0 });
+  const app = await start();
+  const base = `http://127.0.0.1:${app.port()}`;
+  const { code } = app.newCode('edit');
+  const pair = await fetch(`${base}/api/pair`, { method: 'POST', headers: { 'content-type': 'application/json', origin: base }, body: JSON.stringify({ code, name: 'Laptop' }) });
+  const cookie = pair.headers.get('set-cookie')!.split(';')[0]!;
+  const terminal = { format: 1, id: 't-cccccccccccccccc', name: 'Terminal', maker: '', base: 'rustig', seed: null, userSeed: true, knobs: {}, app: '1.4.0' };
+  const sent = await fetch(`${base}/api/looks`, { method: 'POST', headers: { 'content-type': 'application/json', origin: base, cookie }, body: JSON.stringify({ ops: [{ save: terminal }, { css: { id: terminal.id, text: '::part(tile) { border-radius: 0 }', from: 'house' } }] }) });
+  expect(sent.status).toBe(200);
+  await app.close();
+  expect(homey.values['sharedLooksCss']).toEqual({ [terminal.id]: { version: 1, text: '::part(tile) { border-radius: 0 }', from: 'house' } });
+  expect(JSON.stringify(homey.values['sharedLooks'])).not.toContain('border-radius');
+  const again = await start();
+  cleanup.push(() => again.close());
+  const againBase = `http://127.0.0.1:${again.port()}`;
+  const read = await (await fetch(`${againBase}/api/looks`, { headers: { origin: againBase, cookie } })).json();
+  expect(read).toMatchObject({ themes: [{ id: terminal.id, css: { version: 1, text: '::part(tile) { border-radius: 0 }' } }], cssFrom: { [terminal.id]: 'house' } });
+});
+
+test('a theme taken in from someone else is kept as such under a key of its own, also after a restart', async () => {
+  const homey = sdk();
+  const start = () => startHomeServer({ homey, createClient: async () => fakeHub(), folder: folder(), port: 0 });
+  const app = await start();
+  const base = `http://127.0.0.1:${app.port()}`;
+  const { code } = app.newCode('edit');
+  const pair = await fetch(`${base}/api/pair`, { method: 'POST', headers: { 'content-type': 'application/json', origin: base }, body: JSON.stringify({ code, name: 'Laptop' }) });
+  const cookie = pair.headers.get('set-cookie')!.split(';')[0]!;
+  const zee = { format: 1, id: 't-dddddddddddddddd', name: 'Zee', maker: '', base: 'glas', seed: null, userSeed: true, knobs: {}, app: '1.4.0' };
+  const post = (ops: unknown[]) => fetch(`${base}/api/looks`, { method: 'POST', headers: { 'content-type': 'application/json', origin: base, cookie }, body: JSON.stringify({ ops }) });
+  expect((await post([{ save: zee }])).status).toBe(200);
+  expect((await post([{ takenIn: { id: zee.id, on: true } }])).status).toBe(200);
+  await app.close();
+  expect(homey.values['sharedLooksTakenIn']).toEqual([zee.id]);
+  expect(homey.values['sharedLooks']).not.toHaveProperty('takenIn');
+  const again = await start();
+  cleanup.push(() => again.close());
+  const againBase = `http://127.0.0.1:${again.port()}`;
+  const read = await (await fetch(`${againBase}/api/looks`, { headers: { origin: againBase, cookie } })).json();
+  expect(read).toMatchObject({ themes: [{ id: zee.id }], takenIn: [zee.id] });
+});
+
 test('the themes of the flow cards are named in the language of the hub', async () => {
   const english = await startHomeServer({ homey: sdk(), createClient: async () => fakeHub(), folder: folder(), port: 0 });
   cleanup.push(() => english.close());
@@ -414,4 +478,67 @@ test('a recorded log is named in the language of the hub after its role, never a
   expect(recordedTitle('ref' in solar ? solar.ref : hero.primary, snapshot)).toEqual({ en: 'Expressive Home: Solar', nl: 'Expressive Home: Zon' });
   const order = (await import('../../src/home-server/index')).heroValues(null, snapshot);
   expect(order[0]).toEqual(hero.primary);
+});
+
+test('live news of an app reaches a page with the key that may do everything, which goes only to the library on the own address', async () => {
+  const { hubLayout, overview, ownSection, tileLayout } = await import('../helpers/layout');
+  const remote = createServer((request, response) => {
+    const ok = request.headers.authorization === `Bearer ${FLOW_KEY}`;
+    response.writeHead(ok ? 200 : 401, { 'content-type': 'application/json; charset=utf-8' });
+    response.end(JSON.stringify(!ok ? { error: 'invalid_token' } : request.url === '/api/manager/dashboards/appwidget' ? { 'homey:app:com.example:channels': { id: 'homey:app:com.example:channels', name: { en: 'Channels' } } } : {}));
+  });
+  await new Promise<void>((done) => { remote.listen(0, '127.0.0.1', () => done()); });
+  cleanup.push(() => new Promise<void>((done) => { remote.close(() => done()); remote.closeAllConnections(); }));
+  const widget = tileLayout({ kind: 'widget', id: 'w1', size: 'single', widget: 'app:com.example/channels', settings: {} });
+  const homey = sdk({
+    homeyId: HOMEY_ID, flowKey: { key: FLOW_KEY, wide: true },
+    sharedLayouts: { revision: 1, layouts: { [HOMEY_ID]: hubLayout([overview([ownSection('own:s1', [widget])])]) }, sectionSeeds: {} },
+  });
+  homey.api.getLocalUrl = vi.fn(async () => `http://127.0.0.1:${(remote.address() as AddressInfo).port}`);
+  const made: { options: Record<string, unknown>; handlers: Map<string, { onEvent(event: string, data: unknown): void }>; destroyed: boolean }[] = [];
+  class FakeApi {
+    handlers = new Map<string, { onEvent(event: string, data: unknown): void }>();
+    destroyed = false;
+    constructor(options: Record<string, unknown>) { made.push(Object.assign(this, { options })); }
+    async subscribe(uri: string, handlers: { onEvent(event: string, data: unknown): void }) { this.handlers.set(uri, handlers); return { unsubscribe: () => { this.handlers.delete(uri); } }; }
+    isConnected() { return true; }
+    destroy() { this.destroyed = true; }
+  }
+  const log = vi.fn();
+  const app = await startHomeServer({ homey, HomeyAPIV3Local: FakeApi as unknown as Parameters<typeof createOwnClient>[1], createClient: async () => fakeHub(), folder: folder(), port: 0, log });
+  cleanup.push(() => app.close());
+  const base = `http://127.0.0.1:${app.port()}`;
+  const { code } = app.newCode('use');
+  const post = (path: string, body: unknown, headers: Record<string, string> = {}) => fetch(`${base}${path}`, { method: 'POST', headers: { 'content-type': 'application/json', origin: base, ...headers }, body: JSON.stringify(body) });
+  const cookie = (await post('/api/pair', { code, name: 'x' })).headers.get('set-cookie')!.split(';')[0]!;
+  const events = new AbortController();
+  cleanup.push(() => events.abort());
+  const stream = await fetch(`${base}/api/events`, { headers: { cookie }, signal: events.signal });
+  const reader = stream.body!.getReader();
+  let heard = '';
+  const read = async () => { for (;;) { const part = await reader.read(); if (part.done) return; heard += new TextDecoder().decode(part.value); } };
+  void read().catch(() => {});
+  await vi.waitFor(() => expect(heard).toContain('"stream"'));
+  const id = /"stream":"([0-9a-f]+)"/.exec(heard)![1]!;
+  expect((await post('/api/app-live', { stream: id, wants: [{ ref: 'app:com.example/channels', events: ['state'] }] }, { cookie })).status).toBe(200);
+  await vi.waitFor(() => expect(made[0]?.handlers.has('homey:app:com.example')).toBe(true), { timeout: 3000 });
+  expect(made[0]!.options).toMatchObject({ token: FLOW_KEY, baseUrl: `http://127.0.0.1:${(remote.address() as AddressInfo).port}`, properties: { id: HOMEY_ID } });
+  expect(app.appLive()).toEqual({ state: 'on', apps: 1 });
+  made[0]!.handlers.get('homey:app:com.example')!.onEvent('state', { on: true });
+  await vi.waitFor(() => expect(heard).toContain('event: app-event\ndata: {"app":"com.example","event":"state","data":{"on":true}}'));
+  app.removeFlowKey();
+  await vi.waitFor(() => expect([made[0]!.destroyed, app.appLive()]).toEqual([true, { state: 'none', apps: 0 }]));
+  expect(JSON.stringify(log.mock.calls)).not.toContain('aaaaaaaa');
+});
+
+test('the days of Homey Energy are those of the time zone of the hub', async () => {
+  const homey = Object.assign(sdk({ homeyId: HOMEY_ID }), { clock: { getTimezone: () => 'Europe/Amsterdam' } });
+  const hub = fakeHub();
+  const app = await startHomeServer({ homey, createClient: async () => hub, folder: folder(), port: 0 });
+  cleanup.push(() => app.close());
+  const base = `http://127.0.0.1:${app.port()}`;
+  const { code } = app.newCode('use');
+  const cookie = (await fetch(`${base}/api/pair`, { method: 'POST', headers: { 'content-type': 'application/json', origin: base }, body: JSON.stringify({ code, name: 'x' }) })).headers.get('set-cookie')!.split(';')[0]!;
+  await vi.waitFor(async () => expect((await fetch(`${base}/api/energy?period=day`, { headers: { cookie } })).status).toBe(200));
+  expect(hub.readEnergy).toHaveBeenCalledWith('day', 'Europe/Amsterdam');
 });

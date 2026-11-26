@@ -316,11 +316,11 @@ export class MhChart extends LitElement {
     const percent = (part: number): string => String(Math.round(part * 10000) / 100);
     return html`
       <div class="plot" @pointermove=${this.onPointerMove} @pointerleave=${this.onPointerLeave} @click=${this.onClick}>
-        <svg viewBox="0 0 ${BOX.width} ${BOX.height}" preserveAspectRatio="none" aria-hidden="true" focusable="false">
-          ${this.area || tile ? svg`<path class="area" d=${areaPath(main, scale, BOX)}></path>` : nothing}
+        <svg part="chart" viewBox="0 0 ${BOX.width} ${BOX.height}" preserveAspectRatio="none" aria-hidden="true" focusable="false">
+          ${this.area || tile ? svg`<path class="area" part="chart-area" d=${areaPath(main, scale, BOX)}></path>` : nothing}
           ${scale.fromZero && !tile ? svg`<path class="base" d="M0 ${BOX.height}H${BOX.width}"></path>` : nothing}
-          ${second ? svg`<path class="line second" d=${linePath(second, scale, BOX)}></path>` : nothing}
-          ${tile ? nothing : svg`<path class="line" d=${linePath(main, scale, BOX)}></path>`}
+          ${second ? svg`<path class="line second" part="chart-line" d=${linePath(second, scale, BOX)}></path>` : nothing}
+          ${tile ? nothing : svg`<path class="line" part="chart-line" d=${linePath(main, scale, BOX)}></path>`}
         </svg>
         ${!tile && last && last.value !== null && read === null ? html`<span class="now" data-x=${percent(this.xOf(last.at))} data-y=${percent(this.yOf(last.value, scale))}></span>` : nothing}
         ${read ? html`

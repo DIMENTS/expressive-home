@@ -81,7 +81,7 @@ test('a browser with its own key, and the example house: everything, without "vo
 });
 
 test('on a phone there is no choice between roomy and compact; elsewhere it is told as density', async () => {
-  expect(groups(await open(look('own'), { phone: true })).map((g) => g.label)).toEqual(['Licht of donker']);
+  expect(groups(await open(look('own'), { phone: true })).map((g) => g.label)).toEqual(['Licht of donker', 'Automatisch volgt']);
   const panel = await open(look('own'));
   const told = record(panel, 'density');
   change(group(panel, 'Weergave'), { value: 'compact' });
@@ -233,4 +233,23 @@ test('with as many themes as there may be, nothing new is offered to save, and t
   inside(panel, 'mh-text-field').dispatchEvent(new CustomEvent('input', { detail: { value: toShareCode({ ...avond, id: 't-zzzzzzzzzzzzzzzz' }) }, bubbles: true, composed: true }));
   await settle(panel);
   expect([button(panel, 'Bewaren en gebruiken'), panel.shadowRoot!.textContent!.includes('Er zijn al 50 thema’s.')]).toEqual([undefined, true]);
+});
+
+test('automatic can follow this device or the sun, in a row of its own; without the weather of the Homey the panel says it follows this device', async () => {
+  const panel = await open(look('own', { mode: 'sun' }));
+  type Group = HTMLElement & { value: string; options: { id: string; label: string }[] };
+  const mode = group(panel, 'Licht of donker') as unknown as Group;
+  const follows = group(panel, 'Automatisch volgt') as unknown as Group;
+  // three options side by side, as always: the sun is a kind of automatic
+  expect([mode.options.map((o) => o.label), mode.value]).toEqual([['Licht', 'Donker', 'Automatisch'], 'auto']);
+  expect([follows.options.map((o) => o.label), follows.value]).toEqual([['Dit apparaat', 'De zon'], 'sun']);
+  const chosen = record<LookChoose>(panel, 'look-choose');
+  change(follows, { value: 'auto' });
+  expect(chosen).toEqual([{ target: 'device', mode: 'auto' }]);
+  expect(panel.shadowRoot!.textContent).toContain('Zonder het weer van de Homey volgt het dit apparaat.');
+  // light or dark has no row of what it follows
+  expect(groups(await open(look('own', { mode: 'light' }))).map((g) => g.label)).not.toContain('Automatisch volgt');
+  panel.sunDark = true;
+  await settle(panel);
+  expect(panel.shadowRoot!.textContent).not.toContain('Zonder het weer van de Homey');
 });

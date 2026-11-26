@@ -12,6 +12,7 @@ import './climate-tile';
 import './cover-tile';
 import './media-tile';
 import './guard-tile';
+import './device-kind-tiles';
 import './widget-tile';
 
 registerTile({ kind: 'light', tag: 'mh-light-tile', sizes: ['wide', 'single'] });
@@ -26,4 +27,9 @@ registerTile({ kind: 'climate', tag: 'mh-climate-tile', sizes: ['single', 'wide'
 registerTile({ kind: 'cover', tag: 'mh-cover-tile', sizes: ['single', 'wide'] });
 registerTile({ kind: 'media', tag: 'mh-media-tile', sizes: ['single', 'wide'] });
 registerTile({ kind: 'guard', tag: 'mh-guard-tile', sizes: ['single', 'wide'] });
+registerTile({ kind: 'fan', tag: 'mh-fan-tile', sizes: ['single', 'wide'] });
+registerTile({ kind: 'vacuum', tag: 'mh-vacuum-tile', sizes: ['single', 'wide'] });
+registerTile({ kind: 'appliance', tag: 'mh-appliance-tile', sizes: ['single', 'wide'] });
+registerTile({ kind: 'charger', tag: 'mh-charger-tile', sizes: ['single', 'wide'] });
+registerTile({ kind: 'car', tag: 'mh-car-tile', sizes: ['single', 'wide'] });
 registerTile({ kind: 'widget', tag: 'mh-widget-tile', sizes: ['single', 'wide'] });

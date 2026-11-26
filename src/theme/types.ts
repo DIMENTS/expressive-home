@@ -1,5 +1,7 @@
 export type Mode = 'light' | 'dark';
-export type ModePreference = 'auto' | Mode;
+export type ModePreference = 'auto' | 'sun' | Mode;
+/** Every choice of light and dark, as it is kept. */
+export const MODE_PREFERENCES: readonly ModePreference[] = ['auto', 'sun', 'light', 'dark'];
 export type Density = 'comfortable' | 'compact';
 /** What is shown: the owner's choice, or the sizes of a phone in a narrow window. */
 export type ShownDensity = Density | 'phone';

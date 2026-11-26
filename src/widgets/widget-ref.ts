@@ -1,7 +1,7 @@
 import type { TileSize, WidgetSettingValue, WidgetTileSpec } from '../dashboard/types';
 
 /** What a widget tile can name: one of the app, an own one by its id, or a widget of an app on the hub. */
-const REF = /^(?:clock|note|board|gauge|countdown|group|own:[a-z0-9][a-z0-9-]{0,39}|app:[a-z0-9][a-z0-9._-]{0,79}\/[a-z0-9][a-z0-9._-]{0,79})$/;
+const REF = /^(?:clock|note|board|gauge|countdown|group|weather|energy|own:[a-z0-9][a-z0-9-]{0,39}|app:[a-z0-9][a-z0-9._-]{0,79}\/[a-z0-9][a-z0-9._-]{0,79})$/;
 const SETTING_KEY = /^[a-zA-Z][a-zA-Z0-9_-]{0,39}$/;
 
 export const WIDGET_LIMITS = { settings: 12, text: 500 } as const;

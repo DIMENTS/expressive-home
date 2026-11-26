@@ -15,9 +15,15 @@ const OWN = ['dashboard', 'palette', 'settings', 'home', 'cloud', 'cloud_off', '
   // the edit mode
   'edit', 'add', 'add_circle', 'undo', 'search', 'delete', 'drag_indicator', 'drive_file_move', 'arrow_back', 'arrow_forward', 'arrow_upward', 'arrow_downward', 'download', 'upload', 'restart_alt', 'check_box', 'check_box_outline_blank',
   // themes
-  'share', 'content_copy', 'history', 'contrast', 'verified_user',
+  'share', 'content_copy', 'history', 'contrast', 'verified_user', 'redo',
   // widgets
-  'sticky_note_2', 'block', 'code', 'apps', 'speed', 'hourglass_top'];
+  'sticky_note_2', 'block', 'code', 'apps', 'speed', 'hourglass_top',
+  // the theme gallery
+  'open_in_new',
+  // weather and energy
+  'partly_cloudy_night', 'weather_snowy', 'thunderstorm', 'foggy',
+  // fans, vacuum cleaners, white goods, charge points and cars
+  'cleaning_services', 'dishwasher', 'electric_car', 'swap_horiz', 'home_pin'];
 
 const EXPECTED = [...new Set([...OWN, ...ICON_LIBRARY.flatMap((g) => g.icons.map((icon) => icon.name))])];
 

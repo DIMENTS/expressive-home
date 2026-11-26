@@ -61,6 +61,8 @@ function fakeHub(snapshot: HomeySnapshot = toSnapshot(camperRaw as unknown as Ra
     listHistory: vi.fn(async (_known?: readonly HistoryRef[]): Promise<HistorySource[]> => []),
     readSeries: vi.fn(async (_source: HistorySource, _period: HistoryPeriod): Promise<HistorySeries | null> => null),
     readSwitches: vi.fn(async (_source: HistorySource): Promise<HistorySwitches | null> => null),
+    readWeather: vi.fn(async (): Promise<unknown> => ({ temperature: 3 })),
+    readEnergy: vi.fn(async (_period: string, _timeZone: string): Promise<unknown> => ({ electricity: { consumedPeriod: 1 } })),
     subscribe: vi.fn((listener: (event: ClientEvent) => void) => { listeners.add(listener); return () => listeners.delete(listener); }),
     disconnect: vi.fn(() => { listeners = new Set(); }),
     getHomeyId: vi.fn(() => ID),
@@ -116,6 +118,21 @@ test('a saved connection opens the dashboard', async () => {
   s.run();
   expect(s.controller.getState()).toMatchObject({ phase: 'dashboard', route: 'local' });
   expect(s.controller.getState().dashboard!.sections.length).toBeGreaterThan(0);
+});
+
+test('the weather and the energy are asked of the hub that is open, in the time zone of this device; without a hub not', async () => {
+  const s = setup({ saved: { homeyId: ID, apiKey: 'k' } });
+  await expect(s.controller.readWeather()).rejects.toThrow();
+  await s.controller.start();
+  s.run();
+  expect(await s.controller.readWeather()).toMatchObject({ temperature: 3 });
+  await s.controller.readEnergy('month');
+  expect(s.hub.readEnergy).toHaveBeenCalledWith('month', Intl.DateTimeFormat().resolvedOptions().timeZone);
+  const old = fakeHub();
+  delete (old as { readWeather?: unknown }).readWeather;
+  const t = setup({ saved: { homeyId: ID, apiKey: 'k' }, hub: old });
+  await t.controller.start();
+  await expect(t.controller.readWeather()).rejects.toMatchObject({ statusCode: 404 });
 });
 
 test('an unreachable start keeps trying, 5 then 10 seconds later', async () => {

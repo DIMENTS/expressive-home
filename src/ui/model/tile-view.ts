@@ -2,11 +2,16 @@ import { climateOf, climateState } from '../../controls/climate';
 import { coverOf, coverState } from '../../controls/cover';
 import { guardOf, guardState, type GuardState } from '../../controls/guard';
 import { mediaOf, mediaState } from '../../controls/media';
+import { applianceOf, applianceState } from '../../controls/appliance';
+import { carOf, carState } from '../../controls/car';
+import { chargerOf, chargerState } from '../../controls/charger';
+import { fanOf, fanState } from '../../controls/fan';
+import { vacuumOf, vacuumState } from '../../controls/vacuum';
 import { HOUSE_KINDS, type DeviceTileSpec, type FlowTileSpec } from '../../dashboard/types';
 import type { Capability, CapabilityValue, Device, Flow } from '../../homey/types';
 import { formatValue, joinValue, type Formatted } from '../../i18n/format';
 import type { MessageKey, Translate } from '../../i18n/index';
-import { alarmKind, dangerAlarms, hasLowBattery, tankPercent } from '../../recognition/recognize';
+import { alarmKind, dangerAlarms, hasLowBattery, isDangerAlarm, mainValues, tankPercent } from '../../recognition/recognize';
 import type { IconName } from '../icons/icons';
 import { coverText, partly } from './cover-view';
 import { isLibraryIcon } from '../icons/library';
@@ -95,7 +100,7 @@ function generic(spec: Extract<DeviceTileSpec, { kind: 'generic' }>, device: Dev
   const text = formatValue(cap, 'tile', t);
   view.stateText = isNone(text, t) && cap.value === null ? '' : joinValue(text);
   if (cap.value === true && (cap.baseId.startsWith('alarm_') || cap.baseId === 'presence')) {
-    const kind = alarmKind(cap.baseId);
+    const kind = alarmKind(cap.baseId) === 'danger' && !isDangerAlarm(device, cap) ? 'status' : alarmKind(cap.baseId);
     view.state = kind === 'danger' ? 'danger' : kind === 'activity' ? 'on' : 'neutral';
   }
 }
@@ -144,6 +149,78 @@ function media(device: Device, view: TileView, t: Translate): void {
   } else if (loud) {
     view.stateText = loud.charAt(0).toLocaleUpperCase(t.locale) + loud.slice(1);
   }
+}
+
+const join = (t: Translate, ...parts: string[]): string => parts.filter(Boolean).reduce((a, b) => (a ? t('tile.join', { a, b }) : b), '');
+const percent = (n: number | null): string => (n === null ? '' : `${n}%`);
+
+function fan(device: Device, view: TileView, t: Translate): void {
+  const found = fanOf(device);
+  if (!found) return;
+  const { on, speed, mode } = fanState(found);
+  view.state = on === null ? 'neutral' : on ? 'on' : 'off';
+  view.level = speed === null ? null : Math.round(speed * 100);
+  const how = mode === 'auto' ? t('fan.auto') : percent(view.level);
+  view.stateText = on === false ? t('tile.off') : on === true ? join(t, t('tile.on'), how) : how;
+}
+
+function vacuum(device: Device, view: TileView, t: Translate): void {
+  const found = vacuumOf(device);
+  if (!found) return;
+  const { stand, battery, problem } = vacuumState(found);
+  view.state = stand === null ? 'neutral' : stand === 'cleaning' || stand === 'spot_cleaning' ? 'on' : 'off';
+  view.level = battery;
+  // what is wrong goes first; it is no danger
+  const first = problem ? t(`vacuum.${problem.baseId}` as MessageKey) : stand ? t(`vacuum.${stand}` as MessageKey) : '';
+  view.stateText = join(t, first, percent(battery));
+}
+
+/** "42 min", "2 u 5 min". */
+export function minutesText(minutes: number, t: Translate): string {
+  if (minutes < 60) return t('appliance.minutes', { n: minutes });
+  return minutes % 60 === 0 ? t('appliance.wholeHours', { h: minutes / 60 }) : t('appliance.hours', { h: Math.floor(minutes / 60), m: minutes % 60 });
+}
+
+function appliance(device: Device, view: TileView, t: Translate): void {
+  const found = applianceOf(device);
+  if (!found) return;
+  const { stand, on, progress, minutesLeft } = applianceState(found);
+  view.level = progress;
+  if (stand !== null) {
+    view.state = stand === 'running' ? 'on' : 'off';
+    const how = minutesLeft !== null ? t('appliance.left', { time: minutesText(minutesLeft, t) }) : percent(progress);
+    view.stateText = join(t, t(`appliance.${stand}` as MessageKey), stand === 'running' || stand === 'paused' ? how : '');
+  } else if (on !== null && !found.operational && !found.running) {
+    // a plug does not say whether it runs, only that it is on and what it uses
+    view.state = on ? 'on' : 'off';
+    const power = formatValue(found.power ?? undefined, 'tile', t);
+    view.stateText = !on ? t('tile.off') : isNone(power, t) ? t('tile.on') : join(t, t('tile.on'), joinValue(power));
+  } else {
+    const first = mainValues(device)[0];
+    view.stateText = first ? joinValue(formatValue(first, 'tile', t)) : '';
+  }
+}
+
+function charger(device: Device, view: TileView, t: Translate): void {
+  const found = chargerOf(device);
+  if (!found) return;
+  const { stand, charging, power } = chargerState(found);
+  const gives = stand === 'plugged_in_discharging';
+  view.state = stand === null && charging === null ? 'neutral' : charging || gives ? 'on' : 'off';
+  const said = stand !== null ? t(`charger.${stand}` as MessageKey) : charging === null ? '' : t(charging ? 'charger.plugged_in_charging' : 'charger.idle');
+  view.stateText = join(t, said, (charging || gives) && found.power && power !== null && power !== 0 ? joinValue(formatValue({ ...found.power, value: Math.abs(power) }, 'tile', t)) : '');
+}
+
+function car(device: Device, view: TileView, t: Translate, busy: Busy): void {
+  const found = carOf(device);
+  if (!found) return;
+  const { battery, range, charging, locked } = carState(found);
+  view.state = charging === true || locked === false ? 'on' : battery === null && charging === null && locked === null ? 'neutral' : 'off';
+  view.level = battery;
+  const far = range === null ? '' : `${new Intl.NumberFormat(t.locale, { maximumFractionDigits: 0 }).format(range.value)} ${range.units}`;
+  const told = busy && found.lock && busy.capabilityId === found.lock.id ? t(busy.value === true ? 'guard.locking' : 'guard.unlocking') : '';
+  const first = told || (locked === false ? t('guard.unlocked') : charging === true ? t('car.charging') : '');
+  view.stateText = join(t, first, percent(battery), far);
 }
 
 /** What a lock, a door or an alarm was told and did not answer yet. */
@@ -233,6 +310,11 @@ export function tileView(spec: DeviceTileSpec, device: Device | undefined, t: Tr
     case 'cover': cover(device, view, t); break;
     case 'media': media(device, view, t); break;
     case 'guard': guard(device, view, t, busy); break;
+    case 'fan': fan(device, view, t); break;
+    case 'vacuum': vacuum(device, view, t); break;
+    case 'appliance': appliance(device, view, t); break;
+    case 'charger': charger(device, view, t); break;
+    case 'car': car(device, view, t, busy); break;
   }
   alarmed(spec, device, view, t);
   view.warn = hasLowBattery(device);

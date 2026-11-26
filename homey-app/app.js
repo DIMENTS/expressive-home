@@ -60,7 +60,7 @@ class ExpressiveHomeApp extends Homey.App {
   async getState() {
     if (!this.server) return { running: false, problem: this.problem };
     const { server } = this;
-    return { running: true, connected: server.connected(), devices: server.devices(), flowKey: server.flowKey(), codes: server.codes(), buttons: server.buttons(), recording: server.recording() };
+    return { running: true, connected: server.connected(), devices: server.devices(), flowKey: server.flowKey(), codes: server.codes(), buttons: server.buttons(), recording: server.recording(), appLive: server.appLive() };
   }
 
   /** The code that another device pairs with; a new one when none is open, or when that is asked for. */

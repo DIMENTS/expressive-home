@@ -2,6 +2,7 @@ import type { ClientEvent, HistoryPeriod, HistorySeries, HistorySource, HistoryS
 import { toSnapshot } from '../homey/map';
 import type { Capability, CapabilityValue, Device, HomeySnapshot, RawHomey } from '../homey/types';
 import { findCapability } from '../recognition/recognize';
+import { mockEnergy, mockWeather } from './weather-energy';
 
 /** The devices of the mock, and the way to let them say something. */
 export interface LifeHub { readonly devices: Readonly<Record<string, Device>>; report(deviceId: string, capabilityId: string, value: CapabilityValue): void }
@@ -167,6 +168,12 @@ export function createMockClient(raw: RawHomey, options: MockClientOptions = {})
     },
     async listHistory() {
       return historySources();
+    },
+    async readWeather() {
+      return mockWeather(Date.now());
+    },
+    async readEnergy(period) {
+      return mockEnergy(period, Date.now(), state.devices);
     },
     async readSeries(source, period) {
       const now = Date.now();

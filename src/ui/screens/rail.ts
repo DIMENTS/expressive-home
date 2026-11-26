@@ -26,6 +26,7 @@ export class MhRail extends LitElement {
     editing: { type: Boolean },
     editBlocked: { type: Boolean },
     useOnly: { type: Boolean },
+    ownCss: { type: Boolean, attribute: 'own-css', reflect: true },
   };
   /** The texts, in the language of the app; Dutch until the app sets it. */
   declare t: Translate;
@@ -37,6 +38,8 @@ export class MhRail extends LitElement {
   declare editBlocked: boolean;
   /** This device may not arrange the dashboards: there is no "Bewerken". */
   declare useOnly: boolean;
+  /** Own CSS is on: Thema and Instellingen keep a ground and colour of their own, whatever it did to the bar. */
+  declare ownCss: boolean;
 
   constructor() {
     super();
@@ -47,6 +50,7 @@ export class MhRail extends LitElement {
     this.editing = false;
     this.editBlocked = false;
     this.useOnly = false;
+    this.ownCss = false;
   }
 
   static override styles = [sharedStyles, css`
@@ -67,6 +71,7 @@ export class MhRail extends LitElement {
       font-size: var(--type-label-s-size); line-height: var(--type-label-s-line); font-weight: var(--weight-strong); color: var(--rail-item-fg);
       --icon-size: var(--icon-l);
     }
+    :host([own-css]) button.kept { background: var(--sheet-bg); color: var(--sheet-fg); }
     button:focus-visible { outline: var(--focus-width) solid var(--focus-color); outline-offset: var(--focus-offset); }
     .indicator {
       position: relative; width: var(--rail-indicator-width); height: var(--rail-indicator-height); border-radius: var(--rail-indicator-radius);
@@ -95,14 +100,14 @@ export class MhRail extends LitElement {
 
   private board(board: RailBoard) {
     const active = board.id === this.activeBoard && (this.panel === 'none' || this.editing);
-    return html`<button class=${active ? 'active' : ''} aria-current=${active ? 'page' : 'false'} title=${board.name}
+    return html`<button part=${active ? 'rail-item active' : 'rail-item'} class=${active ? 'active' : ''} aria-current=${active ? 'page' : 'false'} title=${board.name}
       aria-label=${board.badge ? this.t('nav.news', { name: board.name }) : nothing}
       @click=${() => this.emit('navigate', { to: `board:${board.id}` })}>${this.face(board.icon, board.name, active, board.badge)}</button>`;
   }
 
   private panelItem(to: 'theme' | 'settings', icon: IconName, name: string) {
     const active = this.panel === to;
-    return html`<button class=${active ? 'active' : ''} aria-current=${active ? 'page' : 'false'} @click=${() => this.emit('navigate', { to })}>${this.face(icon, name, active)}</button>`;
+    return html`<button class=${active ? 'active kept' : 'kept'} aria-current=${active ? 'page' : 'false'} @click=${() => this.emit('navigate', { to })}>${this.face(icon, name, active)}</button>`;
   }
 
   /** The focus goes to "Bewerken". */
@@ -113,7 +118,7 @@ export class MhRail extends LitElement {
   override render() {
     const t = this.t;
     const editing = this.editing && this.panel === 'none';
-    return html`<nav aria-label=${t('nav.label')}>
+    return html`<nav part="rail" aria-label=${t('nav.label')}>
       <div class="boards">${repeat(this.boards, (board) => board.id, (board) => this.board(board))}</div>
       ${this.editing && this.boards.filter((board) => board.id !== ROOMS_ID).length < LIMITS.dashboards ? html`<button class="new" @click=${() => this.emit('new-board')}>${this.face('add', t('nav.newBoard'), false)}</button>` : nothing}
       <span class="grow"></span>

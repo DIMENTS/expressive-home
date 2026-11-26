@@ -4,7 +4,7 @@ import { isLibraryIcon } from '../ui/icons/library';
 import { ICONS, type IconName } from '../ui/icons/icons';
 
 /** A widget the app brings itself. */
-export interface BuiltInWidget { id: 'clock' | 'note' | 'board' | 'gauge' | 'countdown' | 'group'; icon: IconName; name: MessageKey; about: MessageKey; sizes: readonly TileSize[] }
+export interface BuiltInWidget { id: 'clock' | 'note' | 'board' | 'gauge' | 'countdown' | 'group' | 'weather' | 'energy'; icon: IconName; name: MessageKey; about: MessageKey; sizes: readonly TileSize[] }
 
 export const BUILT_IN_WIDGETS: readonly BuiltInWidget[] = [
   { id: 'clock', icon: 'schedule', name: 'widget.clock', about: 'widget.clockAbout', sizes: ['wide', 'single'] },
@@ -13,6 +13,8 @@ export const BUILT_IN_WIDGETS: readonly BuiltInWidget[] = [
   { id: 'gauge', icon: 'speed', name: 'widget.gauge', about: 'widget.gaugeAbout', sizes: ['single', 'wide'] },
   { id: 'countdown', icon: 'hourglass_top', name: 'widget.countdown', about: 'widget.countdownAbout', sizes: ['single', 'wide'] },
   { id: 'group', icon: 'light_group', name: 'widget.group', about: 'widget.groupAbout', sizes: ['single', 'wide'] },
+  { id: 'weather', icon: 'partly_cloudy_day', name: 'widget.weather', about: 'widget.weatherAbout', sizes: ['wide', 'single'] },
+  { id: 'energy', icon: 'bolt', name: 'widget.energy', about: 'widget.energyAbout', sizes: ['wide', 'single'] },
 ];
 
 export const builtInWidget = (id: string): BuiltInWidget | undefined => BUILT_IN_WIDGETS.find((widget) => widget.id === id);

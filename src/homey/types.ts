@@ -14,7 +14,7 @@ export interface Device {
   id: string; name: string; zoneId: string | null; deviceClass: string; driverId: string | null;
   available: boolean; unavailableMessage: string | null;
   capabilityOrder: string[]; capabilities: Record<string, Capability>;
-  energy: { cumulative: boolean; homeBattery: boolean };
+  energy: { cumulative: boolean; homeBattery: boolean; evCharger?: boolean; electricCar?: boolean };
 }
 /** `icon` and `order` as the hub tells them, when it does. */
 export interface Zone { id: string; name: string; parentId: string | null; icon?: string; order?: number }

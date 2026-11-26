@@ -178,3 +178,24 @@ test('the simulation can send a set number of reports per second, spread over th
   expect(reports.length).toBeLessThanOrEqual(18);
   expect(new Set(reports.map((e) => e.type === 'capability' && e.deviceId)).size).toBeGreaterThan(2);
 });
+
+test('the example hub has weather and Homey Energy in the shapes a real hub gives, with its own devices', async () => {
+  const { readWeather, hoursAfter, daysAfter } = await import('../../src/widgets/weather');
+  const { readEnergyReport } = await import('../../src/widgets/energy');
+  const { houseRaw } = await import('../../src/mock/house');
+  const client = createMockClient(houseRaw('nl'));
+  const snapshot = await client.connect();
+  const weather = readWeather(await client.readWeather!())!;
+  const now = Date.now();
+  expect(weather.known).toBe(true);
+  expect(hoursAfter(weather, now, 4)).toHaveLength(4);
+  expect(daysAfter(weather, now, 5)).toHaveLength(5);
+  const day = readEnergyReport(await client.readEnergy!('day', 'UTC'))!;
+  expect(day.slots).toHaveLength(24);
+  expect(day.totals.consumed).toBeGreaterThan(0);
+  expect(day.devices.length).toBeGreaterThan(3);
+  expect(day.devices.every((device) => Object.hasOwn(snapshot.devices, device.id))).toBe(true);
+  const month = readEnergyReport(await client.readEnergy!('month', 'UTC'))!;
+  expect(month.slots.length).toBeGreaterThanOrEqual(28);
+  expect(readEnergyReport(await client.readEnergy!('week', 'UTC'))!.slots).toHaveLength(7);
+});

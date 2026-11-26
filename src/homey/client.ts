@@ -1,4 +1,5 @@
 import type { CapabilityValue, Device, Flow, FlowAccess, HomeySnapshot, Route, Zone } from './types';
+import type { EnergyPeriod } from '../widgets/energy';
 
 export type ClientEvent =
   | { type: 'capability'; deviceId: string; capabilityId: string; value: CapabilityValue; at: string | null }
@@ -50,6 +51,16 @@ export interface HomeyClient {
   readSwitches(source: HistorySource): Promise<HistorySwitches | null>;
   /** What the hub answers about its history, as it is; only to measure what it has. */
   rawHistory?: { logs(): Promise<unknown>; entries(id: string, resolution: string | null): Promise<unknown> };
+  /** Only for measuring weather and energy: read-only operations of a few managers, and news of a manager by name. */
+  rawManagers?: {
+    call(manager: 'sessions' | 'weather' | 'energy' | 'geolocation', operation: string, args?: Record<string, unknown>): Promise<unknown>;
+    logs(): Promise<unknown>;
+    listen(uri: string, onEvent: (event: string) => void): Promise<() => void>;
+  };
+  /** The weather of the hub, as it gives it; it throws with a status (403: the key may not) when it cannot be read. */
+  readWeather?(): Promise<unknown>;
+  /** The report of Homey Energy for the period that holds now, in the time zone of the hub; it throws as above. */
+  readEnergy?(period: EnergyPeriod, timeZone: string): Promise<unknown>;
   /** The rooms and the flows as they are now; null when they could not be read. */
   readStructure?(): Promise<{ zones: Record<string, Zone>; flows: Flow[] } | null>;
   subscribe(listener: (event: ClientEvent) => void): () => void;

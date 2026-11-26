@@ -35,10 +35,10 @@ test('half a code, or a code with one sign changed, is refused', () => {
 });
 
 test('a later format of code is too new, and what is no code at all is no theme', () => {
-  expect(fromShareCode(toShareCode(theme()).replace(/^EH1/, 'EH2'))).toEqual({ ok: false, reason: 'too-new' });
+  expect(fromShareCode(toShareCode(theme()).replace(/^EH1/, 'EH3'))).toEqual({ ok: false, reason: 'too-new' });
   expect(fromShareCode('hello')).toEqual({ ok: false, reason: 'not-a-theme' });
   expect(fromFileText('{"format":')).toEqual({ ok: false, reason: 'not-a-theme' });
-  expect(fromFileText('x'.repeat(LIMITS_LOOKS.fileBytes + 1))).toEqual({ ok: false, reason: 'too-big' });
+  expect(fromFileText('x'.repeat(LIMITS_LOOKS.fileBytes * 2 + 1))).toEqual({ ok: false, reason: 'too-big' });
 });
 
 test('a thousand random themes survive the trip', () => {

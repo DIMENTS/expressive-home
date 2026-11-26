@@ -14,6 +14,7 @@ import { isValidSeed } from '../theme/engine';
 import type { ThemeSettings } from '../theme/types';
 import { renderDashboard } from './dashboard';
 import { describeShore, probeHistory } from './history-probe';
+import { probeWeatherEnergy } from './weather-energy-probe';
 import { insightsText, measureInsights } from './insights';
 import { addRouteChange, structureText } from './structure';
 import { applyTheme } from './theme';
@@ -323,7 +324,23 @@ function setupCopy(): void {
       showResult();
     })();
   });
+  $('measure-weather-energy').addEventListener('click', () => {
+    const area = $<HTMLTextAreaElement>('structure');
+    const measured = client;
+    if (source === 'connecting' || !measured) { area.value = 'nog bezig met verbinden'; return; }
+    if (!measured.rawManagers) { area.value = 'weer en energie: niet te meten op deze Homey'; return; }
+    area.value = 'Weer en energie meten… dit duurt ruim twee minuten (twee minuten luisteren naar nieuws).';
+    void (async () => {
+      const text = await probeWeatherEnergy(measured.rawManagers!, new Date(), WEATHER_ENERGY_LISTEN_MS);
+      if (measured !== client) return;
+      insightsResult = text;
+      showResult();
+    })();
+  });
 }
+
+/** How long the measurement listens for news of the energy and the weather of the hub, each. */
+const WEATHER_ENERGY_LISTEN_MS = 60_000;
 
 /** Puts the structure, and the Insights measurement when there is one, in the result field and on the clipboard. */
 function showResult(): void {

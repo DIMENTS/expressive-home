@@ -1,7 +1,7 @@
 import type { LooksStore, StoredLooks } from '../../storage/looks-store';
 import { DEFAULT_HOUSE, chooseLook, deviceAfterUpdate, followHouse, type ChosenLook, type DeviceLook, type HouseLook, type LookRole } from '../../theme/choose';
 import { BUILT_IN, type ThemeFile } from '../../theme/look';
-import { emptyLooksDoc, withBoardTheme, type LooksDoc } from '../../theme/looks-doc';
+import { emptyLooksDoc, withBoardTheme, type LooksDoc, type CssFrom } from '../../theme/looks-doc';
 import { applyLookOps, type LookOp } from '../../theme/look-ops';
 import { rustigExpressive } from '../../theme/rustig-expressive';
 import { LIMITS_LOOKS, isOwnThemeId } from '../../theme/theme-file';
@@ -29,6 +29,10 @@ export interface LookState {
   /** The built-in styles first, then those of the house (or of this browser). */
   themes: readonly ThemeFile[];
   boards: Readonly<Record<string, string>>;
+  /** Where the CSS of each theme comes from: written in this house, or taken in. */
+  cssFrom: Readonly<Record<string, CssFrom>>;
+  /** The themes taken in from someone else. */
+  takenIn: readonly string[];
 }
 
 /** The fields a device that may only use can change: high contrast for itself. */
@@ -58,9 +62,9 @@ export function createLooks(deps: LooksDeps) {
 
   function state(): LookState {
     const current = role();
-    if (current === 'own') return { role: current, device: device(), house: null, themes: [...BUILT_IN, ...own().themes], boards: own().boards };
+    if (current === 'own') return { role: current, device: device(), house: null, themes: [...BUILT_IN, ...own().themes], boards: own().boards, cssFrom: own().cssFrom ?? {}, takenIn: own().takenIn ?? [] };
     const hub = stored.hub;
-    return { role: current, device: device(), house: hub?.house ?? { ...DEFAULT_HOUSE }, themes: [...BUILT_IN, ...(hub?.themes ?? [])], boards: hub?.boards ?? {} };
+    return { role: current, device: device(), house: hub?.house ?? { ...DEFAULT_HOUSE }, themes: [...BUILT_IN, ...(hub?.themes ?? [])], boards: hub?.boards ?? {}, cssFrom: hub?.cssFrom ?? {}, takenIn: hub?.takenIn ?? [] };
   }
 
   function chosen(boardId: string | null): ChosenLook {
@@ -158,36 +162,56 @@ export function createLooks(deps: LooksDeps) {
       }
       return { seed, mode };
     },
-    /** A theme of this browser (own key, example house); on a hub the house keeps them. */
-    saveTheme(file: ThemeFile): boolean {
+    /**
+     * A theme of this browser (own key, example house); on a hub the house keeps them. Its CSS goes with it, with where it
+     * comes from: written in this house, or taken in from someone else.
+     */
+    saveTheme(file: ThemeFile, cssFrom: CssFrom = 'house', takenIn = false): boolean {
       if (!isOwnThemeId(file.id)) return false;
+      const text = file.css?.text.trim() ? file.css.text : null;
       if (role() === 'edit') {
         const house = stored.hub?.themes ?? [];
         // a house with as many themes as there may be takes no new one: the hub would leave it out
         if (!house.some((item) => item.id === file.id) && house.length >= LIMITS_LOOKS.themes) return false;
-        return change([{ save: file }]);
+        const had = house.find((item) => item.id === file.id)?.css !== undefined;
+        const saved = change(text === null && !had ? [{ save: file }] : [{ save: file }, { css: { id: file.id, text, from: cssFrom } }]);
+        // apart: a hub of 1.3 refuses an operation it does not know, and with it everything sent along
+        if (saved && takenIn) change([{ takenIn: { id: file.id, on: true } }]);
+        return saved;
       }
       if (role() !== 'own') return false;
-      const { themes, boards } = own();
+      const { themes, boards, cssFrom: before = {}, takenIn: marked = [] } = own();
       const known = themes.some((item) => item.id === file.id);
       if (!known && themes.length >= LIMITS_LOOKS.themes) return false;
-      setOwn({ themes: known ? themes.map((item) => (item.id === file.id ? file : item)) : [...themes, file], boards });
+      const { [file.id]: _old, ...others } = before;
+      const origins = text === null ? others : { ...others, [file.id]: cssFrom };
+      const taken = takenIn && !marked.includes(file.id) ? [...marked, file.id] : marked;
+      setOwn({
+        themes: known ? themes.map((item) => (item.id === file.id ? file : item)) : [...themes, file], boards,
+        ...(Object.keys(origins).length > 0 ? { cssFrom: origins } : {}), ...(taken.length > 0 ? { takenIn: taken } : {}),
+      });
       return true;
     },
     removeTheme(id: string): boolean {
       if (role() === 'edit') return state().themes.some((item) => item.id === id && isOwnThemeId(id)) && change([{ remove: id }]);
       if (role() !== 'own') return false;
-      const { themes, boards } = own();
+      const { themes, boards, cssFrom = {}, takenIn = [] } = own();
       if (!themes.some((item) => item.id === id)) return false;
-      setOwn({ themes: themes.filter((item) => item.id !== id), boards: Object.fromEntries(Object.entries(boards).filter(([, theme]) => theme !== id)) });
+      // where the CSS of the other themes comes from stays: without it, CSS of this house would count as someone else's
+      const { [id]: _gone, ...origins } = cssFrom;
+      const taken = takenIn.filter((item) => item !== id);
+      setOwn({
+        themes: themes.filter((item) => item.id !== id), boards: Object.fromEntries(Object.entries(boards).filter(([, theme]) => theme !== id)),
+        ...(Object.keys(origins).length > 0 ? { cssFrom: origins } : {}), ...(taken.length > 0 ? { takenIn: taken } : {}),
+      });
       return true;
     },
     setBoardTheme(boardId: string, themeId: string | null): boolean {
       if (role() === 'edit') return (themeId === null || state().themes.some((item) => item.id === themeId)) && change([{ board: boardId, theme: themeId }]);
       if (role() !== 'own') return false;
-      const { themes, boards } = own();
+      const mine = own();
       if (themeId !== null && !state().themes.some((item) => item.id === themeId)) return false;
-      setOwn({ themes, boards: withBoardTheme(boards, boardId, themeId) });
+      setOwn({ ...mine, boards: withBoardTheme(mine.boards, boardId, themeId) });
       return true;
     },
     /** The theme of the house: only a device that may edit chooses it. Only what changes is sent. */

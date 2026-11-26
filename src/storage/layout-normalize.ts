@@ -1,4 +1,4 @@
-import { SECTION_ORDER, type CapRef, type SectionLayoutKind, type TileSpec } from '../dashboard/types';
+import { HOUSE_KINDS, SECTION_ORDER, type CapRef, type HouseKind, type SectionLayoutKind, type TileSpec } from '../dashboard/types';
 import { isHomeyId } from '../homey/routes';
 import { cleanName, valueCapability } from '../layout/refs';
 import { fitSize } from '../layout/tiles';
@@ -68,8 +68,7 @@ function specOf(raw: unknown, id: string): TileSpec | null {
       return capabilityIds.length === 0 ? null : { kind: 'multi', ...common, capabilityIds };
     }
     case 'generic': return { kind: 'generic', ...common, capabilityId: optional('capabilityId') };
-    case 'climate': case 'cover': case 'media': case 'guard': return { kind: raw['kind'], ...common };
-    default: return null;
+    default: return HOUSE_KINDS.includes(raw['kind'] as HouseKind) ? { kind: raw['kind'] as HouseKind, ...common } : null;
   }
 }
 

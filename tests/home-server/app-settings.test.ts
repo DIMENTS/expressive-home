@@ -47,7 +47,7 @@ test('every request of the settings has a place in the app', () => {
 test('a key for flows goes to the server, and only what became of it comes back', async () => {
   const server = {
     connected: () => true, address: () => new Promise(() => {}), devices: () => [], codes: () => ({ scan: 'x' }), buttons: () => ['Film'],
-    flowKey: () => 'works', setFlowKey: vi.fn(async () => 'works'), removeFlowKey: vi.fn(), recording: () => true,
+    flowKey: () => 'works', setFlowKey: vi.fn(async () => 'works'), removeFlowKey: vi.fn(), recording: () => true, appLive: () => ({ state: 'on', apps: 2 }),
   };
   const homey = { app: app(server) };
   const api = load<Record<string, (request: Record<string, unknown>) => Promise<unknown>>>('api.js');
@@ -56,7 +56,7 @@ test('a key for flows goes to the server, and only what became of it comes back'
   expect(await api['setFlowKey']!({ homey, body: null })).toEqual({ result: 'works' });
   await api['removeFlowKey']!({ homey });
   expect(server.removeFlowKey).toHaveBeenCalledOnce();
-  expect(await api['getState']!({ homey })).toEqual({ running: true, connected: true, devices: [], flowKey: 'works', codes: { scan: 'x' }, buttons: ['Film'], recording: true });
+  expect(await api['getState']!({ homey })).toEqual({ running: true, connected: true, devices: [], flowKey: 'works', codes: { scan: 'x' }, buttons: ['Film'], recording: true, appLive: { state: 'on', apps: 2 } });
 });
 
 test('a code is asked for with a slot, a right and whether it has to be a new one', async () => {
@@ -96,6 +96,10 @@ test('both languages have every text the settings use', () => {
   // what is said of a key, by what the app calls it
   for (const state of ['none', 'works', 'wide', 'refused']) expect(nl!['settings']).toHaveProperty(`flowKey-${state}`);
   for (const result of ['not-a-key', 'refused', 'no-right', 'unreachable']) expect(nl!['settings']).toHaveProperty(`flowKeyFailed-${result}`);
+  // how the live news of widgets of apps is doing, under a key that may do everything
+  for (const state of ['idle', 'waiting', 'on', 'on-one', 'refused']) for (const texts of [nl!, en!]) expect(texts['settings']).toHaveProperty(`live-${state}`);
+  expect(nl!['settings']!['live-on']).toContain('__apps__');
+  expect(page).toMatch(/id="liveState"[^>]*aria-live="polite"/);
 });
 
 test('what somebody types as a key is not shown and not kept by a browser', () => {
@@ -139,4 +143,16 @@ test('recording what Homey does not keep is switched on and off, and wiped, from
   expect(page).toMatch(/<input[^>]*id="record"[^>]*type="checkbox"/);
   expect(page).toMatch(/<button[^>]*id="wipe"[^>]*data-i18n="settings\.recordWipe"/);
   expect(page).not.toContain('/history/measure');
+});
+
+test('the page is one list of sections, without anything folded away, with three choices for the key for flows', () => {
+  const legends = [...page.matchAll(/<legend class="homey-form-legend" data-i18n="settings\.([\w-]+)"/g)].map((match) => match[1]);
+  expect(legends.filter((key) => ['devices', 'here', 'flows', 'record', 'night', 'help'].includes(key!))).toEqual(['devices', 'here', 'flows', 'record', 'night', 'help']);
+  expect(page).not.toContain('<details');
+  const levels = [...page.matchAll(/<input[^>]*name="level"[^>]*value="(\w+)"/g)].map((match) => match[1]);
+  expect(levels).toEqual(['none', 'flows', 'full']);
+  for (const key of ['levelNone', 'levelNoneText', 'levelFlows', 'levelFlowsText', 'levelFull', 'levelFullText', 'flowsStep2Full', 'help', 'helpText']) {
+    expect([key, nl!['settings']![key]?.length ?? 0]).not.toEqual([key, 0]);
+    expect([key, en!['settings']![key]?.length ?? 0]).not.toEqual([key, 0]);
+  }
 });

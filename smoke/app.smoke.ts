@@ -146,6 +146,13 @@ test('the edit mode with the example hub', async ({ page }) => {
   // what a panel holds is slotted into it, so it is looked up in the panel's own element
   const add = page.locator('mh-add-panel');
   await expect(page.getByRole('dialog', { name: 'Toevoegen aan Klimaat' })).toBeVisible();
+  // a choice clicked with the mouse keeps the focus in the panel, so Escape still closes it
+  await add.getByRole('radio', { name: 'Flows' }).click();
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('dialog', { name: 'Toevoegen aan Klimaat' })).toBeHidden();
+  await section(page, 'Klimaat').getByRole('button', { name: 'Tegel toevoegen' }).click();
+  await expect(page.getByRole('dialog', { name: 'Toevoegen aan Klimaat' })).toBeVisible();
+  await add.getByRole('radio', { name: 'Apparaten' }).click();
   await add.getByRole('searchbox', { name: 'Zoek een apparaat' }).fill('starlink');
   await add.getByRole('button', { name: /^Starlink/ }).first().click();
   await add.getByRole('button', { name: 'Download toevoegen' }).click();
@@ -358,6 +365,13 @@ test('dragging with a finger: scrolling first moves nothing, holding still picks
   await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(40);
   expect(await page.locator('mh-dashboard .lifted').count()).toBe(0);
   expect(await tileNames(page, 'Klimaat')).toHaveLength(2);
+  // after a swipe the page glides on; a finger that lands while it glides only stops it, as on any phone
+  const still = async (): Promise<boolean> => {
+    const before = await page.evaluate(() => window.scrollY);
+    await page.waitForTimeout(100);
+    return before === await page.evaluate(() => window.scrollY);
+  };
+  await expect.poll(still).toBe(true);
   await page.evaluate(() => window.scrollTo(0, 0));
 
   // holding still first picks the tile up; the page stays where it is

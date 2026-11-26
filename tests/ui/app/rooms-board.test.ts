@@ -40,7 +40,7 @@ test('it opens as a dashboard does, and so does a room', () => {
   expect([s.layouts.state().boardId, s.layouts.state().board]).toEqual([ROOMS_ID, { id: ROOMS_ID, left: [], right: [] }]);
   s.layouts.openBoard(roomBoardId('living'));
   const { board, boardId } = s.layouts.state();
-  expect([boardId, board!.left.concat(board!.right).map((b) => (b.type === 'section' ? b.section.kind : 'hero')).sort()]).toEqual([roomBoardId('living'), ['climate', 'covers', 'lights', 'media', 'security', 'switches']]);
+  expect([boardId, board!.left.concat(board!.right).map((b) => (b.type === 'section' ? b.section.kind : 'hero')).sort()]).toEqual([roomBoardId('living'), ['climate', 'covers', 'household', 'lights', 'media', 'security', 'switches']]);
   s.layouts.openBoard(roomBoardId('nowhere'));
   expect(s.layouts.state().boardId).toBe(roomBoardId('living'));
   s.layouts.openBoard('overview');

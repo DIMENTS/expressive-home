@@ -7,7 +7,7 @@ afterEach(() => { document.body.replaceChildren(); document.head.querySelectorAl
 const HOME = 'http://hub.local';
 
 /** The window as the frame sees it: an opaque origin, a parent, and the messages it gets. */
-function frame(options: { origin?: string; framed?: boolean } = {}) {
+function frame(options: { origin?: string; framed?: boolean; own?: PropertyDescriptorMap } = {}) {
   const sent: Record<string, unknown>[] = [];
   const parent = { postMessage: vi.fn((message: Record<string, unknown>, target: string) => { expect(target).toBe(HOME); sent.push(message); }) };
   const handlers: Record<string, ((event: unknown) => void)[]> = {};
@@ -16,6 +16,7 @@ function frame(options: { origin?: string; framed?: boolean } = {}) {
     parent: { value: parent, configurable: true },
     location: { value: { href: `${HOME}/widget-frame.html` } },
     addEventListener: { value: (type: string, fn: (event: unknown) => void) => { (handlers[type] ??= []).push(fn); } },
+    ...options.own,
   });
   if (options.framed === false) Object.defineProperty(win, 'parent', { value: win });
   const started = startFrame(win as Window & typeof globalThis);
@@ -102,4 +103,12 @@ test('the runtime leaves the colour scheme of the page alone', () => {
   const f = frame();
   f.receive(load('function onHomeyReady() {}'));
   expect(document.documentElement.style.getPropertyValue('color-scheme')).toBe('');
+});
+
+test('a widget never reaches the kiosk app of a wall tablet, also where its object cannot be deleted', () => {
+  const fully = { loadUrl: vi.fn() };
+  const loose = frame({ own: { fully: { value: fully, configurable: true, writable: true }, FullyKiosk: { value: {}, configurable: true, writable: true } } });
+  expect([(loose.win as unknown as { fully?: unknown }).fully, (loose.win as unknown as { FullyKiosk?: unknown }).FullyKiosk]).toEqual([undefined, undefined]);
+  const fixed = frame({ own: { fully: { value: fully, configurable: false, writable: true } } });
+  expect((fixed.win as unknown as { fully?: unknown }).fully).toBeUndefined();
 });

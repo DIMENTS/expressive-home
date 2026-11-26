@@ -156,8 +156,19 @@ test('widgets have their own list; the plus adds one with its defaults, nothing 
   deep(p.element, 'mh-choice-group').dispatchEvent(new CustomEvent('change', { detail: { value: 'widgets' }, bubbles: true, composed: true }));
   await wait(p.element);
   const rows = deepAll(p.element, '[data-widget]');
-  expect(rows.map((row) => row.getAttribute('data-widget'))).toEqual(['clock', 'note', 'board', 'gauge', 'countdown', 'group']);
+  expect(rows.map((row) => row.getAttribute('data-widget'))).toEqual(['clock', 'note', 'board', 'gauge', 'countdown', 'group', 'weather', 'energy']);
   expect(p.adds).toEqual([]);
   p.plus(rows[0]!).click();
   expect(p.adds).toEqual([{ name: 'Klok', tiles: [{ id: 't-1', spec: { kind: 'widget', id: 't-1', size: 'wide', widget: 'clock', settings: {} }, size: 'wide', label: null, icon: null, source: 'device' }] }]);
+});
+
+test('choosing devices, flows or widgets keeps the same choice, so the focus stays on it and Escape still closes', async () => {
+  const p = await panel();
+  const choice = deep(p.element, 'mh-choice-group');
+  for (const value of ['flows', 'widgets', 'devices', 'widgets', 'flows']) {
+    choice.dispatchEvent(new CustomEvent('change', { detail: { value }, bubbles: true, composed: true }));
+    await wait(p.element);
+    expect([value, deep(p.element, 'mh-choice-group') === choice]).toEqual([value, true]);
+    expect(choice.isConnected).toBe(true);
+  }
 });

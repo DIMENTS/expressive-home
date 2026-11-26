@@ -52,7 +52,17 @@ test('it has the shapes that real apps have', () => {
     televisionWithButtons: having('media', (ids) => ids.includes('volume_up') && without(ids, 'volume_set')),
     lock: having('guard', (ids) => ids.includes('locked')), garage: having('guard', (ids) => ids.includes('garagedoor_closed')), alarm: having('guard', (ids) => ids.includes('homealarm_state')),
   }).toEqual(Object.fromEntries(['valveThatDoesNotMeasure', 'thermostatWithoutMode', 'aircoWithoutOnoff', 'blindWithOnlyAPosition', 'shutterWithOnlyUpAndDown', 'slats', 'awning', 'speakerWithSong', 'speakerWithout', 'televisionWithButtons', 'lock', 'garage', 'alarm'].map((k) => [k, true])));
-  expect([...new Set(devices.map(sectionFor))].sort()).toEqual(['climate', 'covers', 'lights', 'media', 'other', 'security', 'switches', 'water'].sort().filter((s) => s !== 'water' || devices.some((d) => sectionFor(d) === 'water')));
+  expect([...new Set(devices.map(sectionFor))].sort()).toEqual(['climate', 'covers', 'household', 'lights', 'media', 'other', 'security', 'switches', 'vehicles', 'water'].sort().filter((s) => s !== 'water' || devices.some((d) => sectionFor(d) === 'water')));
+  // and of a fan, a vacuum cleaner, white goods, a plug that says it is one, a charge point and a car
+  expect({
+    fanWithSpeed: having('fan', (ids) => ids.includes('fan_speed') && ids.includes('oscillating')),
+    plainFan: devices.some((d) => d.deviceClass === 'fan' && houseKind(d) === null),
+    vacuum: having('vacuum', (ids) => ids.includes('vacuumcleaner_state') && ids.includes('measure_battery')),
+    washer: having('appliance', (ids) => ids.includes('operational_state') && ids.includes('remaining_time')),
+    plugAsDishwasher: devices.some((d) => houseKind(d) === 'appliance' && d.deviceClass === 'dishwasher' && !d.capabilityOrder.includes('operational_state')),
+    charger: having('charger', (ids) => ids.includes('evcharger_charging_state') && ids.includes('meter_power.session')),
+    car: having('car', (ids) => ids.includes('target_temperature') && ids.includes('locked')),
+  }).toEqual({ fanWithSpeed: true, plainFan: true, vacuum: true, washer: true, plugAsDishwasher: true, charger: true, car: true });
   // nothing is a bare tile
   expect(devices.filter((d) => tilesFor(d).length === 0).map((d) => d.name)).toEqual([]);
 });
@@ -173,4 +183,63 @@ test('once it is left nothing moves any more, and the camper does not live so', 
   plain.subscribe((e) => seen.push(e));
   await plain.setCapability(lock.id, 'locked', false);
   expect(seen).toHaveLength(1);
+});
+
+test('a vacuum cleaner cleans, its battery runs down, and back in its dock it charges', async () => {
+  const s = await living();
+  const robot = s.find('vacuum', 'vacuumcleaner_state');
+  const full = s.value(robot.id, 'measure_battery') as number;
+  await s.mock.setCapability(robot.id, 'vacuumcleaner_state', 'cleaning');
+  vi.advanceTimersByTime(LIFE_MS * 40);
+  expect([s.value(robot.id, 'vacuumcleaner_state'), s.value(robot.id, 'docked')]).toEqual(['cleaning', false]);
+  expect(s.value(robot.id, 'measure_battery')).toBeLessThan(full);
+  await s.mock.setCapability(robot.id, 'vacuumcleaner_state', 'docked');
+  vi.advanceTimersByTime(LIFE_MS * 4);
+  expect([s.value(robot.id, 'vacuumcleaner_state'), s.value(robot.id, 'docked')]).toEqual(['charging', true]);
+  vi.advanceTimersByTime(LIFE_MS * 400);
+  expect([s.value(robot.id, 'vacuumcleaner_state'), s.value(robot.id, 'measure_battery')]).toEqual(['docked', 100]);
+});
+
+test('the washing machine gets on, its time runs out, and then it is done', async () => {
+  const s = await living();
+  const washer = s.find('appliance', 'operational_state');
+  const left = s.value(washer.id, 'remaining_time') as number;
+  vi.advanceTimersByTime(LIFE_MS * 20);
+  expect(s.value(washer.id, 'remaining_time')).toBeLessThan(left);
+  expect(s.value(washer.id, 'progress')).toBeGreaterThan(washer.capabilities['progress']!.value as number);
+  vi.advanceTimersByTime(LIFE_MS * 2000);
+  expect([s.value(washer.id, 'operational_state'), s.value(washer.id, 'remaining_time')]).toEqual(['stopped', 0]);
+});
+
+test('the charge point charges the car: its power, this time, and the battery of the car go up; stopped, it rests', async () => {
+  const s = await living();
+  const charger = s.find('charger', 'evcharger_charging');
+  const car = s.find('car', 'ev_charging_state');
+  const battery = s.value(car.id, 'measure_battery') as number;
+  await s.mock.setCapability(charger.id, 'evcharger_charging', true);
+  vi.advanceTimersByTime(LIFE_MS * 60);
+  expect([s.value(charger.id, 'evcharger_charging_state'), s.value(car.id, 'ev_charging_state')]).toEqual(['plugged_in_charging', 'plugged_in_charging']);
+  expect(s.value(charger.id, 'measure_power')).toBeGreaterThan(5_000);
+  expect(s.value(charger.id, 'meter_power.session')).toBeGreaterThan(0);
+  expect(s.value(car.id, 'measure_battery')).toBeGreaterThan(battery);
+  await s.mock.setCapability(charger.id, 'evcharger_charging', false);
+  vi.advanceTimersByTime(LIFE_MS * 4);
+  expect([s.value(charger.id, 'evcharger_charging_state'), s.value(charger.id, 'measure_power'), s.value(car.id, 'ev_charging_state')]).toEqual(['plugged_in', 0, 'plugged_in']);
+});
+
+test('the washing machine switched off stops; charging stops when the car is full, at the power it may use', async () => {
+  const s = await living();
+  const washer = s.find('appliance', 'operational_state');
+  await s.mock.setCapability(washer.id, 'onoff', false);
+  vi.advanceTimersByTime(LIFE_MS * 4);
+  expect([s.value(washer.id, 'operational_state'), s.value(washer.id, 'measure_power')]).toEqual(['stopped', 0]);
+  const charger = s.find('charger', 'evcharger_charging');
+  const car = s.find('car', 'ev_charging_state');
+  await s.mock.setCapability(charger.id, 'target_power', 7400);
+  await s.mock.setCapability(charger.id, 'evcharger_charging', true);
+  vi.advanceTimersByTime(LIFE_MS * 4);
+  expect(s.value(charger.id, 'measure_power')).toBeLessThanOrEqual(7400 * 1.2);
+  vi.advanceTimersByTime(LIFE_MS * 2000);
+  expect([s.value(car.id, 'measure_battery'), s.value(charger.id, 'evcharger_charging'), s.value(charger.id, 'evcharger_charging_state'), s.value(charger.id, 'measure_power'), s.value(car.id, 'ev_charging_state')])
+    .toEqual([100, false, 'plugged_in', 0, 'plugged_in']);
 });

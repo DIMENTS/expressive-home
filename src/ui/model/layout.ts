@@ -1,4 +1,6 @@
 import { coverOf, coverState } from '../../controls/cover';
+import { carUnlocked, isBusy, isCharging } from '../../controls/doing';
+import { isCar } from '../../controls/car';
 import { guardOf, guardState } from '../../controls/guard';
 import { mediaOf, mediaState } from '../../controls/media';
 import { isDeviceTile, SECTION_ORDER, type Section, type SectionKind, type SectionLayoutKind } from '../../dashboard/types';
@@ -39,7 +41,7 @@ function balance(sections: readonly Section[], columns: Record<Side, Section[]>,
 }
 
 /** These go where there is room: in a house the right column is long already. */
-const ANYWHERE: readonly SectionLayoutKind[] = ['covers', 'media'];
+const ANYWHERE: readonly SectionLayoutKind[] = ['covers', 'media', 'household', 'vehicles'];
 
 /**
  * The two columns: hero, Verlichting and Stekkers left; the rest right, and rooms each in the shortest. When one side would be
@@ -63,10 +65,14 @@ export const countsOn = (section: Section): boolean => section.tiles.some((spec)
 
 /** "2 open · 1 speelt": what is open, plays or is unlocked; nothing when that is nothing. */
 export function houseCount(devices: readonly (Device | undefined)[], t: Translate): string {
-  const n = { unlocked: 0, open: 0, playing: 0 };
+  const n = { unlocked: 0, open: 0, playing: 0, busy: 0, charging: 0 };
   for (const device of devices) {
     if (!device?.available) continue;
-    const guard = guardOf(device);
+    if (isBusy(device)) n.busy += 1;
+    if (isCharging(device)) n.charging += 1;
+    if (carUnlocked(device)) n.unlocked += 1;
+    // a car has its own lock, counted just now
+    const guard = isCar(device) ? null : guardOf(device);
     const said = guard && guardState(guard);
     if (said === 'unlocked') n.unlocked += 1;
     else if (said === 'open') n.open += 1;
@@ -77,11 +83,12 @@ export function houseCount(devices: readonly (Device | undefined)[], t: Translat
       if (media && mediaState(media).playing === true) n.playing += 1;
     }
   }
-  return [n.unlocked && t('count.unlocked', { n: n.unlocked }), n.open && t('count.open', { n: n.open }), n.playing && t('count.playing', { n: n.playing })]
+  return [n.unlocked && t('count.unlocked', { n: n.unlocked }), n.open && t('count.open', { n: n.open }), n.playing && t('count.playing', { n: n.playing }),
+    n.busy && t('count.busy', { n: n.busy }), n.charging && t('charger.plugged_in_charging')]
     .filter((text): text is string => typeof text === 'string').reduce((a, b) => (a === '' ? b : t('tile.join', { a, b })), '');
 }
 
-const HOUSE: readonly string[] = ['cover', 'media', 'guard'];
+const HOUSE: readonly string[] = ['cover', 'media', 'guard', 'vacuum', 'appliance', 'charger', 'car'];
 
 /** Whether the head of a section says something that changes with its devices. */
 export const countsSomething = (section: Section): boolean => section.zone !== undefined || countsOn(section) || section.tiles.some((spec) => HOUSE.includes(spec.kind));
@@ -99,7 +106,7 @@ export function sectionCount(section: Section, getDevice: (id: string) => Device
 }
 
 const SECTION_ICONS: Record<SectionLayoutKind, IconName> = {
-  lights: 'lightbulb', switches: 'power', climate: 'thermostat', covers: 'blinds', media: 'speaker', water: 'water_drop', security: 'shield', other: 'category', flows: 'play_circle', own: 'view_agenda',
+  lights: 'lightbulb', switches: 'power', climate: 'thermostat', covers: 'blinds', media: 'speaker', household: 'local_laundry_service', vehicles: 'ev_station', water: 'water_drop', security: 'shield', other: 'category', flows: 'play_circle', own: 'view_agenda',
 };
 
 export function sectionIcon(kind: SectionLayoutKind): IconName {

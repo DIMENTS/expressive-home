@@ -73,3 +73,15 @@ Define `function onHomeyReady(Homey) { … }` in `js`; it is called once the pag
 The theme's values are CSS variables on `:root`, with the same names as in `docs/design/tokens.css`: `var(--c-primary)`, `var(--tile-fg)`, `var(--tile-state-fg)`, `var(--tile-on-bg)`, `var(--font-family)`, `var(--type-label-l-size)`, `var(--tile-pad)`, `var(--motion-spatial)` and so on. `data-mode` (`light`/`dark`) and `data-density` are on the root element. The tile draws its own background and shape; the frame is transparent.
 
 Please: targets of at least 48 by 48 pixels, a label for every control (`aria-label`), and no movement with `@media (prefers-reduced-motion: reduce)`.
+
+## Widgets of other apps
+
+With a key with full access on the app's settings page, the dashboard can also show the widgets that other apps on the Homey bring along. They run in the same kind of sandboxed frame and look as their app made them. What such a widget asks of its own app goes through the app on the Homey, with the key, which never leaves the Homey.
+
+Live news: when an app sends its widget news (`this.homey.api.realtime(name, data)`), the widget hears it with `Homey.on(name, fn)`, as on Homey's own dashboard. The app on the Homey listens only to apps of widgets that stand on a dashboard and that the Homey lists, passes on only the names a widget listens to, and holds every app to 20 messages and 64 KB a second (the newest of each name comes when it may). The settings page says whether it works.
+
+Good to know:
+
+- Every paired device can get the live news of an app whose widget stands on a dashboard, as it can already ask such a widget's own app for its data. Never let a widget carry anything secret.
+- Homey's own script in a widget page does not check who a message comes from, so in some browsers widgets of different apps could send each other false news. The dashboard cannot change that script.
+- The way the dashboard talks with these widget pages is Homey's own and not documented; an update of the Homey can change it.

@@ -11,8 +11,9 @@ const avond: ThemeFile = { format: 1, id: A, name: 'Avondlicht', maker: '', base
 function bed() {
   const listeners: Record<string, ((value: unknown) => void)[]> = {};
   let hub: LooksDoc = emptyLooksDoc();
-  let answer: 'ok' | 'use-only' | 'offline' = 'ok';
+  let answer: 'ok' | 'use-only' | 'too-big' | 'offline' = 'ok';
   const asked: string[] = [];
+  const posted: unknown[][] = [];
   const timers: (() => void)[] = [];
   /** While it is there, what is read comes back only when it is let go: what the hub had when it was asked. */
   let gate: Promise<void> | null = null;
@@ -20,6 +21,7 @@ function bed() {
     on<K extends keyof LinkEvents>(type: K, listener: (value: LinkEvents[K]) => void) { (listeners[type] ??= []).push(listener as (value: unknown) => void); return () => {}; },
     async request(method: 'GET' | 'POST' | 'PUT', path: string, body?: unknown): Promise<unknown> {
       asked.push(`${method} ${path}`);
+      if (method === 'POST' && answer !== 'offline') posted.push((body as { ops: unknown[] }).ops);
       if (answer === 'offline') throw new TypeError('offline');
       if (method === 'GET') {
         const doc = hub;
@@ -27,14 +29,16 @@ function bed() {
         return doc;
       }
       if (answer === 'use-only') throw new RequestError(403, { error: 'use-only' });
+      if (answer === 'too-big' && (body as { ops: object[] }).ops.some((op) => 'save' in op)) throw new RequestError(413, { error: 'too-big' });
       hub = { ...applyLookOps(hub, (body as { ops: [] }).ops), revision: hub.revision + 1 };
       return hub;
     },
   };
   const adopted: LooksDoc[] = [];
   let refusals = 0;
+  let tooBig = 0;
   const sync = createLooksSync({
-    link, adopt: (doc) => adopted.push(doc), refused: () => { refusals += 1; },
+    link, adopt: (doc) => adopted.push(doc), refused: () => { refusals += 1; }, tooBig: () => { tooBig += 1; },
     setTimeout: (fn, ms) => { expect(ms).toBe(LOOKS_RETRY_MS); timers.push(fn); return timers.length; }, clearTimeout: () => {},
   });
   const emit = <K extends keyof LinkEvents>(type: K, value: LinkEvents[K]) => { for (const listener of listeners[type] ?? []) listener(value); };
@@ -44,7 +48,7 @@ function bed() {
     gate = new Promise((done) => { release = () => { gate = null; done(); }; });
     return release;
   };
-  return { sync, emit, settle, asked, adopted, timers, slowReads, refusals: () => refusals, setAnswer: (next: typeof answer) => { answer = next; }, setHub: (doc: LooksDoc) => { hub = doc; } };
+  return { sync, emit, settle, asked, posted: () => posted, adopted, timers, slowReads, refusals: () => refusals, tooBig: () => tooBig, setAnswer: (next: typeof answer) => { answer = next; }, setHub: (doc: LooksDoc) => { hub = doc; } };
 }
 
 test('when the stream opens, the looks are read if the hub has another number than this page knows', async () => {
@@ -134,6 +138,22 @@ test('a device whose right was taken away: its changes are refused, it says so, 
   expect([b.sync.pending(), b.refusals(), b.asked]).toEqual([0, 1, ['POST api/looks', 'GET api/looks']]);
 });
 
+test('a theme that makes all themes together too big is dropped and told; what was sent with it still goes', async () => {
+  const b = bed();
+  b.emit('open', { revision: 0, role: 'edit', looks: 0, rescue: 0 });
+  await b.settle();
+  b.setAnswer('too-big');
+  b.sync.send([{ save: avond }, { house: { mode: 'dark' } }]);
+  await b.settle();
+  b.setAnswer('ok');
+  await b.settle();
+  await b.settle();
+  expect([b.sync.pending(), b.timers.length, b.refusals(), b.tooBig()]).toEqual([0, 0, 0, 1]);
+  // what was sent with it still goes, without the theme that was too big
+  expect(b.adopted.at(-1)!.house.mode).toBe('dark');
+  expect(b.adopted.at(-1)!.themes).toEqual([]);
+});
+
 test('news that comes while the looks are being read is read after it', async () => {
   const b = bed();
   const release = b.slowReads();
@@ -189,4 +209,24 @@ test('an app on the hub that began anew, with fewer changes than this page knows
   release();
   await b.settle();
   expect(b.adopted.at(-1)).toEqual(emptyLooksDoc());
+});
+
+test('the mark of a theme taken in always goes in a request of its own: a hub of 1.3 that refuses it keeps everything else', async () => {
+  const b = bed();
+  const bodies: unknown[][] = [];
+  b.setAnswer('offline');
+  b.sync.send([{ save: avond }]);
+  b.sync.send([{ takenIn: { id: A, on: true } }]);
+  b.sync.send([{ house: { theme: A } }]);
+  await b.settle();
+  b.setAnswer('ok');
+  // the stream comes back: what waited goes, the mark apart from what came before and after it
+  const posts = b.asked.length;
+  b.emit('open', { revision: 0, role: 'edit', looks: 0 });
+  await b.settle();
+  await b.settle();
+  await b.settle();
+  bodies.push(...b.posted());
+  expect(b.asked.length).toBeGreaterThan(posts);
+  expect(bodies).toEqual([[{ save: avond }], [{ takenIn: { id: A, on: true } }], [{ house: { theme: A } }]]);
 });

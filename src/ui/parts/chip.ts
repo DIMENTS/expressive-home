@@ -46,6 +46,8 @@ export class MhChip extends LitElement {
       --icon-size: var(--icon-s);
     }
     :host([tone="alert"]) .chip { --_bg: var(--chip-alert-bg); --_fg: var(--chip-alert-fg); }
+    /* an alarm reads as an alarm whatever own CSS says */
+    :host([tone="alert"]) .chip { background: var(--chip-alert-bg) !important; color: var(--chip-alert-fg) !important; text-shadow: none !important; }
     :host([icon-only]) .chip { justify-content: center; width: var(--chip-height); padding: 0; --icon-size: var(--icon-m); }
     button.chip { cursor: pointer; position: relative; }
     button.chip:hover { background: color-mix(in srgb, currentColor var(--state-hover), var(--_bg)); }

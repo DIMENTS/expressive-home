@@ -30,7 +30,7 @@ Er is geen account en geen eigen server. Rondkijken kan zonder Homey, in een voo
 
 | | In de browser | Via het appje op de Homey |
 |---|---|---|
-| Waarvoor | Uitproberen, ook onderweg | Elk apparaat thuis, ook zonder internet |
+| Waarvoor | Uitproberen, en [onderweg](#onderweg) | Elk apparaat thuis, ook zonder internet |
 | Inloggen | Eén API-sleutel van je Homey, die in die browser blijft | Op elk apparaat één keer een code scannen |
 | Dashboards | Per browser | Op de Homey, op elk apparaat gelijk |
 
@@ -45,6 +45,15 @@ npm start
 ```
 
 `npm run vendor` haalt de browserversie van `homey-api` op bij Athom en controleert die op een vaste controlesom. Zonder die stap werkt alleen de voorbeeld-Homey. `npm start` bouwt de app en opent `http://localhost:5274/`. De sleutel maak je op my.homey.app bij Instellingen → API-sleutels; het verbindscherm zegt welke rechten nodig zijn.
+
+## Onderweg
+
+Het dashboard staat ook online, op **https://diments.github.io/expressive-home/**. Rondkijken in het voorbeeldhuis of de camper kan daar meteen. Met een sleutel praat het thuis rechtstreeks met je Homey, en onderweg via de Homey-cloud.
+
+- Maak voor elke telefoon een **eigen sleutel**, met de naam van die telefoon. Raak je de telefoon kwijt, verwijder dan op my.homey.app alleen die sleutel.
+- Zet de pagina **eerst op je beginscherm** en verbind daarna, vanaf het beginscherm. Op een iPhone heeft een web-app op het beginscherm een eigen opslag, die Safari niet na zeven dagen wist.
+- De pagina komt van GitHub, je sleutel niet: die blijft in je browser en gaat alleen naar je Homey. Wie je ontgrendelde telefoon heeft, kan wat je sleutel mag; slot, garage en alarm vragen altijd om vasthouden of bevestigen.
+- Binnen een andere website opent het dashboard niet; open het in een eigen tabblad.
 
 ## Op de Homey
 
@@ -75,6 +84,7 @@ Open een [issue](https://github.com/DIMENTS/expressive-home/issues): wat je deed
 |---|---|
 | `npm run dev` | Ontwikkelserver op `http://localhost:5273/`, met `galerij.html` voor alle onderdelen naast elkaar |
 | `npm run check` | Types en tests |
+| `npm run build:pages` | Alleen de app, zoals hij op GitHub Pages komt, in `dist-pages/`; bij elke push naar `main` doet `.github/workflows/pages.yml` dat |
 | `npm run smoke` | De gebouwde app in Chromium en WebKit (eerst één keer `npm run vendor` en `npx playwright install chromium webkit`) |
 | `npm run smoke:homey` | Het appje op de Homey en zijn instellingen, met een nagebootste Homey |
 | `npm run readme-images` en `npm run store-images` | De plaatjes, uit het voorbeeldhuis (eerst één keer `npm run build`) |

@@ -2,14 +2,14 @@ import { SECTION_ORDER, sectionId, type SectionKind } from '../dashboard/types';
 import { isHomeyId, isIPv4 } from '../homey/routes';
 import { LIMITS } from '../layout/types';
 import { isValidSeed } from '../theme/engine';
-import type { ThemeSettings } from '../theme/types';
+import { MODE_PREFERENCES, type ThemeSettings } from '../theme/types';
 import { normalizeWall } from '../wall/settings';
 import { createDefaultConfig, SECTION_ID, type AppConfig, type ConfigStore } from './config';
 import { normalizeLayouts } from './layout-normalize';
 
 export const STORAGE_KEY = 'dashboard.config';
 
-const MODES: ThemeSettings['mode'][] = ['auto', 'light', 'dark'];
+const MODES: readonly ThemeSettings['mode'][] = MODE_PREFERENCES;
 const DENSITIES: ThemeSettings['density'][] = ['comfortable', 'compact'];
 /** One for every section there can be. */
 const MAX_SECTION_SEEDS = LIMITS.dashboards * LIMITS.sectionsPerDashboard;

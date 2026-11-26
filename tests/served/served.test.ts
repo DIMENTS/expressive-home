@@ -181,6 +181,33 @@ test('a page that nobody looks at lets go of the stream without saying so; looke
   expect(s.heard.map(([type]) => type)).toEqual(['open', 'open']);
 });
 
+test('the link gives the number of its stream, how long it was without the hub, and the news of apps', () => {
+  const s = linkSetup();
+  const news: unknown[] = [];
+  s.link.on('app-event', (value) => news.push(['event', value]));
+  s.link.on('app-gap', (value) => news.push(['gap', value]));
+  s.link.hold();
+  s.streams[0]!.send('hello', { revision: 1, stream: 'a1' });
+  expect(s.heard.at(-1)).toEqual(['open', { revision: 1, role: null, looks: null, stream: 'a1' }]);
+  vi.advanceTimersByTime(10_000);
+  s.streams[0]!.send('ping');
+  s.streams[0]!.send('app-event', { app: 'com.example', event: 'state', data: { on: true } });
+  s.streams[0]!.send('app-event', { app: 'com.example', event: 7 });
+  s.streams[0]!.send('app-gap', { app: 'com.example' });
+  s.streams[0]!.send('app-gap', {});
+  expect(news).toEqual([['event', { app: 'com.example', event: 'state', data: { on: true } }], ['gap', { app: 'com.example' }]]);
+  s.streams[0]!.send('error');
+  vi.advanceTimersByTime(REOPEN_MS);
+  s.streams[1]!.send('hello', { revision: 1, stream: 'b2' });
+  expect(s.heard.at(-1)).toEqual(['open', { revision: 1, role: null, looks: null, stream: 'b2', gap: REOPEN_MS }]);
+  // asleep: no word that the stream went, and the time without it counts all the same
+  s.link.sleep();
+  vi.advanceTimersByTime(120_000);
+  s.link.wake();
+  s.streams[2]!.send('hello', { revision: 1, stream: 'c3' });
+  expect(s.heard.at(-1)).toEqual(['open', { revision: 1, role: null, looks: null, stream: 'c3', gap: 120_000 }]);
+});
+
 test('what is saved while the page closes still arrives; only that', async () => {
   const s = linkSetup();
   await s.link.request('PUT', 'api/layouts', { a: 1 });
@@ -247,6 +274,17 @@ test('connecting reads what the hub has and reports the route; controls go to th
   expect(c.sent.slice(1)).toEqual([['POST', 'api/control', { deviceId: 'device-1', capabilityId: 'onoff', value: true }], ['POST', 'api/flow', { id: 'f' }]]);
   c.answers.set('POST api/control', refuse(502));
   await expect(c.client.setCapability('device-1', 'onoff', true)).rejects.toThrow();
+});
+
+test('the weather and the energy come through the app on the hub; what it refuses keeps its status', async () => {
+  const c = await clientSetup();
+  await c.client.connect();
+  c.answers.set('GET api/weather', () => ({ weather: { temperature: 3 } }));
+  c.answers.set('GET api/energy?period=week', () => ({ report: { electricity: { consumedPeriod: 2 } } }));
+  expect(await c.client.readWeather!()).toEqual({ temperature: 3 });
+  expect(await c.client.readEnergy!('week', 'ignored')).toEqual({ electricity: { consumedPeriod: 2 } });
+  c.answers.set('GET api/weather', refuse(403));
+  await expect(c.client.readWeather!()).rejects.toMatchObject({ status: 403 });
 });
 
 test('connecting says why it failed', async () => {
@@ -435,7 +473,7 @@ test('saving puts the layouts on the hub and only theme and language in the brow
   const config = await s.served.store.load();
   s.answers.set('PUT api/layouts', (body) => ({ ...(body as object), revision: 2 }));
   await s.save({ ...config, theme: { seed: '#3a5ba9', mode: 'dark', density: 'compact' }, layouts: layouts('Energie') });
-  expect(s.sent.at(-1)).toEqual(['PUT', 'api/layouts', { base: 1, layouts: layouts('Energie'), sectionSeeds: { 'type:lights': '#a6422a' }, knows: ['widget'] }]);
+  expect(s.sent.at(-1)).toEqual(['PUT', 'api/layouts', { base: 1, layouts: layouts('Energie'), sectionSeeds: { 'type:lights': '#a6422a' }, knows: ['widget', 'widget:weather', 'widget:energy'] }]);
   expect(s.values.get(STORAGE_KEY)).toContain('#3a5ba9');
   for (const secret of ['Energie', 'type:lights', 'paired', HOMEY_ID]) expect(s.values.get(STORAGE_KEY)).not.toContain(secret);
   // only the theme: nothing for the hub

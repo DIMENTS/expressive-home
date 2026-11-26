@@ -66,7 +66,11 @@ export function toDevice(raw: unknown): Device {
     unavailableMessage: str(r['unavailableMessage']),
     capabilityOrder,
     capabilities,
-    energy: { cumulative: energy['cumulative'] === true, homeBattery: energy['homeBattery'] === true },
+    energy: {
+      cumulative: energy['cumulative'] === true, homeBattery: energy['homeBattery'] === true,
+      // only when set, so a device without them is the same as before
+      ...(energy['evCharger'] === true ? { evCharger: true } : {}), ...(energy['electricCar'] === true ? { electricCar: true } : {}),
+    },
   };
 }
 

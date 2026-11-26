@@ -24,6 +24,12 @@ export function startFrame(win: Window & typeof globalThis): boolean {
   for (const name of ['RTCPeerConnection', 'webkitRTCPeerConnection', 'RTCDataChannel']) {
     try { delete (win as unknown as Record<string, unknown>)[name]; } catch { /* not there */ }
   }
+  // the kiosk app of a wall tablet gives every frame its object: a widget gets none of it; where it cannot be deleted it is emptied
+  for (const name of ['fully', 'FullyKiosk']) {
+    const own = win as unknown as Record<string, unknown>;
+    try { delete own[name]; } catch { /* cannot be deleted */ }
+    try { if (own[name] !== undefined) own[name] = undefined; } catch { /* cannot be written */ }
+  }
 
   let started = false;
   let settings: Record<string, unknown> = {};

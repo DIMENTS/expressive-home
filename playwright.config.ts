@@ -6,7 +6,7 @@ const shared = { locale: 'nl-NL', timezoneId: 'Europe/Amsterdam' };
 
 export default defineConfig({
   testDir: 'smoke',
-  testMatch: ['**/app.smoke.ts', '**/phone.smoke.ts', '**/wall.smoke.ts', '**/fit.smoke.ts', '**/motion.smoke.ts', '**/house.smoke.ts', '**/themes.smoke.ts', '**/charts.smoke.ts', '**/widgets.smoke.ts'],
+  testMatch: ['**/app.smoke.ts', '**/phone.smoke.ts', '**/wall.smoke.ts', '**/fit.smoke.ts', '**/motion.smoke.ts', '**/house.smoke.ts', '**/themes.smoke.ts', '**/charts.smoke.ts', '**/widgets.smoke.ts', '**/weather-energy.smoke.ts', '**/devices.smoke.ts', '**/framed.smoke.ts'],
   workers: 1,
   reporter: 'list',
   timeout: 60_000,

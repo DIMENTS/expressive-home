@@ -30,7 +30,7 @@ test('what is no theme at all is refused, and a later format or base is too new'
   for (const raw of [null, 3, 'theme', [], {}, { format: '1' }, { format: 0 }, { format: 1 }]) {
     expect(parseThemeFile(raw)).toEqual({ ok: false, reason: 'not-a-theme' });
   }
-  expect(parseThemeFile({ ...own(), format: 2 })).toEqual({ ok: false, reason: 'too-new' });
+  expect(parseThemeFile({ ...own(), format: 3 })).toEqual({ ok: false, reason: 'too-new' });
   expect(parseThemeFile({ ...own(), base: 'neon' })).toEqual({ ok: false, reason: 'too-new' });
 });
 
@@ -79,7 +79,7 @@ test('a thousand random objects never throw and always give values in range', ()
     for (const key of [...Object.keys(KNOB_VALUES), 'glow']) if (random() < 0.5) (raw['knobs'] as Record<string, unknown>)[key] = pick([junk(), ...((KNOB_VALUES as Record<string, readonly unknown[]>)[key] ?? [])]);
     const result = parseThemeFile(raw);
     if (!result.ok) continue;
-    expect(BASES).toContain(result.file.base);
+    expect(result.file.format === 2 ? [...BASES, 'leeg'] : BASES).toContain(result.file.base);
     expect(result.file.seed === null || /^#[0-9a-f]{6}$/i.test(result.file.seed)).toBe(true);
     for (const [key, value] of Object.entries(result.file.knobs)) expect((KNOB_VALUES as Record<string, readonly unknown[]>)[key]).toContain(value);
     expect(typeof result.file.name === 'string' && typeof result.file.maker === 'string' && typeof result.file.userSeed === 'boolean').toBe(true);

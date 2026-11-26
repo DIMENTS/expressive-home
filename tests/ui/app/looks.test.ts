@@ -225,3 +225,91 @@ test('a house with as many themes as there may be takes no new one, and still a 
   expect(looks.saveTheme({ ...many[0]!, name: 'Zee' })).toBe(true);
   expect(sent).toEqual([{ save: { ...many[0]!, name: 'Zee' } }]);
 });
+
+test('a theme with CSS goes to the hub with the CSS and where it comes from; without, the CSS is cleared', () => {
+  const { looks, sent } = hubBed('edit');
+  const terminal: ThemeFile = { ...avond, format: 2, id: 't-terminal00000000', css: { version: 1, text: '::part(tile) { border-radius: 0 }' } };
+  expect(looks.saveTheme(terminal, 'other')).toBe(true);
+  expect(sent).toEqual([{ save: terminal }, { css: { id: terminal.id, text: terminal.css!.text, from: 'other' } }]);
+  expect(looks.state().cssFrom).toEqual({ [terminal.id]: 'other' });
+  expect(looks.state().themes.find((item) => item.id === terminal.id)!.css).toEqual(terminal.css);
+  expect(looks.saveTheme({ ...terminal, css: undefined })).toBe(true);
+  expect(sent.at(-1)).toEqual({ css: { id: terminal.id, text: null, from: 'house' } });
+  expect(looks.state().cssFrom).toEqual({});
+});
+
+test('a browser of its own keeps the CSS of its themes and where it comes from', () => {
+  const { looks, stored } = bed();
+  const terminal: ThemeFile = { ...avond, format: 2, id: 't-terminal00000000', css: { version: 1, text: '::part(tile) { border-radius: 0 }' } };
+  expect(looks.saveTheme(terminal)).toBe(true);
+  expect(stored().own.cssFrom).toEqual({ [terminal.id]: 'house' });
+  expect(stored().own.themes[0]!.css).toEqual(terminal.css);
+});
+
+test('removing a theme or choosing a theme for a dashboard keeps where the CSS of the other themes comes from', () => {
+  const { looks, stored } = bed();
+  const mine: ThemeFile = { ...avond, id: 't-mine000000000000', format: 2, css: { version: 1, text: '::part(tile) { color: #111111 }' } };
+  const theirs: ThemeFile = { ...avond, id: 't-theirs0000000000', format: 2, css: { version: 1, text: '::part(tile) { color: #222222 }' } };
+  expect(looks.saveTheme(mine, 'house')).toBe(true);
+  expect(looks.saveTheme(theirs, 'other')).toBe(true);
+  expect(looks.saveTheme(avond)).toBe(true);
+  expect(looks.setBoardTheme('overview', mine.id)).toBe(true);
+  expect(stored().own.cssFrom).toEqual({ [mine.id]: 'house', [theirs.id]: 'other' });
+  expect(looks.removeTheme(avond.id)).toBe(true);
+  expect(stored().own.cssFrom).toEqual({ [mine.id]: 'house', [theirs.id]: 'other' });
+  expect(looks.removeTheme(theirs.id)).toBe(true);
+  expect(stored().own.cssFrom).toEqual({ [mine.id]: 'house' });
+});
+
+// ----- themes taken in from someone else -----
+
+function marksBed(role: LookRole, demo = false) {
+  const items = new Map<string, string>();
+  const storage = { getItem: (key: string) => items.get(key) ?? null, setItem: (key: string, value: string) => { items.set(key, value); }, removeItem: (key: string) => { items.delete(key); } };
+  const calls: unknown[][] = [];
+  let theme: ThemeSettings = { seed: '#3b6939', mode: 'auto', density: 'comfortable' };
+  const make = () => createLooks({ store: createLooksStore(storage), role: () => role, theme: () => theme, setTheme: (next) => { theme = next; }, publish: () => {}, demo: () => demo, send: (ops) => calls.push(ops) });
+  const looks = make();
+  looks.roleChanged();
+  return { looks, items, calls, again: () => { const next = make(); next.roleChanged(); return next; } };
+}
+const zee: ThemeFile = { ...avond, id: 't-zee0000000000000', name: 'Zee' };
+
+test('in a browser of its own a theme taken in is remembered under a key of its own, and forgotten with the theme', () => {
+  const { looks, items, again } = marksBed('own');
+  expect(looks.saveTheme(zee, 'other', true)).toBe(true);
+  expect(looks.saveTheme(avond)).toBe(true);
+  expect(looks.state().takenIn).toEqual([zee.id]);
+  expect(JSON.parse(items.get('dashboard.looks.takenIn')!)).toEqual({ own: [zee.id], hub: [] });
+  expect(items.get('dashboard.looks')).not.toContain('takenIn');
+  // a page of 1.3 writes dashboard.looks again with only what it knows: the mark stays
+  items.set('dashboard.looks', JSON.stringify({ ...JSON.parse(items.get('dashboard.looks')!), own: { themes: JSON.parse(items.get('dashboard.looks')!).own.themes, boards: {} } }));
+  expect(again().state().takenIn).toEqual([zee.id]);
+  expect(looks.setBoardTheme('overview', zee.id)).toBe(true);
+  expect(looks.state().takenIn).toEqual([zee.id]);
+  // saving it again without the mark (an edit of its own) keeps it: only removing forgets
+  expect(looks.saveTheme({ ...zee, name: 'Zee 2' })).toBe(true);
+  expect(looks.state().takenIn).toEqual([zee.id]);
+  expect(looks.removeTheme(zee.id)).toBe(true);
+  expect(looks.state().takenIn).toEqual([]);
+});
+
+test('the example house remembers it while it is open, and keeps nothing', () => {
+  const { looks, items } = marksBed('own', true);
+  expect(looks.saveTheme(zee, 'other', true)).toBe(true);
+  expect(looks.state().takenIn).toEqual([zee.id]);
+  expect(items.get('dashboard.looks.takenIn')).toBeUndefined();
+});
+
+test('on a hub the mark goes in a send of its own after the save, so a hub of 1.3 that refuses it still keeps the theme', () => {
+  const { looks, calls, again } = marksBed('edit');
+  expect(looks.saveTheme(zee, 'other', true)).toBe(true);
+  expect(calls).toEqual([[{ save: zee }], [{ takenIn: { id: zee.id, on: true } }]]);
+  expect(looks.state().takenIn).toEqual([zee.id]);
+  // what is known of the house is kept for the next start, apart
+  expect(again().state().takenIn).toEqual([zee.id]);
+  // without the mark nothing extra is sent
+  calls.length = 0;
+  expect(looks.saveTheme(avond)).toBe(true);
+  expect(calls).toEqual([[{ save: avond }]]);
+});

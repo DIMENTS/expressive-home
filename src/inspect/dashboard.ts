@@ -27,6 +27,7 @@ export function tileCapabilityIds(tile: TileSpec): string[] {
       case 'light': return [tile.onoffCapabilityId, tile.dimCapabilityId];
       case 'switch': return [tile.onoffCapabilityId, tile.detailCapabilityId];
       case 'climate': case 'cover': case 'media': case 'guard': case 'widget': case 'flow': return [];
+      case 'fan': case 'vacuum': case 'appliance': case 'charger': case 'car': return [];
       case 'tank': return [tile.levelCapabilityId, tile.volumeCapabilityId, tile.capacityCapabilityId];
       case 'multi': return tile.capabilityIds;
       case 'button': case 'sensor': return [tile.capabilityId];

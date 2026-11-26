@@ -10,6 +10,7 @@ import { HELD_BUZZ_MS, observeHoldDim } from '../parts/hold-dim';
 import { themePixels } from '../theme-pixels';
 import { DeviceTileElement } from './tile-base';
 import '../parts/slider';
+import { SLIDER_PARTS } from '../part-names';
 
 /**
  * A lamp tile is held and dimmed; `level` is the place in its range, 0 to 1, `percent` what the tile will say of
@@ -117,7 +118,7 @@ export class MhLightTile extends DeviceTileElement<LightSpec> {
   protected override renderExtra() {
     if (this.view.state === 'unavailable' || !this.wide) return nothing;
     const dim = this.ctx.store.getDevice(this.spec.deviceId)?.capabilities[this.spec.dimCapabilityId];
-    return html`<mh-slider .fraction=${live((this.view.level ?? 0) / 100)} ?dimmed=${this.view.state !== 'on'} ?inert=${this.editing}
+    return html`<mh-slider exportparts=${SLIDER_PARTS} .fraction=${live((this.view.level ?? 0) / 100)} ?dimmed=${this.view.state !== 'on'} ?inert=${this.editing}
       label=${this.ctx.t('tile.brightness', { name: this.view.name })} valueText=${joinValue(formatValue(dim, 'tile', this.ctx.t))}
       @slide=${(e: CustomEvent<{ fraction: number }>) => this.onSlide(e, false)}
       @commit=${(e: CustomEvent<{ fraction: number }>) => this.onSlide(e, true)}></mh-slider>`;

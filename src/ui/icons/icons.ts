@@ -276,6 +276,14 @@ import i_sunny from '@material-symbols/svg-400/rounded/sunny.svg?raw';
 import i_sunny_fill from '@material-symbols/svg-400/rounded/sunny-fill.svg?raw';
 import i_partly_cloudy_day from '@material-symbols/svg-400/rounded/partly_cloudy_day.svg?raw';
 import i_partly_cloudy_day_fill from '@material-symbols/svg-400/rounded/partly_cloudy_day-fill.svg?raw';
+import i_partly_cloudy_night from '@material-symbols/svg-400/rounded/partly_cloudy_night.svg?raw';
+import i_partly_cloudy_night_fill from '@material-symbols/svg-400/rounded/partly_cloudy_night-fill.svg?raw';
+import i_weather_snowy from '@material-symbols/svg-400/rounded/weather_snowy.svg?raw';
+import i_weather_snowy_fill from '@material-symbols/svg-400/rounded/weather_snowy-fill.svg?raw';
+import i_thunderstorm from '@material-symbols/svg-400/rounded/thunderstorm.svg?raw';
+import i_thunderstorm_fill from '@material-symbols/svg-400/rounded/thunderstorm-fill.svg?raw';
+import i_foggy from '@material-symbols/svg-400/rounded/foggy.svg?raw';
+import i_foggy_fill from '@material-symbols/svg-400/rounded/foggy-fill.svg?raw';
 import i_rainy from '@material-symbols/svg-400/rounded/rainy.svg?raw';
 import i_rainy_fill from '@material-symbols/svg-400/rounded/rainy-fill.svg?raw';
 import i_umbrella from '@material-symbols/svg-400/rounded/umbrella.svg?raw';
@@ -326,6 +334,8 @@ import i_add_circle from '@material-symbols/svg-400/rounded/add_circle.svg?raw';
 import i_add_circle_fill from '@material-symbols/svg-400/rounded/add_circle-fill.svg?raw';
 import i_undo from '@material-symbols/svg-400/rounded/undo.svg?raw';
 import i_undo_fill from '@material-symbols/svg-400/rounded/undo-fill.svg?raw';
+import i_redo from '@material-symbols/svg-400/rounded/redo.svg?raw';
+import i_redo_fill from '@material-symbols/svg-400/rounded/redo-fill.svg?raw';
 import i_search from '@material-symbols/svg-400/rounded/search.svg?raw';
 import i_search_fill from '@material-symbols/svg-400/rounded/search-fill.svg?raw';
 import i_delete from '@material-symbols/svg-400/rounded/delete.svg?raw';
@@ -420,6 +430,19 @@ import i_hourglass_top from '@material-symbols/svg-400/rounded/hourglass_top.svg
 import i_hourglass_top_fill from '@material-symbols/svg-400/rounded/hourglass_top-fill.svg?raw';
 import i_sticky_note_2 from '@material-symbols/svg-400/rounded/sticky_note_2.svg?raw';
 import i_sticky_note_2_fill from '@material-symbols/svg-400/rounded/sticky_note_2-fill.svg?raw';
+import i_open_in_new from '@material-symbols/svg-400/rounded/open_in_new.svg?raw';
+import i_open_in_new_fill from '@material-symbols/svg-400/rounded/open_in_new-fill.svg?raw';
+
+import i_cleaning_services from '@material-symbols/svg-400/rounded/cleaning_services.svg?raw';
+import i_cleaning_services_fill from '@material-symbols/svg-400/rounded/cleaning_services-fill.svg?raw';
+import i_dishwasher from '@material-symbols/svg-400/rounded/dishwasher.svg?raw';
+import i_dishwasher_fill from '@material-symbols/svg-400/rounded/dishwasher-fill.svg?raw';
+import i_electric_car from '@material-symbols/svg-400/rounded/electric_car.svg?raw';
+import i_electric_car_fill from '@material-symbols/svg-400/rounded/electric_car-fill.svg?raw';
+import i_swap_horiz from '@material-symbols/svg-400/rounded/swap_horiz.svg?raw';
+import i_swap_horiz_fill from '@material-symbols/svg-400/rounded/swap_horiz-fill.svg?raw';
+import i_home_pin from '@material-symbols/svg-400/rounded/home_pin.svg?raw';
+import i_home_pin_fill from '@material-symbols/svg-400/rounded/home_pin-fill.svg?raw';
 
 export const ICON_NAMES = [
   'tablet', 'bedtime',
@@ -437,13 +460,14 @@ export const ICON_NAMES = [
   'water_pump', 'faucet', 'propane_tank', 'gas_meter', 'oil_barrel', 'lock_open', 'sensor_door', 'sensor_window', 'motion_sensor_active', 'videocam',
   'doorbell', 'notifications', 'detector_alarm', 'group', 'family_restroom', 'pets', 'tv', 'speaker', 'music_note', 'radio',
   'router', 'wifi', 'cell_tower', 'devices', 'computer', 'mobile', 'park', 'forest', 'grass', 'sunny',
-  'partly_cloudy_day', 'rainy', 'umbrella', 'beach_access', 'local_gas_station', 'navigation', 'explore', 'map', 'widgets', 'star',
+  'partly_cloudy_day', 'partly_cloudy_night', 'weather_snowy', 'thunderstorm', 'foggy', 'rainy', 'umbrella', 'beach_access', 'local_gas_station', 'navigation', 'explore', 'map', 'widgets', 'star',
   'favorite', 'schedule', 'alarm', 'calendar_month', 'local_cafe', 'coffee_maker', 'microwave', 'blender', 'local_laundry_service', 'spa',
   'fitness_center', 'tune',
-  'edit', 'add', 'add_circle', 'undo', 'search', 'delete', 'drag_indicator', 'drive_file_move', 'arrow_back', 'arrow_forward', 'arrow_upward', 'arrow_downward', 'download', 'upload', 'restart_alt', 'check_box', 'check_box_outline_blank',
+  'edit', 'add', 'add_circle', 'undo', 'redo', 'search', 'delete', 'drag_indicator', 'drive_file_move', 'arrow_back', 'arrow_forward', 'arrow_upward', 'arrow_downward', 'download', 'upload', 'restart_alt', 'check_box', 'check_box_outline_blank',
   'blinds', 'curtains', 'vertical_shades', 'roller_shades', 'remove', 'keyboard_arrow_up', 'keyboard_arrow_down', 'stop', 'skip_previous', 'pause', 'skip_next', 'volume_up', 'volume_off', 'shuffle', 'repeat', 'repeat_one', 'garage_home', 'notifications_active', 'countertops', 'shield_lock', 'refresh',
   'share', 'content_copy', 'history', 'contrast', 'verified_user',
-  'sticky_note_2', 'block', 'code', 'apps', 'speed', 'hourglass_top',
+  'sticky_note_2', 'block', 'code', 'apps', 'speed', 'hourglass_top', 'open_in_new',
+  'cleaning_services', 'dishwasher', 'electric_car', 'swap_horiz', 'home_pin',
 ] as const;
 
 export type IconName = (typeof ICON_NAMES)[number];
@@ -456,6 +480,11 @@ export const ICONS: Readonly<Record<IconName, { outline: string; fill: string }>
   tablet: { outline: i_tablet, fill: i_tablet_fill },
   bedtime: { outline: i_bedtime, fill: i_bedtime_fill },
   home: { outline: i_home, fill: i_home_fill },
+  cleaning_services: { outline: i_cleaning_services, fill: i_cleaning_services_fill },
+  dishwasher: { outline: i_dishwasher, fill: i_dishwasher_fill },
+  electric_car: { outline: i_electric_car, fill: i_electric_car_fill },
+  swap_horiz: { outline: i_swap_horiz, fill: i_swap_horiz_fill },
+  home_pin: { outline: i_home_pin, fill: i_home_pin_fill },
   cloud: { outline: i_cloud, fill: i_cloud_fill },
   cloud_off: { outline: i_cloud_off, fill: i_cloud_off_fill },
   progress_activity: { outline: i_progress_activity, fill: i_progress_activity_fill },
@@ -589,6 +618,10 @@ export const ICONS: Readonly<Record<IconName, { outline: string; fill: string }>
   grass: { outline: i_grass, fill: i_grass_fill },
   sunny: { outline: i_sunny, fill: i_sunny_fill },
   partly_cloudy_day: { outline: i_partly_cloudy_day, fill: i_partly_cloudy_day_fill },
+  partly_cloudy_night: { outline: i_partly_cloudy_night, fill: i_partly_cloudy_night_fill },
+  weather_snowy: { outline: i_weather_snowy, fill: i_weather_snowy_fill },
+  thunderstorm: { outline: i_thunderstorm, fill: i_thunderstorm_fill },
+  foggy: { outline: i_foggy, fill: i_foggy_fill },
   rainy: { outline: i_rainy, fill: i_rainy_fill },
   umbrella: { outline: i_umbrella, fill: i_umbrella_fill },
   beach_access: { outline: i_beach_access, fill: i_beach_access_fill },
@@ -614,6 +647,7 @@ export const ICONS: Readonly<Record<IconName, { outline: string; fill: string }>
   add: { outline: i_add, fill: i_add_fill },
   add_circle: { outline: i_add_circle, fill: i_add_circle_fill },
   undo: { outline: i_undo, fill: i_undo_fill },
+  redo: { outline: i_redo, fill: i_redo_fill },
   search: { outline: i_search, fill: i_search_fill },
   delete: { outline: i_delete, fill: i_delete_fill },
   drag_indicator: { outline: i_drag_indicator, fill: i_drag_indicator_fill },
@@ -659,4 +693,5 @@ export const ICONS: Readonly<Record<IconName, { outline: string; fill: string }>
   hourglass_top: { outline: i_hourglass_top, fill: i_hourglass_top_fill },
   block: { outline: i_block, fill: i_block_fill },
   code: { outline: i_code, fill: i_code_fill },
+  open_in_new: { outline: i_open_in_new, fill: i_open_in_new_fill },
 };

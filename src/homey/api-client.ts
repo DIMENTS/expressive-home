@@ -4,6 +4,7 @@ import { seriesFrom, sourcesFrom, switchesFrom, yearFrom } from './history';
 import { toDevice, toSnapshot } from './map';
 import { candidatesFor, chooseRoute, CLOUD_TIMEOUT_MS, FIRST_LOCAL_TIMEOUT_MS, isHomeyId, isIPv4, LOCAL_TIMEOUT_MS, probe, watchForLocal, type RouteCandidate } from './routes';
 import type { CapabilityValue, Device, HomeySnapshot, Route } from './types';
+import { periodArgs } from '../widgets/energy';
 
 /** How long a lost connection waits before each new attempt to choose a route; the last delay repeats. */
 export const RECOVERY_DELAYS_MS = [5000, 5000, 10000, 20000, 40000, 60000];
@@ -45,6 +46,13 @@ export interface LibApi {
     getAdvancedFlows(): Promise<Collection>;
     triggerFlow(args: { id: string }): Promise<unknown>;
     triggerAdvancedFlow(args: { id: string }): Promise<unknown>;
+  };
+  /** Absent on a hub that has no weather or no Homey Energy. */
+  weather?: { getWeather(): Promise<unknown> };
+  energy?: {
+    getReportDay(args: { date: string }): Promise<unknown>;
+    getReportWeek(args: { isoWeek: string }): Promise<unknown>;
+    getReportMonth(args: { yearMonth: string }): Promise<unknown>;
   };
   insights: {
     getLogs(): Promise<Collection>;
@@ -125,6 +133,14 @@ export type RealHomeyClient = HomeyClient & {
   getLocalAddress(): string | null;
   /** The shape of the address field in the hub's system info, with every letter and digit masked; null when unread. */
   getLocalAddressShape(): string | null;
+};
+
+/** What the measuring of weather and energy may ask: reading only. */
+const READ_ONLY: Record<string, readonly string[]> = {
+  sessions: ['getSessionMe'],
+  weather: ['getWeather', 'getWeatherHourly', 'getState'],
+  geolocation: ['getOptionLocation', 'getState'],
+  energy: ['getState', 'getLiveReport', 'getReportsAvailable', 'getReportDay', 'getReportWeek', 'getReportMonth', 'getReportYear', 'getCurrency'],
 };
 
 export function createHomeyApiClient(
@@ -687,6 +703,41 @@ export function createHomeyApiClient(
         // the liveness check finds out what is the matter
         return null;
       }
+    },
+    async readWeather() {
+      const conn = current;
+      if (!conn) throw new ConnectionError('unreachable');
+      if (!conn.api.weather) throw Object.assign(new Error('This hub has no weather'), { statusCode: 404 });
+      return conn.api.weather.getWeather();
+    },
+    async readEnergy(period, timeZone) {
+      const conn = current;
+      if (!conn) throw new ConnectionError('unreachable');
+      const energy = conn.api.energy;
+      if (!energy) throw Object.assign(new Error('This hub has no Homey Energy'), { statusCode: 404 });
+      const args = periodArgs(period, new Date(deps.now()), timeZone);
+      if ('isoWeek' in args) return energy.getReportWeek(args);
+      if ('yearMonth' in args) return energy.getReportMonth(args);
+      return energy.getReportDay(args);
+    },
+    rawManagers: {
+      async call(manager, operation, args) {
+        if (!current) throw new ConnectionError('unreachable');
+        if (!READ_ONLY[manager]?.includes(operation)) throw new Error(`Not for measuring: ${manager}.${operation}`);
+        const api = current.api as unknown as Record<string, Record<string, (args: Record<string, unknown>) => Promise<unknown>>>;
+        return api[manager]![operation]!(args ?? {});
+      },
+      async logs() {
+        if (!current) throw new ConnectionError('unreachable');
+        return current.api.insights.getLogs();
+      },
+      async listen(uri, onEvent) {
+        if (!current) throw new ConnectionError('unreachable');
+        if (!/^homey:manager:(?:energy|weather)$/.test(uri)) throw new Error(`Not for measuring: ${uri}`);
+        const api = current.api as unknown as { subscribe(uri: string, handlers: { onEvent(event: string, data: unknown): void }): Promise<{ unsubscribe(): void }> };
+        const subscription = await api.subscribe(uri, { onEvent: (event) => onEvent(event) });
+        return () => subscription.unsubscribe();
+      },
     },
     rawHistory: {
       async logs() {

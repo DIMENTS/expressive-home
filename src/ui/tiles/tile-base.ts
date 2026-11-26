@@ -6,6 +6,7 @@ import { tileView, type TileState, type TileView } from '../model/tile-view';
 import { observeLongPress } from '../parts/long-press';
 import { sharedStyles } from '../parts/shared-styles';
 import '../parts/icon';
+import { tileStatePart } from '../part-names';
 
 /**
  * What every tile shares: its spec, the context, the density, and the attributes `state`, `wide`,
@@ -106,6 +107,19 @@ export const deviceTileStyles = css`
     --slider-fill: var(--tile-on-slider-fill); --slider-track: var(--tile-on-slider-track);
   }
   :host([state="danger"]) .tile { --_bg: var(--tile-alert-bg); --_fg: var(--tile-alert-fg); --_state: var(--tile-alert-fg); }
+  /* an alarm reads as an alarm whatever own CSS says: from inside, !important wins over ::part() from outside */
+  :host([state="danger"]) .tile {
+    background: var(--tile-alert-bg) !important; background-image: none !important; color: var(--tile-alert-fg) !important;
+    text-shadow: none !important; box-shadow: inset 0 0 0 var(--tile-outline-width) var(--tile-outline) !important; border: 0 none !important;
+    padding: var(--tile-pad) !important;
+    /* a transition wins over !important: the alarm keeps its own, never one that makes the old colour linger */
+    transition: background-color var(--motion-effects), color var(--motion-effects), opacity var(--motion-effects), border-radius var(--motion-spatial), transform var(--motion-spatial) !important;
+  }
+  :host([state="danger"]) .tile:hover { background: color-mix(in srgb, var(--tile-alert-fg) var(--state-hover), var(--tile-alert-bg)) !important; }
+  :host([state="danger"]) .tile::before, :host([state="danger"]) .tile::after { content: none !important; }
+  :host([state="danger"]) .name, :host([state="danger"]) .state { color: var(--tile-alert-fg) !important; text-shadow: none !important; transition: none !important; }
+  :host([state="danger"]) .name { font-size: var(--type-label-l-size) !important; }
+  :host([state="danger"]) .state { font-size: var(--type-body-s-size) !important; }
   :host([state="unavailable"]) .tile { --_bg: var(--tile-unavailable-bg); }
   :host([stale]) .tile { opacity: var(--state-stale); cursor: default; }
   .tile:hover { background: color-mix(in srgb, var(--_fg) var(--state-hover), var(--_bg)); }
@@ -123,7 +137,11 @@ export const deviceTileStyles = css`
     --icon-size: var(--icon-l);
   }
   :host([state="on"]) .icon { background: var(--tile-icon-on-bg); color: var(--tile-icon-on-fg); clip-path: var(--shape-cookie); }
-  :host([state="danger"]) .icon { background: var(--tile-icon-alert-bg); color: var(--tile-icon-alert-fg); clip-path: var(--shape-cookie); }
+  :host([state="danger"]) .icon {
+    background: var(--tile-icon-alert-bg) !important; color: var(--tile-icon-alert-fg) !important; clip-path: var(--shape-cookie);
+    box-shadow: none !important; border: 0 none !important;
+    transition: background-color var(--motion-effects), color var(--motion-effects), clip-path var(--motion-spatial) !important;
+  }
   :host([state="unavailable"]) .icon {
     background: transparent; clip-path: none; border-radius: 50%; box-shadow: inset 0 0 0 var(--tile-unavailable-ring) var(--c-outline-variant);
   }
@@ -263,15 +281,20 @@ export abstract class DeviceTileElement<S extends DeviceTileSpec = DeviceTileSpe
     const { view } = this;
     const filled = view.state === 'on' || view.state === 'danger';
     return html`<div class="head">
-      <span class="icon"><mh-icon name=${view.icon} ?filled=${filled}></mh-icon></span>
-      <span class="text"><span class="name">${view.name}</span>${this.renderState()}</span>
+      <span class="icon" part=${`tile-icon ${tileStatePart(view.state)}`}><mh-icon name=${view.icon} ?filled=${filled}></mh-icon></span>
+      <span class="text"><span class="name" part=${`tile-name ${tileStatePart(view.state)}`}>${view.name}</span>${this.renderState()}</span>
     </div>`;
   }
 
   protected renderState(): TemplateResult | typeof nothing {
     const { view } = this;
     if (!view.stateText && !view.warn) return nothing;
-    return html`<span class="state">${view.warn ? html`<mh-icon class="warn" name="battery_alert" filled></mh-icon>` : nothing}<span>${view.stateText}</span></span>`;
+    return html`<span class="state" part=${`tile-state ${tileStatePart(view.state)}`}>${view.warn ? html`<mh-icon class="warn" name="battery_alert" filled></mh-icon>` : nothing}<span>${view.stateText}</span></span>`;
+  }
+
+  /** The part names of the tile: what it is and its state, for own CSS. */
+  private partNames(): string {
+    return ['tile', this.localName === 'mh-flow-tile' ? 'flow' : '', tileStatePart(this.view.state), this.wide ? 'wide' : ''].filter(Boolean).join(' ');
   }
 
   /** What lies behind the face, such as the history of a wide sensor tile. */
@@ -304,7 +327,7 @@ export abstract class DeviceTileElement<S extends DeviceTileSpec = DeviceTileSpe
     const editing = this.editing;
     const toggles = view.tap === 'toggle' && !editing;
     const extra = this.ariaExtra();
-    return html`<div class="tile ${this.spec.kind}" @click=${() => this.activate()}>
+    return html`<div class="tile ${this.spec.kind}" part=${this.partNames()} @click=${() => this.activate()}>
       ${this.renderBehind()}
       <div class="face" role="button" tabindex="0" aria-label=${editing ? this.ctx.t('edit.tile.open', { name: this.editName }) : extra ? `${view.ariaLabel}, ${extra}` : view.ariaLabel}
         aria-pressed=${toggles ? (view.state === 'on' ? 'true' : 'false') : nothing}

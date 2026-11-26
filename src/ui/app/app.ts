@@ -2,10 +2,10 @@ import type { HeroChart } from '../../layout/types';
 import { LitElement, css, html, nothing } from 'lit';
 import { createHomeyApiClient, type HomeyApiLib } from '../../homey/api-client';
 import type { HomeyClient } from '../../homey/client';
-import { createSwitchableTranslate, createTranslate, resolveLanguage, type Language } from '../../i18n';
+import { createSwitchableTranslate, createTranslate, resolveLanguage, type Language, type Translate } from '../../i18n';
 import { createMockClient } from '../../mock/mock-client';
 import { createStore, type Store } from '../../state/store';
-import type { ConfigStore } from '../../storage/config';
+import { createDefaultConfig, type ConfigStore } from '../../storage/config';
 import { createLocalConfigStore, STORAGE_KEY } from '../../storage/local-store';
 import { LOOKS_KEY, createLooksStore, type LooksStore } from '../../storage/looks-store';
 import { darkMedia, watchSystemDark } from '../../theme/system-mode';
@@ -14,6 +14,10 @@ import { rustigExpressive } from '../../theme/rustig-expressive';
 import type { Density, Mode, ShownDensity, ThemeSettings } from '../../theme/types';
 import type { FlowNight } from '../../wall/night';
 import { wallHubOf, withWallHub, type WallHub, type WallSettings } from '../../wall/settings';
+import { createScreen, fullyOf, screenWanted } from '../../wall/screen';
+import { followsSun, keptSunOf, sunDark, withSun } from '../../theme/sun';
+import { alarmKind, dangerAlarms } from '../../recognition/recognize';
+import { BATTERY } from '../../recognition/table';
 import { RUSTIG_STYLE, applyThemeTo } from '../apply-theme';
 import { isSafeAddress, safeLook } from '../safe-look';
 import { styleOf, type Style } from '../../theme/styles';
@@ -70,6 +74,8 @@ import '../parts/button';
 import '../parts/dialog';
 import '../parts/snackbar';
 import '../screens/connect-screen';
+import '../screens/framed-screen';
+import { isFramed } from './framed';
 import '../screens/pair-screen';
 import '../panels/board-look-panel';
 import '../screens/dashboard-screen';
@@ -84,6 +90,19 @@ import '../panels/theme-panel';
 import '../panels/tile-panel';
 import '../panels/wall-panel';
 import '../tiles/index';
+import { DASHBOARD_PARTS, REST_PARTS } from '../part-names';
+import { ownCss, ownCssSheets, type OwnCss } from '../own-css';
+import { allowedCss } from '../../storage/looks-store';
+import type { CssFrom } from '../../theme/looks-doc';
+import type { LiveHandle, LiveListener } from '../../widgets/app-live';
+import { createReadSource, type ReadSource, type ReadState } from '../../widgets/live-reads';
+import { readWeather, type Weather } from '../../widgets/weather';
+import { energyPeriodClock, readEnergyReport, type EnergyPeriod, type EnergyReport } from '../../widgets/energy';
+
+/** The rest screen waits this long for a theme that is being tried out. */
+const TRY_OUT_REST_MS = 10 * 60_000;
+/** How often a page asks the weather and a period of energy while something shows it. */
+export const READ_EVERY_MS = { weather: 10 * 60_000, day: 5 * 60_000, week: 30 * 60_000, month: 30 * 60_000 } as const;
 
 const homeyLib = (): HomeyApiLib | null =>
   (typeof (window as { HomeyAPIV3Local?: unknown }).HomeyAPIV3Local === 'function' ? (window as unknown as HomeyApiLib) : null);
@@ -101,6 +120,20 @@ function createDemoClient(which: Demo, language: Language): HomeyClient {
 
 /** Says to the page that is loaded anew that nobody is there. */
 export const REST_KEY = 'dashboard.rest';
+/** Where the last darkness of the sun is kept, with its time: a page that starts at night starts dark. */
+const SUN_KEY = 'dashboard.sun';
+
+function keepSun(dark: boolean, at: number): void {
+  try { safeStorage(() => window.localStorage).setItem(SUN_KEY, JSON.stringify({ dark, at })); } catch { /* best effort */ }
+}
+
+/** The darkness of the sun as it was kept, when that was not long ago; null otherwise. */
+function keptSun(now = Date.now()): boolean | null {
+  try { return keptSunOf(safeStorage(() => window.localStorage).getItem(SUN_KEY), now); } catch { return null; }
+}
+
+/** Where the brightness of the screen of before is kept while the dashboard dims it. */
+const SCREEN_KEY = 'dashboard.screen.before';
 
 /** What the app needs from the outside world; the browser's by default, a fake one in tests. */
 export interface AppEnvironment {
@@ -134,6 +167,8 @@ export interface AppEnvironment {
     /** The widgets of other apps the hub has, when the app on the hub has a key for them. */
     appWidgets?(): Promise<unknown>;
     appWidgetApi?(ref: string, method: string, route: string, body: unknown): Promise<unknown>;
+    /** The live news of the app of a widget on this page. */
+    appLive?(ref: string, listener: LiveListener): LiveHandle;
     /** The choices of a setting with a search list of such a widget. */
     appWidgetSearch?(ref: string, setting: string, query: string): Promise<unknown>;
     /** Changes of the house's looks to the hub. */
@@ -142,6 +177,8 @@ export interface AppEnvironment {
     onLooks?(listener: (doc: LooksDoc) => void): void;
     /** Calls back when the hub refused a change of looks. */
     onLooksRefused?(listener: () => void): void;
+    /** Calls back when the hub did not keep a theme: all themes together would be too big. */
+    onLooksTooBig?(listener: () => void): void;
     /** Calls back when another device saved first. */
     onConflict(listener: () => void): void;
     /** Calls back when a change is not on the hub yet; it is tried again by itself. */
@@ -249,6 +286,11 @@ export class MhApp extends LitElement {
   /** How often a panel opened: what is typed in one opening is one step to undo. */
   private openings = 0;
   environment: AppEnvironment | null = null;
+  /** Whether the page is inside a frame of another website; null: the app looks itself. */
+  inFrame: boolean | null = null;
+  /** Inside a frame: the app shows only how to open it, and starts nothing. Decided once, when first attached. */
+  private framed: boolean | null = null;
+  private framedT: Translate | null = null;
 
   private media = darkMedia();
   private narrow = phoneMedia();
@@ -288,10 +330,26 @@ export class MhApp extends LitElement {
     this.boardLook = false;
     this.asking = false;
     // The system turned light or dark: the document follows, and so do the sections with their own colour.
-    if (this.media) watchSystemDark(this.media, () => { this.appliedTheme = null; this.applyTheme(); this.requestUpdate(); });
+    if (this.media) watchSystemDark(this.media, () => { if (this.framed) { this.showFramed(); return; } this.appliedTheme = null; this.applyTheme(); this.requestUpdate(); });
   }
 
   /** What the hub said last of the widgets of other apps, by their reference. */
+  /** The weather and the periods of energy of the hub, asked while something shows them. */
+  private weatherSource!: ReadSource<Weather>;
+  private energySources!: Record<EnergyPeriod, ReadSource<EnergyReport>>;
+  private hadRoute = false;
+  /** Fully Kiosk lets the page reach the light of the screen; null anywhere else. */
+  private readonly fully = fullyOf(window);
+  /** Made when the app starts: it reads the brightness of before at once. */
+  private screen!: ReturnType<typeof createScreen>;
+  /** How the screen hears of an alarm at night. */
+  private screenHeard: (() => void)[] = [];
+  /** Whether it is dark outside at the hub, while light and dark follow the sun; null when that is not known. */
+  private sunDarkNow: boolean | null = null;
+  /** How the page hears of the weather for it, while it does. */
+  private sunHeard: (() => void) | null = null;
+  /** The hub that what the weather and energy show is of. */
+  private readsOf: string | null = null;
   private appRows = new Map<string, AppWidgetRow>();
   private appRowsRead: Promise<unknown> | null = null;
 
@@ -306,6 +364,14 @@ export class MhApp extends LitElement {
 
   /** Makes the store and the controller from the environment, once, when the app is first attached. */
   private setup(): void {
+    this.screen = createScreen({
+      fully: this.fully,
+      kept: {
+        get: () => safeStorage(() => window.localStorage).getItem(SCREEN_KEY),
+        set: (value) => { const storage = safeStorage(() => window.localStorage); try { if (value === null) storage.removeItem(SCREEN_KEY); else storage.setItem(SCREEN_KEY, value); } catch { /* best effort */ } },
+      },
+    });
+    this.sunDarkNow = keptSun();
     const env = this.environment ?? browserEnvironment();
     this.env = env;
     this.store = createStore(env.schedule);
@@ -328,6 +394,7 @@ export class MhApp extends LitElement {
     });
     env.served?.onLooks?.((doc) => this.controller.adoptHubLooks(doc));
     env.served?.onLooksRefused?.(() => this.notify({ text: this.ctx.t('notify.looksRefused'), icon: 'info' }));
+    env.served?.onLooksTooBig?.(() => this.notify({ text: this.ctx.t('notify.looksTooBig'), icon: 'warning' }));
     env.served?.onConflict(() => this.notify({ text: this.ctx.t('notify.conflict'), icon: 'info' }));
     this.scanned = env.served?.scanned() ?? '';
     env.served?.onScanned((code) => {
@@ -347,6 +414,21 @@ export class MhApp extends LitElement {
       settings: () => this.state.wall, allowed: () => this.mayRest(),
       began: () => this.beginRest(), ended: (kind) => { void this.endRest(kind); }, update: () => this.requestUpdate(),
     });
+    const sight = {
+      visible: () => document.visibilityState !== 'hidden',
+      onVisible: (fn: () => void) => {
+        const seen = (): void => { if (document.visibilityState !== 'hidden') fn(); };
+        document.addEventListener('visibilitychange', seen);
+        return () => document.removeEventListener('visibilitychange', seen);
+      },
+      setTimeout: env.setTimeout, clearTimeout: env.clearTimeout, now: () => Date.now(),
+    };
+    this.weatherSource = createReadSource({ ...sight, read: () => this.controller.readWeather(), parse: readWeather, everyMs: READ_EVERY_MS.weather });
+    const energySource = (period: EnergyPeriod) => createReadSource({
+      ...sight, read: () => this.controller.readEnergy(period), parse: readEnergyReport, everyMs: READ_EVERY_MS[period], period: energyPeriodClock(period),
+    });
+    this.energySources = { day: energySource('day'), week: energySource('week'), month: energySource('month') };
+    this.hearScreen();
     this.ctx = { store: this.store, t: createTranslate(this.state.language.active), actions: this.controller.actions, status: () => this.controller.status(), busy: (id) => this.controller.busy(id), history: this.controller.history,
       widgets: { boards: () => this.places().map(({ id, name, icon }) => ({ id, name, icon })), openBoard: (id) => this.navigate(`board:${id}`), own: () => this.widgetLibrary?.list() ?? [], safe: () => this.safe,
         ask: (deviceId, capabilityId, value, widgetName) => this.askForWidget(deviceId, capabilityId, value, widgetName),
@@ -354,12 +436,22 @@ export class MhApp extends LitElement {
           apps: () => this.readAppWidgets(env.served!.appWidgets!),
           appRow: (ref) => (this.appRowsRead ??= this.readAppWidgets(env.served!.appWidgets!)).then(() => this.appRows.get(ref)),
           appApi: (ref, method, path, body) => appWidgetCall(env.served!.appWidgetApi, ref, method, path, body),
-        } : {}) } };
+        } : {}),
+        ...(env.served?.appLive ? { live: (ref, listener) => env.served!.appLive!(ref, listener) } : {}),
+        weather: this.weatherSource, energy: (period) => this.energySources[period] } };
     this.widgetLibrary = env.served?.widgets ?? createLocalWidgets(safeStorage(() => window.localStorage), () => this.controller.hubId(), window);
     this.widgetLibrary.subscribe(() => this.requestUpdate());
     document.documentElement.lang = this.state.language.active;
     this.controller.subscribe(() => {
       this.state = this.controller.getState();
+      // the hub came back: what is shown of it is asked again
+      const route = this.state.route !== null;
+      const reads = [this.weatherSource, ...Object.values(this.energySources)];
+      // what is known of one hub is never shown as of the next
+      if (this.state.hubId !== this.readsOf) for (const source of reads) source.clear();
+      else if (route && !this.hadRoute) for (const source of reads) source.refresh();
+      this.readsOf = this.state.hubId;
+      this.hadRoute = route;
       // a device that is paired has no use for it
       if (this.state.phase === 'dashboard') this.scanned = '';
       this.followLanguage(this.state.language.active);
@@ -391,6 +483,8 @@ export class MhApp extends LitElement {
 
   override connectedCallback(): void {
     super.connectedCallback();
+    this.framed ??= this.inFrame ?? isFramed(window);
+    if (this.framed) { this.showFramed(); return; }
     if (!this.started) {
       this.addEventListener('hold-hint', () => this.hintHold());
       this.addEventListener('confirm-danger', (event) => this.askDanger((event as CustomEvent<DangerDetail>).detail));
@@ -411,6 +505,9 @@ export class MhApp extends LitElement {
 
   override disconnectedCallback(): void {
     super.disconnectedCallback();
+    if (this.framed) return;
+    if (this.draftTimer !== null) clearTimeout(this.draftTimer);
+    this.draftTimer = null;
     this.wall.stop();
     this.stopWatching?.();
     this.stopWatching = null;
@@ -470,10 +567,27 @@ export class MhApp extends LitElement {
     }
   }
 
+  /** When the try-out of a theme last changed: the rest screen waits for it, but not for ever. */
+  private draftSince = 0;
+  private draftTimer: ReturnType<typeof setTimeout> | null = null;
+
+  /** A theme tried out on the dashboard, or none any more; the rest screen is asked again when its wait is over. */
+  private preview(file: ThemeFile | null): void {
+    if (this.draftTimer !== null) clearTimeout(this.draftTimer);
+    this.draftTimer = null;
+    // every change of the try-out: ten minutes again
+    if (file !== null) {
+      this.draftSince = Date.now();
+      this.draftTimer = setTimeout(() => { this.draftTimer = null; this.wall.changed(); }, TRY_OUT_REST_MS);
+    }
+    this.draftLook = file;
+  }
+
   /** Not while something is arranged or asked, and not without a dashboard or in a narrow window. */
   private mayRest(): boolean {
     const { state } = this;
-    return state.phase !== 'connect' && !this.phone && !state.editing && !this.asking && this.sectionDialog === null && this.boardDialog === null
+    const trying = this.draftLook !== null && Date.now() - this.draftSince < TRY_OUT_REST_MS;
+    return state.phase !== 'connect' && !this.phone && !state.editing && !this.asking && !trying && this.sectionDialog === null && this.boardDialog === null
       && !this.renderRoot.querySelector<MhSettingsPanel>('mh-settings-panel')?.confirming;
   }
 
@@ -521,7 +635,7 @@ export class MhApp extends LitElement {
     const hero = block?.type === 'hero' ? block : undefined;
     const large = this.automaticHero();
     const connecting = state.phase === 'connecting' && !state.startUnreachable;
-    return html`<mh-rest-screen .ctx=${this.ctx} .hero=${hero?.hero ?? null} .heroSeed=${hero ? state.sectionSeeds[hero.id] ?? null : null} mode=${this.shownMode()} .look=${this.shownStyle()}
+    return html`<mh-rest-screen exportparts=${REST_PARTS} .ctx=${this.ctx} .hero=${hero?.hero ?? null} .heroSeed=${hero ? state.sectionSeeds[hero.id] ?? null : null} mode=${this.shownMode()} .look=${this.shownStyle()}
       .battery=${large?.kind === 'battery' ? large.primary : null} .wall=${state.wall} .hub=${wallHubOf(state.wall, state.hubId)} .now=${wall.now} .night=${wall.look === 'night'}
       .away=${this.controller.status().route === null && !connecting} ?leaving=${wall.leaving}></mh-rest-screen>`;
   }
@@ -538,7 +652,7 @@ export class MhApp extends LitElement {
     const { t } = this.ctx;
     const devices = open ? this.store.getDevices() : [];
     return html`<mh-wall-panel .t=${t} ?hidden=${this.phone} ?open=${open} .wall=${state.wall} .hub=${wallHubOf(state.wall, state.hubId)} .sources=${temperatureSources(devices, this.store.getSnapshot()?.zones ?? {}, t)}
-      .canPreview=${!state.editing} .tanks=${tanksOf(devices, t).map((tank) => ({ id: tank.id, name: tank.name.trim() || t('tile.unnamed') }))} ?hasBattery=${this.automaticHero()?.kind === 'battery'} ?served=${this.controller.status().served ?? false}
+      .canPreview=${!state.editing} .tanks=${tanksOf(devices, t).map((tank) => ({ id: tank.id, name: tank.name.trim() || t('tile.unnamed') }))} ?hasBattery=${this.automaticHero()?.kind === 'battery'} ?served=${this.controller.status().served ?? false} ?fully=${this.fully !== null}
       @change=${(e: CustomEvent<{ wall?: WallSettings; hub?: WallHub }>) => this.setWall(e.detail)} @preview=${(e: CustomEvent<{ look: 'day' | 'night' }>) => this.wall.preview(e.detail.look)}
       @close=${() => { this.panel = 'none'; }}></mh-wall-panel>`;
   }
@@ -549,7 +663,31 @@ export class MhApp extends LitElement {
   }
 
   private shownMode(): Mode {
-    return this.nightNow ? 'dark' : resolveMode(this.chosenLook().mode, this.media?.matches ?? false);
+    return this.nightNow ? 'dark' : resolveMode(withSun(this.chosenLook().mode, this.sunDarkNow), this.media?.matches ?? false);
+  }
+
+  /** Light and dark with the sun: the weather of the hub is heard while this device, the house or this dashboard chose it. */
+  private followSun(): void {
+    const wanted = followsSun({ shown: this.chosenLook().mode, resting: this.controller.chosenLook(null).mode, house: this.state.look.house?.mode ?? null });
+    if (wanted && !this.sunHeard) {
+      // taken before listening: what is known already comes at once and applies the theme anew
+      this.sunHeard = () => {};
+      this.sunHeard = this.weatherSource.listen((state) => this.seeSun(state));
+    } else if (!wanted && this.sunHeard) {
+      this.sunHeard();
+      this.sunHeard = null;
+    }
+  }
+
+  private seeSun(state: ReadState<Weather>): void {
+    const now = Date.now();
+    const dark = sunDark(state, now);
+    if (dark !== null) keepSun(dark, now);
+    const next = dark ?? keptSun(now);
+    if (next === this.sunDarkNow) return;
+    this.sunDarkNow = next;
+    this.applyTheme();
+    this.requestUpdate();
   }
 
   /** The look of the dashboard that is open; the rooms and the rest screen follow this device and the house. */
@@ -582,16 +720,40 @@ export class MhApp extends LitElement {
    */
   private applyTheme(): void {
     if (!this.state || !this.isConnected) return;
+    this.followSun();
     const dark = this.media?.matches ?? false;
     const chosen = this.chosenLook();
-    const theme: ThemeSettings = { ...this.state.theme, seed: this.shownSeed(), mode: chosen.mode };
+    const theme: ThemeSettings = { ...this.state.theme, seed: this.shownSeed(), mode: withSun(chosen.mode, this.sunDarkNow) };
     const density = this.shownDensity();
     const night = this.nightNow;
     const style = this.shownStyle();
     const { appliedTheme } = this;
+    this.applyOwnCss();
     if (appliedTheme && appliedTheme.theme.seed === theme.seed && appliedTheme.theme.mode === theme.mode && appliedTheme.dark === dark && appliedTheme.density === density && appliedTheme.night === night && appliedTheme.style === style) return;
     this.appliedTheme = { theme, dark, density, night, style };
     applyThemeTo(document.documentElement, { ...theme, density, ...(night ? { mode: 'dark' } : {}) }, dark, style);
+  }
+
+  /** The two sheets of own CSS on the document; made when the app first shows a theme. */
+  private putOwnCss: ((css: OwnCss) => void) | null = null;
+  /** The dashboard has own CSS now. */
+  private ownCssOn = false;
+  /** Where the CSS of the theme that is tried out comes from: the house once its CSS was written here. */
+  private draftCssFrom: CssFrom = 'house';
+
+  /** Own CSS of the theme the dashboard shows and of the one the rest screen follows; none with `#veilig` or Helder. */
+  private applyOwnCss(): void {
+    if (!this.state || !this.isConnected) return;
+    this.putOwnCss ??= ownCssSheets(document);
+    const look = this.state.look;
+    const chosen = this.chosenLook();
+    const shown = this.draftLook ?? chosen.file;
+    const resting = this.controller.chosenLook(null).file;
+    const cssFrom = this.draftLook ? { ...look.cssFrom, [this.draftLook.id]: this.draftCssFrom } : look.cssFrom;
+    const storage = safeStorage(() => window.localStorage);
+    const css = ownCss({ shown, resting, cssFrom, role: look.role, off: this.safe || look.device.helder, allowed: (id, text) => allowedCss(storage, id, text) });
+    this.ownCssOn = css.dashboard !== '';
+    this.putOwnCss(css);
   }
 
   /** The style the page shows; with `#veilig` after the address always Rustig. */
@@ -629,9 +791,9 @@ export class MhApp extends LitElement {
   }
 
   /** A theme made or taken in: kept, and used; for the whole house only after a question when it is hard to read. */
-  private onLookSave(file: ThemeFile, poor: number): void {
+  private onLookSave(file: ThemeFile, poor: number, cssFrom?: CssFrom, takenIn = false): void {
     const { look } = this.state;
-    if (!this.controller.saveTheme(file)) return;
+    if (!this.controller.saveTheme(file, cssFrom, takenIn)) return;
     const target = lookTarget(look.role, look.device);
     if (target === 'house') {
       const use = (): void => { this.controller.setHouse({ theme: file.id }); };
@@ -669,7 +831,33 @@ export class MhApp extends LitElement {
   /** The dashboard shown last: another one begins at the top of the page, as a page does. */
   private shownBoard: string | null = null;
 
+  /** With Fully Kiosk: hears of the devices that can raise an alarm, which lights the screen at night. */
+  private hearScreen(): void {
+    for (const stop of this.screenHeard) stop();
+    this.screenHeard = [];
+    if (!this.fully) return;
+    const { store } = this;
+    const watched = store.getDevices().filter((device) => Object.values(device.capabilities).some((cap) => alarmKind(cap.baseId) === 'danger')).map((device) => device.id);
+    this.screenHeard = [
+      store.subscribeStructure(() => { this.hearScreen(); this.applyScreen(); }),
+      ...watched.map((id) => store.subscribeDevice(id, () => this.applyScreen())),
+    ];
+  }
+
+  /** The light of the screen as the rest screen, the night and an alarm at night want it. */
+  private applyScreen(): void {
+    if (!this.fully || !this.state) return;
+    const { leaving } = this.wall;
+    // the brightness comes back as soon as it begins to go
+    const shown = leaving ? 'none' : this.wall.shown;
+    // arranging, or a window as narrow as a phone, has no rest screen and is not dimmed at night either
+    const look = shown === 'none' && (this.phone || this.state.editing) ? 'day' : this.wall.look;
+    const danger = look === 'night' && this.store.getDevices().some((device) => dangerAlarms(device).some((alarm) => alarm.baseId !== BATTERY.alarm));
+    this.screen.apply(screenWanted(shown, look, this.state.wall.screen, danger));
+  }
+
   protected override updated(): void {
+    this.applyScreen();
     // a question of a widget that went without a yes
     if (this.widgetQuestion && (!this.asking || this.question !== this.widgetQuestion.question)) this.endWidgetQuestion(false);
     if (!this.state) return;
@@ -1305,7 +1493,7 @@ export class MhApp extends LitElement {
     const snapshot = inRooms ? this.store.getSnapshot() : null;
     const rooms = snapshot ? roomsOf(snapshot, this.ctx.t) : [];
     const banner = !connecting && status.route === null ? 'offline' : s.restored ? 'restored' : this.outdated && !s.editing ? 'update' : 'none';
-    return html`<mh-dashboard .ctx=${this.ctx} .board=${s.board} .boards=${this.places()} .rooms=${rooms} .room=${rooms.find((room) => roomBoardId(room.id) === s.boardId) ?? null} boardName=${open ? this.boardName(open) : ''} boardIcon=${open ? this.boardIcon(open) : 'dashboard'} .boardMenu=${this.boardMenu(open)}
+    return html`<mh-dashboard exportparts=${DASHBOARD_PARTS} .ownCss=${this.ownCssOn} .ctx=${this.ctx} .board=${s.board} .boards=${this.places()} .rooms=${rooms} .room=${rooms.find((room) => roomBoardId(room.id) === s.boardId) ?? null} boardName=${open ? this.boardName(open) : ''} boardIcon=${open ? this.boardIcon(open) : 'dashboard'} .boardMenu=${this.boardMenu(open)}
       ?editing=${s.editing && !this.phone} ?canUndo=${s.canUndo} ?firstTime=${open?.sections === null} phase=${phase} emptyReason=${empty} banner=${banner}
       ?inert=${this.wall.shown !== 'none'} ?resting=${this.wall.covered} density=${this.shownDensity()} ?connecting=${connecting && !s.startUnreachable} activePanel=${this.panel === 'wall' ? 'settings' : this.panel}
       .sectionSeeds=${s.sectionSeeds} .heroChart=${open?.chart ?? null} mode=${this.shownMode()} .look=${this.shownStyle()} .baseSeed=${this.shownSeed()}
@@ -1327,13 +1515,13 @@ export class MhApp extends LitElement {
       ${this.renderEditPanels(open ? this.boardName(open) : '')}
       ${this.renderSectionDialog()}${this.renderBoardDialog()}${this.renderBoardLook()}${this.renderQuestion()}
       <mh-device-panel .ctx=${this.ctx} .deviceId=${connecting ? null : s.openDeviceId} @close=${() => this.controller.closeDevice()}></mh-device-panel>
-      <mh-theme-panel .t=${this.ctx.t} ?open=${this.panel === 'theme'} ?phone=${this.phone} .look=${s.look} density=${s.theme.density} .presets=${rustigExpressive.color.presets}
+      <mh-theme-panel .t=${this.ctx.t} .sunDark=${this.sunDarkNow} ?open=${this.panel === 'theme'} ?phone=${this.phone} .look=${s.look} density=${s.theme.density} .presets=${rustigExpressive.color.presets}
         ?safe=${this.safe} ?systemDark=${this.media?.matches ?? false} .boardTheme=${chosen.why === 'board' ? chosen.file.id : null}
         @look-choose=${(e: CustomEvent<LookChoose>) => this.onLookChoose(e.detail)} @look-target=${(e: CustomEvent<{ target: LookTarget }>) => this.onLookTarget(e.detail.target)}
         @density=${(e: CustomEvent<{ density: Density }>) => this.controller.setTheme({ ...this.state.theme, density: e.detail.density })}
         @follow-house=${() => this.controller.followHouse()} @device-look=${(e: CustomEvent<Partial<DeviceLook>>) => this.controller.setDeviceLook(e.detail)}
-        @look-preview=${(e: CustomEvent<{ file: ThemeFile | null }>) => { this.draftLook = e.detail.file; }}
-        @look-save=${(e: CustomEvent<{ file: ThemeFile; poor?: number }>) => this.onLookSave(e.detail.file, e.detail.poor ?? 0)}
+        @look-preview=${(e: CustomEvent<{ file: ThemeFile | null; cssFrom?: CssFrom }>) => { this.draftCssFrom = e.detail.cssFrom ?? 'other'; this.preview(e.detail.file); }}
+        @look-save=${(e: CustomEvent<{ file: ThemeFile; poor?: number; cssFrom?: CssFrom; takenIn?: boolean }>) => this.onLookSave(e.detail.file, e.detail.poor ?? 0, e.detail.cssFrom, e.detail.takenIn === true)}
         @look-remove=${(e: CustomEvent<{ id: string }>) => this.controller.removeTheme(e.detail.id)}
         @close=${() => { this.panel = 'none'; }}></mh-theme-panel>
       <mh-settings-panel .t=${this.ctx.t} .language=${s.language.choice} ?open=${this.panel === 'settings'} .status=${status} .missing=${s.missing} .softwareVersion=${s.softwareVersion} appVersion=${__APP_VERSION__}
@@ -1364,7 +1552,18 @@ export class MhApp extends LitElement {
       @pair=${(e: CustomEvent<{ code: string; name: string }>) => { void this.pair(e.detail.code, e.detail.name); }}></mh-pair-screen>`;
   }
 
+  /** Inside a frame of another website: the default theme on the page and the language of the browser, nothing else. */
+  private showFramed(): void {
+    const languages = navigator.languages?.length ? [...navigator.languages] : [navigator.language];
+    this.framedT ??= createTranslate(resolveLanguage(null, languages));
+    document.documentElement.lang = this.framedT.language;
+    applyThemeTo(document.documentElement, createDefaultConfig().theme, this.media?.matches ?? false);
+    this.requestUpdate();
+  }
+
   override render() {
+    // the address without what the other website put behind it
+    if (this.framed) return html`<mh-framed-screen .t=${this.framedT} address=${`${location.origin}${location.pathname}`}></mh-framed-screen>`;
     if (!this.state) return nothing;
     this.applyTheme();
     const phase = this.state.phase;

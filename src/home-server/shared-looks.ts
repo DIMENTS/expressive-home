@@ -2,7 +2,7 @@ import { createTranslate, type Language, type MessageKey } from '../i18n';
 import { DEFAULT_HOUSE } from '../theme/choose';
 import { BUILT_IN, isBase } from '../theme/look';
 import { applyLookOps, type LookOp } from '../theme/look-ops';
-import { normalizeLooksDoc, type LooksDoc } from '../theme/looks-doc';
+import { normalizeLooksDoc, withinTotal, type LooksDoc } from '../theme/looks-doc';
 import type { ModePreference } from '../theme/types';
 
 /** A theme to choose in a flow card. */
@@ -28,6 +28,8 @@ export function createSharedLooks(deps: { load(): unknown; save(doc: LooksDoc): 
   return {
     get: (): LooksDoc => doc,
     apply: (ops: readonly LookOp[]): LooksDoc => commit(applyLookOps(doc, ops)),
+    /** Whether these changes keep all themes together within the limit. */
+    fits: (ops: readonly LookOp[]): boolean => withinTotal(doc, applyLookOps(doc, ops)),
     /** The built-in styles and the house's themes whose name holds what was typed, named in the language of the hub. */
     choices(query: string, language: Language = 'en'): ThemeChoice[] {
       const t = createTranslate(language);

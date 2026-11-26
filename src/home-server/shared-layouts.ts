@@ -1,6 +1,6 @@
 import type { HubLayout } from '../layout/types';
 import { normalizeLayouts } from '../storage/layout-normalize';
-import { keepWidgets, knowsWidgets } from '../layout/keep-widgets';
+import { keepWidgets, knowsOf, mayMissWidgets } from '../layout/keep-widgets';
 import { normalizeSectionSeeds } from '../storage/local-store';
 
 /** What every paired device shares: the dashboards and the colours per section, with the number of this version. */
@@ -34,7 +34,7 @@ export function createSharedLayouts(deps: { load(): unknown; save(doc: SharedDoc
       if (base !== doc.revision) return { ok: false, doc };
       const read = contents(raw);
       // a page of a version without widgets never drops them
-      const next = knowsWidgets(raw) ? read : { ...read, layouts: keepWidgets(read.layouts, doc.layouts) };
+      const next = mayMissWidgets(raw) ? { ...read, layouts: keepWidgets(read.layouts, doc.layouts, knowsOf(raw)) } : read;
       if (JSON.stringify([next.layouts, next.sectionSeeds]) === JSON.stringify([doc.layouts, doc.sectionSeeds])) return { ok: true, doc };
       doc = { revision: doc.revision + 1, ...next };
       deps.save(doc);

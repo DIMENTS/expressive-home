@@ -20,6 +20,7 @@ import '../parts/icon';
 import { chosenSeed, colourGroups } from './section-menu';
 import './section-menu';
 import type { MhSectionMenu } from './section-menu';
+import { TILE_PARTS } from '../part-names';
 
 export type TileHost = HTMLElement & { spec: TileSpec; ctx: UiContext; density: ShownDensity; editing: boolean };
 
@@ -224,6 +225,7 @@ export class MhSection extends LitElement {
     // a tile whose device changed can become another kind
     if (!tile || tile.localName !== tileTag(spec.kind)) {
       tile = createTile(spec, this.ctx, this.density) as TileHost;
+      tile.setAttribute('exportparts', TILE_PARTS);
       tiles.set(spec.id, tile);
     }
     if (tile.spec !== spec) tile.spec = spec;
@@ -289,8 +291,8 @@ export class MhSection extends LitElement {
     const icon = shownSectionIcon(section);
     const colours = colourGroups(title, this.seed, this.baseSeed, ctx.t);
     const groups = this.editing ? [layoutGroup('section', this.place, ctx.t), ...colours] : colours;
-    return html`<section aria-labelledby=${this.headingId}>
-      <div class="head">${this.renderGrip()}<mh-icon name=${icon} filled></mh-icon><h2 id=${this.headingId}><span class="title">${title}</span></h2>${count ? html`<span class="count">${count}</span>` : nothing}${ctx.status().canArrange === false || this.fixed ? nothing : html`<mh-section-menu
+    return html`<section part=${this.seed === null ? 'section' : 'section own-colour'} aria-labelledby=${this.headingId}>
+      <div class="head">${this.renderGrip()}<mh-icon name=${icon} filled></mh-icon><h2 id=${this.headingId}><span class="title" part="section-title">${title}</span></h2>${count ? html`<span class="count" part="section-count">${count}</span>` : nothing}${ctx.status().canArrange === false || this.fixed ? nothing : html`<mh-section-menu
         label=${title} .t=${ctx.t} .groups=${groups}
         @select=${(e: CustomEvent<{ group: string; id: string }>) => this.onSelect(e)}
         @toggle=${(e: CustomEvent<{ open: boolean }>) => { e.stopPropagation(); this.menuOpen = e.detail.open; }}></mh-section-menu>`}</div>

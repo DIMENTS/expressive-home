@@ -4,6 +4,14 @@ import { clampTarget, climateOf, climateState, targetRange, targetStep } from '.
 import { coverCommands, coverOf, type CoverCommand } from '../../controls/cover';
 import { fraction } from '../../controls/find';
 import { guardOf } from '../../controls/guard';
+import { applianceOf, applianceState } from '../../controls/appliance';
+import { carOf, carState } from '../../controls/car';
+import { chargerOf, chargerState } from '../../controls/charger';
+import { fanOf, fanState } from '../../controls/fan';
+import { vacuumCommands, vacuumOf, vacuumState } from '../../controls/vacuum';
+import { formatKwh } from '../../widgets/energy';
+import { applianceCommand, chargerCommand } from '../model/held-view';
+import { heldButton } from '../tiles/held';
 import { mediaOf, mediaState } from '../../controls/media';
 import type { HouseKind } from '../../dashboard/types';
 import type { Capability, Device } from '../../homey/types';
@@ -12,7 +20,7 @@ import type { UiContext } from '../app/context';
 import { targetView } from '../model/climate-view';
 import { coverNames, coverText } from '../model/cover-view';
 import { changedText, houseTile, modeOf, nextRepeat, positionsOf, shutOf, slatsOf, songPlace } from '../model/device-top';
-import { guardCommands, type GuardCommand } from '../model/guard-view';
+import { carLock, guardCommands, type GuardCommand } from '../model/guard-view';
 import { mediaNames } from '../model/media-view';
 import { fractionOf, stepOf, valueAt } from '../model/slider-math';
 import { dangerOf, degrees, guardText } from '../model/tile-view';
@@ -213,12 +221,98 @@ function guardTop(host: TopHost, device: Device, enabled: boolean) {
     ${commands.length ? html`<div class="line ${many ? 'joined' : 'apart'}">${commands.map(button)}</div>` : nothing}`;
 }
 
+/** Its state large, with its icon; in colour as on its tile. */
+function standsOf(host: TopHost, device: Device, kind: HouseKind, more: TemplateResult | typeof nothing = nothing): TemplateResult {
+  const view = houseTile(device, kind, host.ctx.t, host.ctx.busy(device.id));
+  const said = view.stateText || view.name;
+  // only the word of its state is read out when it changes, not every number beside it
+  return html`<div class="stands ${view.state}"><span class="big"><mh-icon name=${view.icon === 'link_off' ? 'devices_other' : view.icon} filled></mh-icon></span>
+    <b>${said}</b><span class="unseen" role="status">${said.split(' · ')[0]}</span>${more}</div>`;
+}
+
+/** How full or how far, 0 to 1: painted through the CSSOM. */
+const barOf = (part: number | null): TemplateResult | typeof nothing => (part === null ? nothing : html`<div class="bar" aria-hidden="true" data-part=${String(Math.round(part * 1000) / 1000)}></div>`);
+
+function fanTop(host: TopHost, device: Device, enabled: boolean, draw: Draw) {
+  const fan = fanOf(device);
+  if (!fan) return nothing;
+  const { t } = host.ctx;
+  const speed = fan.speed ? shown(host, fan.speed) : null;
+  const { on, oscillating } = fanState(fan);
+  const part = fraction(speed);
+  const name = { name: device.name };
+  const range = { min: speed?.min ?? 0, max: speed?.max ?? 1, step: speed?.step ?? null };
+  return html`${standsOf(host, device, 'fan')}
+    <div class="line tall">
+      ${controlButtonIf(fan.onoff, () => ({ icon: 'power_settings_new', label: t('fan.label.power', name), run: () => host.ctx.actions.setCapability(device.id, fan.onoff!.id, on !== true), main: on === true, disabled: !enabled }))}
+      ${controlButtonIf(fan.oscillating, () => ({ icon: 'swap_horiz', label: t('fan.label.swing', name), run: () => host.ctx.actions.setCapability(device.id, fan.oscillating!.id, oscillating !== true), pressed: oscillating === true, disabled: !enabled }))}
+    </div>
+    ${speed ? html`<mh-slider .fraction=${live(part ?? 0)} label=${t('fan.label.speed', name)} valueText=${part === null ? '' : `${Math.round(part * 100)}%`} .step=${stepOf(range) / (range.max - range.min || 1)} ?disabled=${!enabled}
+      @slide=${(e: CustomEvent<{ fraction: number }>) => settle(host, device, speed, valueAt(e.detail.fraction, range), false)}
+      @commit=${(e: CustomEvent<{ fraction: number }>) => settle(host, device, speed, valueAt(e.detail.fraction, range), true)}></mh-slider>` : nothing}
+    ${fan.mode ? draw(fan.mode) : nothing}`;
+}
+
+function vacuumTop(host: TopHost, device: Device, enabled: boolean, draw: Draw) {
+  const vacuum = vacuumOf(device);
+  if (!vacuum) return nothing;
+  const { t, actions } = host.ctx;
+  const { stand, battery } = vacuumState(vacuum);
+  const { go, pause, dock } = vacuumCommands(vacuum);
+  const cleaning = stand === 'cleaning' || stand === 'spot_cleaning';
+  const first = cleaning ? pause : go;
+  const name = { name: device.name };
+  return html`${standsOf(host, device, 'vacuum')}${barOf(battery === null ? null : battery / 100)}
+    ${first || dock ? html`<div class="line tall">
+      ${controlButtonIf(first, () => ({ icon: cleaning ? 'pause' : 'play_arrow', label: t(cleaning ? 'vacuum.label.pause' : 'vacuum.label.go', name), run: () => actions.setCapability(device.id, first!.capabilityId, first!.value), main: true, filled: true, disabled: !enabled }))}
+      ${controlButtonIf(dock, () => ({ icon: 'home_pin', label: t('vacuum.label.dock', name), run: () => actions.setCapability(device.id, dock!.capabilityId, dock!.value), disabled: !enabled }))}
+    </div>` : nothing}
+    ${vacuum.job ? draw(vacuum.job) : nothing}`;
+}
+
+function applianceTop(host: TopHost, device: Device, enabled: boolean) {
+  const appliance = applianceOf(device);
+  if (!appliance) return nothing;
+  const { progress } = applianceState(appliance);
+  const command = applianceCommand(device, host.ctx.t);
+  return html`${standsOf(host, device, 'appliance')}${barOf(progress === null ? null : progress / 100)}
+    ${command ? html`<div class="line">${heldButton(host as unknown as HTMLElement, host.ctx, device, command, { large: true, enabled })}</div>` : nothing}`;
+}
+
+function chargerTop(host: TopHost, device: Device, enabled: boolean, draw: Draw) {
+  const charger = chargerOf(device);
+  if (!charger) return nothing;
+  const { t } = host.ctx;
+  const { session } = chargerState(charger);
+  const command = chargerCommand(device, t);
+  return html`${standsOf(host, device, 'charger', session === null ? nothing : html`<span class="since">${t('charger.session', { n: formatKwh(session, t) })}</span>`)}
+    ${command ? html`<div class="line">${heldButton(host as unknown as HTMLElement, host.ctx, device, command, { large: true, enabled })}</div>` : nothing}
+    ${charger.target ? draw(charger.target) : nothing}`;
+}
+
+function carTop(host: TopHost, device: Device, enabled: boolean) {
+  const car = carOf(device);
+  if (!car) return nothing;
+  const { t } = host.ctx;
+  const { battery, locked, plugged } = carState(car);
+  const commands = guardCommands(device, t, carLock(device));
+  const facts = [locked === null ? '' : t(locked ? 'guard.locked' : 'guard.unlocked'), plugged === null ? '' : t(plugged ? 'car.plugged' : 'car.unplugged')].filter(Boolean).join(' · ');
+  const line = facts.charAt(0).toLocaleUpperCase(t.locale) + facts.slice(1);
+  return html`${standsOf(host, device, 'car', line ? html`<span class="since">${line}</span>` : nothing)}${barOf(battery === null ? null : battery / 100)}
+    ${commands.length ? html`<div class="line">${commands.map((command) => heldButton(host as unknown as HTMLElement, host.ctx, device, { ...command, main: !command.guarded }, { large: true, enabled }))}</div>` : nothing}`;
+}
+
 /** The top of the window of a device of a house; `draw` draws a control as it would stand below. */
 export function deviceTop(host: TopHost, device: Device, kind: HouseKind, enabled: boolean, draw: Draw): TemplateResult {
   const top = kind === 'climate' ? climateTop(host, device, enabled, draw)
     : kind === 'cover' ? coverTop(host, device, enabled, draw)
       : kind === 'media' ? mediaTop(host, device, enabled)
-        : guardTop(host, device, enabled);
+        : kind === 'fan' ? fanTop(host, device, enabled, draw)
+          : kind === 'vacuum' ? vacuumTop(host, device, enabled, draw)
+            : kind === 'appliance' ? applianceTop(host, device, enabled)
+              : kind === 'charger' ? chargerTop(host, device, enabled, draw)
+                : kind === 'car' ? carTop(host, device, enabled)
+                  : guardTop(host, device, enabled);
   return html`<div class="top-of ${kind}">${top}</div>`;
 }
 

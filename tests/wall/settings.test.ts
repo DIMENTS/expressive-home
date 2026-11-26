@@ -5,10 +5,11 @@ const hub = (n: number): string => String(n).padStart(24, 'a');
 const full = (): WallSettings => ({
   on: true, after: 5, night: { on: false, from: '21:00', to: '06:45' }, lowBattery: false,
   hubs: { [hub(1)]: { inside: { deviceId: 'd1', capabilityId: 'measure_temperature' }, outside: null, tanks: { tank1: 'low', tank2: 'high' } } },
+  screen: { rest: 50, night: 'dim' },
 });
 
 test('a device is no wall tablet until it is made one', () => {
-  expect(defaultWall()).toEqual({ on: false, after: 2, night: { on: true, from: '22:30', to: '07:30' }, lowBattery: true, hubs: {} });
+  expect(defaultWall()).toEqual({ on: false, after: 2, night: { on: true, from: '22:30', to: '07:30' }, lowBattery: true, hubs: {}, screen: { rest: 'none', night: 'none' } });
   expect(normalizeWall(undefined)).toEqual(defaultWall());
   expect(normalizeWall('x')).toEqual(defaultWall());
   expect(normalizeWall([])).toEqual(defaultWall());
@@ -76,4 +77,13 @@ test('every hub has its own choices; the one that changed goes last and the olde
   expect(wallHubOf(wall, hub(2))).toEqual(emptyWallHub());
   expect(wallHubOf(wall, null)).toEqual(emptyWallHub());
   expect(Object.keys(defaultWall().hubs)).toEqual([]);
+});
+
+test('the screen of a tablet with Fully Kiosk: not dimmed until chosen', () => {
+  expect(defaultWall().screen).toEqual({ rest: 'none', night: 'none' });
+  expect(normalizeWall({ screen: { rest: 10, night: 'dim' } }).screen).toEqual({ rest: 10, night: 'dim' });
+  // a screen that goes off is not there this time
+  expect(normalizeWall({ screen: { rest: 33, night: 'off' } }).screen).toEqual({ rest: 'none', night: 'none' });
+  // kept from before there was a screen
+  expect(normalizeWall({ on: true }).screen).toEqual({ rest: 'none', night: 'none' });
 });

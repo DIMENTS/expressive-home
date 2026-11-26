@@ -1,6 +1,7 @@
 import { LitElement, css, html, nothing, type PropertyValues } from 'lit';
 import { tilesFor } from '../../dashboard/classify';
 import type { TileSpec } from '../../dashboard/types';
+import type { HomeySnapshot } from '../../homey/types';
 import type { BoardView } from '../../layout/board';
 import { tileForValue } from '../../layout/tiles';
 import { BUILT_IN_WIDGETS, type BuiltInWidget } from '../../widgets/catalog';
@@ -202,15 +203,22 @@ export class MhAddPanel extends LitElement {
     const tabs = html`<mh-choice-group label=${t('add.what')} .value=${this.tab}
       .options=${[{ id: 'devices', label: t('add.devices'), icon: 'devices_other' }, { id: 'flows', label: t('add.flows'), icon: 'play_circle' }, { id: 'widgets', label: t('add.widgets'), icon: 'widgets' }]}
       @change=${(e: CustomEvent<{ value: 'devices' | 'flows' | 'widgets' }>) => { e.stopPropagation(); this.tab = e.detail.value; }}></mh-choice-group>`;
-    if (this.tab === 'widgets') return this.own.kind === 'list' ? html`${tabs}${this.renderWidgets()}` : this.renderWidgets();
+    if (this.tab === 'widgets' && this.own.kind !== 'list') return this.renderWidgets();
+    // one template around every list: the choice stays the same element, so the focus stays on what was clicked
+    return html`${tabs}${this.renderList(snapshot, this.board)}`;
+  }
+
+  private renderList(snapshot: HomeySnapshot, board: BoardView) {
+    const { t } = this.ctx;
+    if (this.tab === 'widgets') return this.renderWidgets();
     if (this.tab === 'flows') {
-      const flows = flowList(snapshot, this.board, t);
-      return html`${tabs}<div class="list">${flows.length === 0 ? this.renderNoFlows() : flows.map((flow) => this.renderFlow(flow))}</div>`;
+      const flows = flowList(snapshot, board, t);
+      return html`<div class="list">${flows.length === 0 ? this.renderNoFlows() : flows.map((flow) => this.renderFlow(flow))}</div>`;
     }
-    return html`${tabs}
+    return html`
       <mh-text-field label=${t('add.search')} placeholder=${t('add.search')} icon="search" type="search" quiet .value=${this.query}
         @input=${(e: CustomEvent<{ value: string }>) => { e.stopPropagation(); this.query = e.detail.value; }}></mh-text-field>
-      <mh-device-list mode="add" .t=${t} .groups=${deviceList(snapshot, this.board, this.query, t)}
+      <mh-device-list mode="add" .t=${t} .groups=${deviceList(snapshot, board, this.query, t)}
         @expand=${(e: CustomEvent<{ deviceId: string | null }>) => { e.stopPropagation(); this.listen(e.detail.deviceId); }}
         @add-device=${(e: CustomEvent<{ deviceId: string }>) => { e.stopPropagation(); this.addDevice(e.detail.deviceId); }}
         @add-value=${(e: CustomEvent<{ deviceId: string; capabilityId: string }>) => { e.stopPropagation(); this.addValue(e.detail.deviceId, e.detail.capabilityId); }}></mh-device-list>`;

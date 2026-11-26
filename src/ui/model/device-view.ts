@@ -3,7 +3,7 @@ import type { HouseKind } from '../../dashboard/types';
 import type { Capability, Device, Zone } from '../../homey/types';
 import { formatValue, joinValue } from '../../i18n/format';
 import type { Language, Translate } from '../../i18n/index';
-import { alarmKind, isMinor } from '../../recognition/recognize';
+import { isDangerAlarm, isMinor } from '../../recognition/recognize';
 import type { IconName } from '../icons/icons';
 import { houseTile, shownOnTop, topLine } from './device-top';
 import { iconFor } from './icon-for';
@@ -74,7 +74,7 @@ export function deviceView(device: Device, zones: Record<string, Zone>, t: Trans
     if (control) controls.push(control);
     else if (isMinor(cap.baseId)) technical.push({ label: cap.title, text: joinValue(formatValue(cap, 'full', t)) });
     else if (cap.getable) {
-      values.push({ capabilityId: cap.id, label: cap.title, text: joinValue(formatValue(cap, 'full', t)), danger: cap.value === true && alarmKind(cap.baseId) === 'danger' });
+      values.push({ capabilityId: cap.id, label: cap.title, text: joinValue(formatValue(cap, 'full', t)), danger: cap.value === true && isDangerAlarm(device, cap) });
     }
   }
   const unavailable = device.available ? null : device.unavailableMessage?.trim() || t('tile.unavailable');

@@ -89,3 +89,77 @@ export const media = {
   /** A plug that says it is a television: it can only be on or off. */
   plugAsTv: device({ id: 'plugtv', name: 'Stekker tv', deviceClass: 'tv', caps: [bool('onoff', true), num('measure_power', 45, { units: 'W' })] }),
 };
+
+const power = (value: number | null, id = 'measure_power'): Capability => num(id, value, { units: 'W' });
+const energy = (value: number | null, id = 'meter_power'): Capability => num(id, value, { units: 'kWh' });
+const battery = (value: number | null): Capability => num('measure_battery', value, { units: '%', min: 0, max: 100 });
+const flag = (id: string, value: boolean | null): Capability => bool(id, value, { setable: false });
+const VACUUM = ['cleaning', 'spot_cleaning', 'docked', 'charging', 'stopped'];
+const RUNS = ['stopped', 'running', 'paused', 'error'];
+const PLUGGED = ['plugged_in_charging', 'plugged_in_discharging', 'plugged_in_paused', 'plugged_in', 'plugged_out'];
+
+/** Fans and air purifiers. */
+export const fans = {
+  /** Speed, swinging and mode by the standard. */
+  standing: device({ id: 'fan', name: 'Ventilator', deviceClass: 'fan', caps: [bool('onoff', true), part('fan_speed', 0.6), bool('oscillating', true), choice('fan_mode', ['auto', 'on', 'off'], 'on'), temperature(22)] }),
+  /** An older app: dim is the speed, counted to 100. */
+  dimmed: device({ id: 'mi', name: 'Tafelventilator', deviceClass: 'fan', caps: [bool('onoff', false), part('dim', 40, 100)] }),
+  /** An air purifier with many readings. */
+  purifier: device({ id: 'purifier', name: 'Luchtreiniger', deviceClass: 'airpurifier', caps: [bool('onoff', true), part('fan_speed', 0.3), num('measure_pm25', 8), num('measure_humidity', 41, { units: '%' }), temperature(21)] }),
+  /** Only on and off: stays a switch. */
+  plain: device({ id: 'plainfan', name: 'Badkamer', deviceClass: 'fan', caps: [bool('onoff', true), power(9)] }),
+  /** A fan heater: a target makes it climate. */
+  heater: device({ id: 'duux', name: 'Kachel', deviceClass: 'fan', caps: [bool('onoff', true), part('fan_speed', 0.5), target(21), temperature(19)] }),
+};
+
+/** Robot vacuum cleaners. */
+export const vacuums = {
+  /** By the standard. */
+  full: device({ id: 'robot', name: 'Robotstofzuiger', deviceClass: 'vacuumcleaner', caps: [choice('vacuumcleaner_state', VACUUM, 'docked'), choice('vacuumcleaner_job_mode', ['off', 'normal', 'high', 'turbo', 'mop', 'auto'], 'normal'), flag('docked', true), battery(100), flag('alarm_bin_full', false), flag('alarm_stuck', false), part('volume_set', 0.5)] }),
+  /** Only onoff starts and stops it, as six of thirteen apps do. */
+  onoff: device({ id: 'roborock', name: 'Stofzuiger', deviceClass: 'vacuumcleaner', caps: [bool('onoff', false), battery(12), part('dim', 0.5), bool('onoff.findme', false)] }),
+  /** Another class, with only its state. */
+  other: device({ id: 'neato', name: 'Neato', deviceClass: 'other', caps: [choice('vacuumcleaner_state', VACUUM, 'cleaning'), battery(64), flag('alarm_motion', false)] }),
+  /** Stuck while cleaning. */
+  stuck: device({ id: 'stuck', name: 'Boven', deviceClass: 'vacuumcleaner', caps: [choice('vacuumcleaner_state', VACUUM, 'stopped'), battery(40), flag('alarm_stuck', true), flag('alarm_bin_full', true)] }),
+};
+
+/** Washing machines, dryers, dishwashers and fridges. */
+export const appliances = {
+  /** By the standard, with a remaining time in minutes of the app's own. */
+  washer: device({ id: 'washer', name: 'Wasmachine', deviceClass: 'washer', caps: [choice('operational_state', RUNS, 'running', { setable: false }), num('progress', 60, { units: '%', min: 0, max: 100 }), choice('laundry_washer_program', ['normal', 'auto', 'quick', 'heavy', 'whites'], 'normal', { setable: false }), num('remaining_time', 42, { units: 'min' }), bool('onoff', true), power(450), flag('alarm_contact', false)] }),
+  /** A plug that says it is a dishwasher. */
+  plug: device({ id: 'plugdish', name: 'Vaatwasser', deviceClass: 'dishwasher', caps: [bool('onoff', true), power(1850), energy(312.4)] }),
+  /** Remaining time in seconds, under another name. */
+  dryer: device({ id: 'dryer', name: 'Droger', deviceClass: 'dryer', caps: [choice('operational_state', RUNS, 'paused', { setable: false }), num('measure_remaining_time', 1500, { units: 's' }), press('button.start'), press('button.cancel')] }),
+  /** Only whether it runs. */
+  running: device({ id: 'dish', name: 'Vaatwasser', deviceClass: 'dishwasher', caps: [flag('alarm_running', false), flag('alarm_door_fault', false)] }),
+  /** Another class, with its state and a program. */
+  other: device({ id: 'bosch', name: 'Wasdroger', deviceClass: 'other', caps: [choice('operational_state', RUNS, 'error', { setable: false }), choice('laundry_dryer_dryness', ['low', 'normal', 'extra', 'max'], 'normal')] }),
+  /** A fridge on a plug. */
+  fridge: device({ id: 'fridge', name: 'Koelkast', deviceClass: 'fridge', caps: [bool('onoff', true), power(85)] }),
+  /** A heat pump with a state of its own is no washing machine. */
+  heatPump: device({ id: 'pump', name: 'Warmtepomp', deviceClass: 'heatpump', caps: [choice('operational_state', RUNS, 'running', { setable: false }), temperature(45)] }),
+};
+
+/** Charge points for a car. */
+export const chargers = {
+  /** By the standard, with a session and a power to aim at. */
+  full: device({ id: 'zaptec', name: 'Laadpaal', deviceClass: 'evcharger', energy: { cumulative: false, homeBattery: false, evCharger: true }, caps: [bool('evcharger_charging', true), choice('evcharger_charging_state', PLUGGED, 'plugged_in_charging', { setable: false }), power(11040), energy(12.4, 'meter_power.session'), energy(913.4), num('target_power', 11000, { setable: true, min: 0, max: 22000, units: 'W' }), flag('alarm_generic.car_connected', true)] }),
+  /** Only onoff, without a flag. */
+  onoff: device({ id: 'chargeamps', name: 'Lader', deviceClass: 'evcharger', caps: [bool('onoff', false), power(0)] }),
+  /** Another class, with its state. */
+  other: device({ id: 'easee', name: 'Easee', deviceClass: 'other', caps: [choice('evcharger_charging_state', PLUGGED, 'plugged_in', { setable: false }), power(0)] }),
+  /** A plug that says it is a charge point. */
+  plug: device({ id: 'plugcharge', name: 'Stopcontact garage', deviceClass: 'evcharger', caps: [bool('onoff', true), power(2300)] }),
+};
+
+/** Cars. */
+export const cars = {
+  /** Battery, range in km, charging, lock, and climate, windows and a trunk that are no climate, cover or switch. */
+  tesla: device({ id: 'tesla', name: 'Auto', deviceClass: 'car', energy: { cumulative: false, homeBattery: false, electricCar: true }, caps: [battery(64), num('measure_distance.range', 240, { units: 'km' }), choice('ev_charging_state', PLUGGED, 'plugged_in', { setable: false }), bool('locked', true), target(20, { min: 15, max: 28 }), temperature(9), bool('windowcoverings_closed', true), bool('onoff.trunk', false), bool('onoff.charge_port', false), press('button.homelink'), bool('speaker_playing', false), flag('alarm_generic.valet_mode', true)] }),
+  /** A vehicle with its own range. */
+  kia: device({ id: 'kia', name: 'Niro', deviceClass: 'vehicle', caps: [battery(81), num('measure_range', 312, { units: 'km' }), bool('locked', false), bool('evcharger_charging', false)] }),
+  /** Another class: only the charging state of a car tells. */
+  other: device({ id: 'xpeng', name: 'Xpeng', deviceClass: 'other', caps: [battery(23), choice('ev_charging_state', PLUGGED, 'plugged_in_charging', { setable: false }), num('range', 98, { units: 'km' })] }),
+};

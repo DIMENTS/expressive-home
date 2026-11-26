@@ -1,5 +1,8 @@
 import { isDangerous } from '../../controls/danger';
-import { guardOf, guardState, guardValue, type GuardState } from '../../controls/guard';
+import { applianceOf, KEEP_ON_CLASSES } from '../../controls/appliance';
+import { carOf } from '../../controls/car';
+import { chargerOf } from '../../controls/charger';
+import { guardOf, guardState, guardValue, type Guard, type GuardState } from '../../controls/guard';
 import type { CapabilityValue, Device } from '../../homey/types';
 import type { MessageKey, Translate } from '../../i18n/index';
 import type { IconName } from '../icons/icons';
@@ -26,9 +29,14 @@ const WORDS: Record<GuardState, { icon: IconName; text: MessageKey; hold: Messag
 };
 const ALARM: readonly GuardState[] = ['disarmed', 'partially_armed', 'armed'];
 
+/** The lock of a car: a lock like any other, but of something that is mainly something else. */
+export function carLock(device: Device): Guard | null {
+  const lock = carOf(device)?.lock ?? null;
+  return lock ? { kind: 'lock', cap: lock, canSet: lock.setable } : null;
+}
+
 /** What it can be told now: a lock the other way than it is, an alarm everything it knows. */
-export function guardCommands(device: Device, t: Translate): GuardCommand[] {
-  const guard = guardOf(device);
+export function guardCommands(device: Device, t: Translate, guard: Guard | null = guardOf(device)): GuardCommand[] {
   if (!guard?.canSet) return [];
   const said = guardState(guard);
   const { cap } = guard;
@@ -51,7 +59,11 @@ export function guardCommands(device: Device, t: Translate): GuardCommand[] {
 export interface DangerQuestion { heading: string; text: string; ok: string }
 
 export function dangerQuestion(device: Device, capabilityId: string, value: CapabilityValue, t: Translate): DangerQuestion {
-  const guard = guardOf(device);
+  const guard = guardOf(device) ?? carLock(device);
+  const baseId = device.capabilities[capabilityId]?.baseId;
+  const switchedOff = value === false && (baseId === 'onoff' || baseId === 'evcharger_charging');
+  if (switchedOff && chargerOf(device)) return { heading: t('charger.ask.stop', { name: device.name }), text: t('charger.ask.stopText'), ok: t('charger.stop') };
+  if (switchedOff && baseId === 'onoff' && (KEEP_ON_CLASSES.includes(device.deviceClass) || applianceOf(device) !== null)) return { heading: t('appliance.ask.off', { name: device.name }), text: t('appliance.ask.offText'), ok: t('appliance.off') };
   const states: readonly GuardState[] = guard?.kind === 'alarm' ? ALARM : guard?.kind === 'lock' ? ['unlocked', 'locked'] : ['open', 'closed'];
   const to = guard?.cap.id === capabilityId ? states.find((state) => guardValue(guard, state) === value) : undefined;
   if (to) return { heading: t(WORDS[to].ask, { name: device.name }), text: t('guard.ask.text'), ok: t(WORDS[to].text) };

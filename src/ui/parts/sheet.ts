@@ -24,6 +24,7 @@ export class MhSheet extends LitElement {
     icon: { type: String },
     iconOn: { type: Boolean },
     back: { type: Boolean },
+    wide: { type: Boolean, reflect: true },
   };
 
   /** The texts, in the language of the app; Dutch until the app sets it. */
@@ -38,6 +39,8 @@ export class MhSheet extends LitElement {
   declare iconOn: boolean;
   /** A second stand of the panel: a button back, reported as `back`. */
   declare back: boolean;
+  /** A broader panel on a large screen, for an editor with long rows; on a phone the same as any other. */
+  declare wide: boolean;
   private releaseFocus: (() => void) | null = null;
   private narrow = phoneMedia();
   private stopDrag: (() => void) | null = null;
@@ -51,6 +54,7 @@ export class MhSheet extends LitElement {
     this.icon = '';
     this.iconOn = false;
     this.back = false;
+    this.wide = false;
     this.addEventListener('keydown', (event) => {
       if (this.open && event.key === 'Escape') {
         event.preventDefault();
@@ -82,6 +86,8 @@ export class MhSheet extends LitElement {
       transition: background-color var(--motion-effects), color var(--motion-effects), clip-path var(--motion-spatial);
     }
     .icon-box.on { background: var(--tile-icon-on-bg); color: var(--tile-icon-on-fg); clip-path: var(--shape-cookie); }
+    /* an editor beside the dashboard: the dashboard shows what is tried out, so it is not dimmed */
+    :host([wide]) { --sheet-width: var(--sheet-wide-width); --sheet-phone-height: var(--sheet-wide-phone-height); --scrim: transparent; }
     @media (prefers-reduced-motion: reduce) {
       .icon-box.on { clip-path: var(--shape-circle); }
     }
@@ -124,6 +130,8 @@ export class MhSheet extends LitElement {
     if (this.open && changed.has('back') && !changed.has('open')) this.shadowRoot!.querySelector<HTMLElement>('.panel')?.focus();
     if (!changed.has('open')) return;
     if (this.open) {
+      // opened again before the last update: the trap of before goes first
+      this.releaseFocus?.();
       this.releaseFocus = trapFocus(this.shadowRoot!, this);
       this.shadowRoot!.querySelector<HTMLElement>('.panel')?.focus();
     } else if (this.releaseFocus) {

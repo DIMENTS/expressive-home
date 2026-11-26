@@ -1,19 +1,28 @@
 import type { HouseLook } from './choose';
 import { isValidSeed } from './engine';
 import type { ThemeFile } from './look';
-import { normalizeBoards, withBoardTheme, type LooksDoc } from './looks-doc';
+import { isCssFrom, normalizeBoards, withBoardTheme, type CssFrom, type LooksDoc } from './looks-doc';
 import { LIMITS_LOOKS, isOwnThemeId, isThemeId, parseThemeFile } from './theme-file';
-import type { ModePreference } from './types';
+import { MODE_PREFERENCES, type ModePreference } from './types';
+import { sanitizeCss } from './css/sanitize';
 
 /**
  * A change of the house's looks, as a device asks for it and the hub applies it. A change of the house names only
  * what changes, so what another device or a flow changed meanwhile stays.
  */
-export type LookOp = { house: Partial<HouseLook> } | { save: ThemeFile } | { remove: string } | { board: string; theme: string | null };
+export type LookOp =
+  | { house: Partial<HouseLook> } | { save: ThemeFile } | { remove: string } | { board: string; theme: string | null }
+  /** The CSS of a theme, and where it comes from; null clears it. A save never touches CSS: a page of 1.2 does not send it. */
+  | { css: { id: string; text: string | null; from: CssFrom } }
+  /** Whether a theme was taken in from someone else. Sent on its own: a hub of 1.3 refuses what it does not know. */
+  | { takenIn: { id: string; on: boolean } };
+
+/** The size of a text as it is kept. */
+const bytes = (text: string): number => new TextEncoder().encode(text).length;
 
 /** More than any one change needs. */
 const MAX_OPS = 20;
-const MODES: readonly unknown[] = ['auto', 'light', 'dark'] satisfies ModePreference[];
+const MODES: readonly unknown[] = MODE_PREFERENCES;
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value);
 
 /** What changes of the house: at least one field, each one checked; null when something is not right. */
@@ -50,6 +59,26 @@ function parseOne(raw: unknown): LookOp | null {
     return parsed.ok ? { save: parsed.file } : null;
   }
   if (keys === 'remove') return isOwnThemeId(raw['remove']) ? { remove: raw['remove'] } : null;
+  if (keys === 'css') {
+    const css = raw['css'];
+    if (!isRecord(css) || Object.keys(css).sort().join(',') !== 'from,id,text') return null;
+    const { id, text, from } = css;
+    if (!isOwnThemeId(id) || !isCssFrom(from) || !(text === null || (typeof text === 'string' && bytes(text) <= LIMITS_LOOKS.fileBytes))) return null;
+    // read once as the page will: CSS that cannot be read in reasonable time is refused here already
+    if (text !== null) {
+      try {
+        sanitizeCss(text, { list: 'wide', keyframes: 'k' });
+      } catch {
+        return null;
+      }
+    }
+    return { css: { id, text, from } };
+  }
+  if (keys === 'takenIn') {
+    const mark = raw['takenIn'];
+    if (!isRecord(mark) || Object.keys(mark).sort().join(',') !== 'id,on' || !isOwnThemeId(mark['id']) || typeof mark['on'] !== 'boolean') return null;
+    return { takenIn: { id: mark['id'], on: mark['on'] } };
+  }
   if (keys === 'board,theme') {
     const board = raw['board'];
     const theme = raw['theme'];
@@ -72,6 +101,11 @@ export function parseLookOps(raw: unknown): LookOp[] | null {
   return ops;
 }
 
+function withTakenIn(doc: LooksDoc, takenIn: string[]): LooksDoc {
+  const { takenIn: _was, ...plain } = doc;
+  return takenIn.length > 0 ? { ...plain, takenIn } : plain;
+}
+
 /**
  * The operations applied in order, to a copy. A theme that does not exist is never chosen, what else changes of the
  * house is; removing a theme sends the house back to Rustig and the dashboards that had it back to the house. The
@@ -85,12 +119,40 @@ export function applyLookOps(doc: LooksDoc, ops: readonly LookOp[]): LooksDoc {
       const { theme, ...rest } = op.house;
       next = { ...next, house: { ...next.house, ...rest, ...(theme !== undefined && exists(theme) ? { theme } : {}) } };
     } else if ('save' in op) {
-      const known = next.themes.some((file) => file.id === op.save.id);
-      if (known) next = { ...next, themes: next.themes.map((file) => (file.id === op.save.id ? op.save : file)) };
-      else if (next.themes.length < LIMITS_LOOKS.themes) next = { ...next, themes: [...next.themes, op.save] };
+      // the CSS a theme has stays, whatever the save says: only its own operation changes it
+      const { css: _sent, ...saved } = op.save;
+      const before = next.themes.find((file) => file.id === op.save.id);
+      const file: ThemeFile = before?.css ? { ...saved, css: before.css } : saved;
+      if (before) next = { ...next, themes: next.themes.map((item) => (item.id === file.id ? file : item)) };
+      else if (next.themes.length < LIMITS_LOOKS.themes) next = { ...next, themes: [...next.themes, file] };
+    } else if ('css' in op) {
+      const { id, text, from } = op.css;
+      if (!next.themes.some((file) => file.id === id)) continue;
+      const { [id]: _old, ...others } = next.cssFrom ?? {};
+      const cleared = text === null || text.trim() === '';
+      const themes = next.themes.map((file): ThemeFile => {
+        if (file.id !== id) return file;
+        const { css: _gone, ...rest } = file;
+        return cleared ? rest : { ...rest, format: 2, css: { version: 1, text: text! } };
+      });
+      // a theme with its CSS stays a theme that can be taken in again
+      if (bytes(JSON.stringify(themes.find((file) => file.id === id))) > LIMITS_LOOKS.fileBytes) continue;
+      next = { ...next, themes };
+      const cssFrom = cleared ? others : { ...others, [id]: from };
+      const { cssFrom: _was, ...plain } = next;
+      next = Object.keys(cssFrom).length > 0 ? { ...plain, cssFrom } : plain;
+    } else if ('takenIn' in op) {
+      const { id, on } = op.takenIn;
+      if (!next.themes.some((file) => file.id === id)) continue;
+      next = withTakenIn(next, (next.takenIn ?? []).filter((item) => item !== id).concat(on ? [id] : []));
     } else if ('remove' in op) {
+      const { [op.remove]: _css, ...cssFrom } = next.cssFrom ?? {};
+      const { cssFrom: _was, takenIn: _marked, ...plain } = next;
+      const takenIn = (next.takenIn ?? []).filter((item) => item !== op.remove);
       next = {
-        ...next,
+        ...plain,
+        ...(Object.keys(cssFrom).length > 0 ? { cssFrom } : {}),
+        ...(takenIn.length > 0 ? { takenIn } : {}),
         themes: next.themes.filter((file) => file.id !== op.remove),
         house: next.house.theme === op.remove ? { ...next.house, theme: 'rustig' } : next.house,
         boards: Object.fromEntries(Object.entries(next.boards).filter(([, theme]) => theme !== op.remove)),

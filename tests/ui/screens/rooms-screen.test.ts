@@ -125,7 +125,7 @@ test('a room has its name, what there is, its sections and a way back', async ()
   const head = deep(s.element, 'mh-room-head');
   expect([head.shadowRoot!.querySelector('h2')!.textContent, [...head.shadowRoot!.querySelectorAll('.fact')].map((f) => f.textContent!.trim())]).toEqual(['Woonkamer', ['2 aan', '20,8°', 'Speelt', '2 open']]);
   expect(head.shadowRoot!.querySelector('.facts')!.hasAttribute('aria-hidden')).toBe(false);
-  expect(deepAll(s.element, 'mh-section').length).toBe(6);
+  expect(deepAll(s.element, 'mh-section').length).toBe(7);
   expect((deep(s.element, 'mh-rail') as HTMLElement & { activeBoard: string }).activeBoard).toBe(ROOMS_ID);
   const back = head.shadowRoot!.querySelector<HTMLElement>('.back')!;
   expect(back.getAttribute('label') ?? back.getAttribute('aria-label')).toBe('Terug naar Kamers');

@@ -6,6 +6,7 @@ import { HISTORY_FRESH_MS } from '../app/history';
 import { heroSourceOf } from '../../charts/hero-charts';
 import { DeviceTileElement } from './tile-base';
 import { valueStyles, valueTemplate } from './value-styles';
+import { CHART_PARTS } from '../part-names';
 
 type SensorSpec = Extract<DeviceTileSpec, { kind: 'sensor' }>;
 
@@ -116,7 +117,7 @@ export class MhSensorTile extends DeviceTileElement<SensorSpec> {
     if (!this.trend || !this.wantsTrend()) return nothing;
     const cap = this.ctx.store.getDevice(this.spec.deviceId)?.capabilities[this.spec.capabilityId];
     if (!cap) return nothing;
-    return html`<mh-chart class="trend" variant="tile" .series=${this.trend} .kind=${{ baseId: cap.baseId, units: cap.units }} .t=${this.ctx.t}
+    return html`<mh-chart exportparts=${CHART_PARTS} class="trend" variant="tile" .series=${this.trend} .kind=${{ baseId: cap.baseId, units: cap.units }} .t=${this.ctx.t}
       period="last24Hours" .now=${Date.now()} .nowValue=${this.live()} .format=${this.formatter()} .readable=${false} .times=${false}></mh-chart>`;
   }
 

@@ -2,6 +2,7 @@ import { LitElement, css, html, nothing, type PropertyValues } from 'lit';
 import type { WidgetTileSpec } from '../../dashboard/types';
 import { createAppWidgetBridge } from '../../widgets/crossframe';
 import { appInitialData, type AppWidgetRow } from '../../widgets/app-widget-link';
+import type { LiveHandle } from '../../widgets/app-live';
 import { HOST_LIMITS } from '../../widgets/host';
 import type { UiContext } from '../app/context';
 import { sharedStyles } from '../parts/shared-styles';
@@ -96,13 +97,24 @@ export class MhAppWidget extends LitElement {
     this.frame = frame;
     const { ctx, spec } = this;
     let row: AppWidgetRow | undefined;
+    // the live news of the widget's app: the bridge says what the widget listens to
+    let live: LiveHandle | undefined;
     const bridge = createAppWidgetBridge({
       post: (text) => frame.contentWindow?.postMessage(text, '*'),
       initial: () => appInitialData(row, spec.settings, ctx.t.language, document.documentElement.dataset['mode'] === 'dark'),
       api: (method, path, body) => ctx.widgets?.appApi?.(spec.widget, method, path, body) ?? Promise.resolve(null),
       onReady: () => { this.state = 'ready'; },
       onHeight: (px) => { this.style.setProperty('--widget-height', `${Math.max(0, Math.round(px))}px`); this.toggleAttribute('sized', true); this.dispatchEvent(new CustomEvent('widget-height', { detail: { px }, bubbles: true, composed: true })); },
+      onListen: () => live?.changed(),
     });
+    live = ctx.widgets?.live?.(spec.widget, {
+      names: () => bridge.names(),
+      news: (event, data) => bridge.deliver(event, data),
+      // only the frame that asked starts anew: a later start has its own handle
+      restart: () => { if (this.frame === frame) this.start(); },
+    });
+    const stopLive = live?.stop;
+    if (stopLive) this.stops.push(stopLive);
     const onMessage = (event: MessageEvent): void => {
       if (event.source !== frame.contentWindow || event.source === null) return;
       // what the hub says of this widget is there before Homey's script asks for it

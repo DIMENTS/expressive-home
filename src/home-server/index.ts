@@ -18,6 +18,8 @@ import { createHomeServer, isLocalHost } from './server';
 import { createSharedLayouts } from './shared-layouts';
 import { createSharedLooks, type ThemeChoice } from './shared-looks';
 import { looksFromStore, looksToStore } from '../theme/full-themes';
+import { createDocuments } from './documents';
+import { createDoor } from './door';
 import { createSharedWidgets } from './shared-widgets';
 import { createAppWidgets } from './app-widgets';
 import { createHubLive, listedFrom, placedAppWidgets, type LiveSession, type LiveState } from './app-live';
@@ -217,6 +219,7 @@ export async function startHomeServer(options: StartOptions) {
     now: () => Date.now(),
     token: () => randomBytes(32).toString('base64url'),
     code: () => String(randomInt(1_000_000)).padStart(6, '0'),
+    awayCode: () => String(randomInt(100_000_000)).padStart(8, '0'),
     fingerprint: (token) => createHash('sha256').update(token).digest('hex'),
   });
   const layouts = createSharedLayouts({ load: () => homey.settings.get(KEYS.layouts), save: (doc) => homey.settings.set(KEYS.layouts, doc) });
@@ -234,6 +237,8 @@ export async function startHomeServer(options: StartOptions) {
     },
   });
   const widgets = createSharedWidgets({ load: () => homey.settings.get(KEYS.widgets), save: (doc) => homey.settings.set(KEYS.widgets, doc) });
+  // the door for a device away from home: the same documents and the same pairing, through the cloud
+  const door = createDoor({ pairing, documents: createDocuments({ layouts, looks, widgets }), now: () => Date.now(), boot: randomBytes(6).toString('hex') });
   const night = createNight({ load: () => homey.settings.get(KEYS.night), save: (value) => homey.settings.set(KEYS.night, value), now: () => Date.now() });
   const ownAddress = addressOf(homey, options.addressTimeout ?? ADDRESS_MS);
   let localUrl: string | null = null;
@@ -371,6 +376,9 @@ export async function startHomeServer(options: StartOptions) {
       return { ...made, address: base, link, qr: link === null ? null : qrCode(link) };
     },
     codes: (): Record<Slot, CodeState> => pairing.codes(),
+    /** A new code for a phone away from home, and what became of it; never the code itself after it was shown. */
+    awayCode: (role: Role | null): OpenCode => pairing.openAwayCode(role),
+    awayCodes: () => pairing.awayCodes(),
     setRole: (id: string, role: Role): boolean => pairing.setRole(id, role),
     /** The names of the buttons, for the settings of the app. */
     buttons: (): string[] => buttons.list().map((button) => button.name),
@@ -399,6 +407,8 @@ export async function startHomeServer(options: StartOptions) {
     resetLooks: (): void => { looks.reset(); },
     night: (): NightWord | null => night.get(),
     build: (): string => build,
+    /** An answer of the door for a device away from home; never throws. */
+    door: (body: unknown): Record<string, unknown> => door.handle(body),
     async close(): Promise<void> {
       recorder.stop();
       stopObserving();

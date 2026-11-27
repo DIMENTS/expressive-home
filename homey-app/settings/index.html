@@ -24,13 +24,13 @@
     .typed { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 6px 14px; align-items: baseline; margin: 0; }
     .typed dt { opacity: .7; }
     .typed dd { margin: 0; font-weight: 700; user-select: all; overflow-wrap: anywhere; }
-    .typed .code { font-size: 28px; letter-spacing: 4px; }
+    .typed .code, .code.away { font-size: 28px; letter-spacing: 4px; }
     .device { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 12px 0; border-bottom: 1px solid rgba(128, 128, 128, .3); }
     .device div { flex: 1 1 140px; min-width: 0; overflow-wrap: anywhere; }
     .device small { display: block; opacity: .7; }
     .device select { flex: 0 1 auto; width: auto; min-height: 44px; max-width: 100%; }
     .device button { min-height: 44px; }
-    .wide { box-sizing: border-box; width: 100%; min-height: 44px; }
+    .wide { box-sizing: border-box; width: 100%; min-height: 48px; }
     .message { font-weight: 700; }
     .message:empty { margin: 0; }
     details > summary { cursor: pointer; padding: 12px 0; font-weight: 700; min-height: 24px; }
@@ -76,6 +76,19 @@
       <legend class="homey-form-legend" data-i18n="settings.devices"></legend>
       <div id="devices"></div>
     </fieldset>
+    <p id="awayRow"><button class="homey-button-secondary-shadow wide" id="away" data-i18n="settings.away"></button></p>
+    <section id="awayPair" hidden>
+      <p data-i18n="settings.awayIntro"></p>
+      <p class="code away" id="awayCode"></p>
+      <p class="until" id="awayUntil"></p>
+      <fieldset class="roles">
+        <legend data-i18n="settings.role"></legend>
+        <label><input type="radio" name="awayRole" value="use"><span data-i18n="settings.awayUse"></span></label>
+        <label><input type="radio" name="awayRole" value="edit"><span data-i18n="settings.awayEdit"></span></label>
+      </fieldset>
+      <p class="message" id="awayDone" role="status"></p>
+      <p><button class="homey-button-secondary-shadow wide" id="awayFresh" data-i18n="settings.awayFresh"></button></p>
+    </section>
 
     <fieldset class="homey-form-fieldset">
       <legend class="homey-form-legend" data-i18n="settings.here"></legend>
@@ -302,6 +315,38 @@
         if (lost) $('here').focus({ preventScroll: true });
       }
 
+      // ----- a phone away from home -----
+
+      /** The code for away that is shown; null when none is. */
+      var away = null;
+
+      function showAway(code) {
+        away = code;
+        $('awayPair').hidden = false;
+        say('awayCode', code.code.slice(0, 4) + ' ' + code.code.slice(4));
+        say('awayUntil', t('awayUntil', { time: clock(code.expiresAt) }));
+        document.querySelectorAll('input[name=awayRole]').forEach(function (radio) { radio.checked = radio.value === code.role; });
+        say('awayDone', '');
+      }
+
+      function askAway(role) { call('POST', '/code', { slot: 'away', role: role || null }).then(showAway, failed); }
+
+      /** The code shown was used, or ran out: it goes, and what became of it stays. */
+      function followAway(state) {
+        if (!away || !state || (state.open && state.open.serial === away.serial)) return;
+        var used = state.used && state.used.serial === away.serial;
+        say('awayDone', used ? t('awayUsed', { name: state.used.name }) : t('awayExpired'));
+        say('awayCode', '');
+        say('awayUntil', '');
+        away = null;
+      }
+
+      $('away').onclick = function () { askAway(null); };
+      $('awayFresh').onclick = function () { askAway(away ? away.role : null); };
+      document.querySelectorAll('input[name=awayRole]').forEach(function (radio) {
+        radio.onchange = function () { askAway(radio.value); };
+      });
+
       // ----- the devices -----
 
       /** The rows on the screen by their device: they stay, so the focus and an open list stay too. */
@@ -352,7 +397,7 @@
               role.setAttribute('aria-label', t('roleOf', { name: now.name }));
               button.setAttribute('aria-label', t('removeName', { name: now.name }));
             }
-            var seen = t('seen') + ' ' + new Date(now.lastSeen).toLocaleString();
+            var seen = (now.via === 'cloud' ? t('cloud') + ' · ' : '') + t('seen') + ' ' + new Date(now.lastSeen).toLocaleString();
             if (small.textContent !== seen) small.textContent = seen;
             if (setting === 0 && role.value !== now.role) role.value = now.role;
           },
@@ -394,6 +439,7 @@
         // what somebody is changing is not set back by an answer from before
         if (document.activeElement !== $('record')) $('record').checked = state.recording !== false;
         devices = state.devices;
+        followAway(state.away);
         followUsed(state.codes);
         if (fresh) {
           follow(state.codes.scan);

@@ -79,7 +79,16 @@
     "levelFullText": "All your flows, and widgets of other apps on the dashboard too. The key may do anything on your Homey; it stays on this Homey.",
     "flowsStep2Full": "Make a new key and tick every right.",
     "help": "If something is wrong",
-    "helpText": "Has a theme made a dashboard hard to read or use? Then put everything back: the house and every dashboard get Calm, and every device follows the house again. The themes themselves are kept. On one device you can also add #veilig after the address."
+    "helpText": "Has a theme made a dashboard hard to read or use? Then put everything back: the house and every dashboard get Calm, and every device follows the house again. The themes themselves are kept. On one device you can also add #veilig after the address.",
+    "away": "Pair a phone for away from home",
+    "awayIntro": "On that phone, open the dashboard that connects with an API key, go to Settings → Synced with your Homey → Pair with your Homey, and type this code there. From then on the dashboards there and here are the same, also away from home, through the Homey cloud.",
+    "awayUse": "Use only",
+    "awayEdit": "Also edit",
+    "awayUntil": "Works once, until __time__.",
+    "awayUsed": "__name__ is paired, through the cloud.",
+    "awayExpired": "This code no longer works. Make a new one if you still need it.",
+    "awayFresh": "New code",
+    "cloud": "Through the cloud"
   },
   "flow": {
     "notRunning": "The dashboard on the Homey is not running now. Restart the app Expressive Home.",

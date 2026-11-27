@@ -32,7 +32,7 @@ Er is geen account en geen eigen server. Rondkijken kan zonder Homey, in een voo
 |---|---|---|
 | Waarvoor | Uitproberen, en [onderweg](#onderweg) | Elk apparaat thuis, ook zonder internet |
 | Inloggen | Eén API-sleutel van je Homey, die in die browser blijft | Op elk apparaat één keer een code scannen |
-| Dashboards | Per browser | Op de Homey, op elk apparaat gelijk |
+| Dashboards | Per browser, of gelijk met de Homey als je hem koppelt aan het appje | Op de Homey, op elk apparaat gelijk |
 
 ## In de browser
 
@@ -54,6 +54,7 @@ Het dashboard staat ook online, op **https://diments.github.io/expressive-home/*
 - Zet de pagina **eerst op je beginscherm** en verbind daarna, vanaf het beginscherm. Op een iPhone heeft een web-app op het beginscherm een eigen opslag, die Safari niet na zeven dagen wist.
 - De pagina komt van GitHub, je sleutel niet: die blijft in je browser en gaat alleen naar je Homey. Wie je ontgrendelde telefoon heeft, kan wat je sleutel mag; slot, garage en alarm vragen altijd om vasthouden of bevestigen.
 - Binnen een andere website opent het dashboard niet; open het in een eigen tabblad.
+- **Dezelfde dashboards als thuis**: heb je het appje op je Homey, kies dan in de Homey-app bij de instellingen van Expressive Home **Een telefoon voor onderweg koppelen**, en typ de code van acht cijfers op de telefoon bij Instellingen → Gelijk met je Homey. Daarna zijn indeling, thema's en widgets hier en thuis hetzelfde, via de Homey-cloud. Eigen widgets verander je alleen thuis.
 
 ## Op de Homey
 

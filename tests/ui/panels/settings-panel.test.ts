@@ -249,3 +249,14 @@ test('without rooms, or without the right to arrange, there is nothing to choose
     expect([choices(panel), roomsSwitch(panel)]).toEqual([undefined, undefined]);
   }
 });
+
+test('a page with a key shows whether its dashboards are the same as on the hub; a demo and a page of the hub do not', async () => {
+  const away = { paired: false, role: null, up: false, mismatch: null };
+  const panel = await open({ away });
+  expect(panel.shadowRoot!.querySelector('mh-sync-section')).not.toBeNull();
+  for (const other of [{ status: { ...status, demo: true }, away }, { status: { ...status, served: true }, away }, { away: null }]) {
+    document.body.replaceChildren();
+    const hidden = await open(other);
+    expect(hidden.shadowRoot!.querySelector('mh-sync-section')).toBeNull();
+  }
+});

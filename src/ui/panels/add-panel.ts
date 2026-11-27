@@ -147,7 +147,7 @@ export class MhAddPanel extends LitElement {
 
   private renderWidgets() {
     const { t } = this.ctx;
-    const own = html`<mh-own-widgets .t=${t} .widgets=${this.ctx.widgets?.own?.() ?? []} .stand=${this.own}
+    const own = html`<mh-own-widgets .t=${t} .widgets=${this.ctx.widgets?.own?.() ?? []} .stand=${this.own} ?atHomeOnly=${this.ctx.widgets?.ownAtHomeOnly?.() ?? false}
       @stand=${(e: CustomEvent<OwnStand>) => { e.stopPropagation(); this.own = e.detail; }}
       @place-widget=${(e: CustomEvent<{ widget: WidgetFile }>) => { e.stopPropagation(); this.placeOwn(e.detail.widget); }}></mh-own-widgets>`;
     if (this.own.kind !== 'list') return own;

@@ -39,8 +39,8 @@ const app = (server: unknown): MaterialApp => Object.assign(new (load<new () => 
 test('every request of the settings has a place in the app', () => {
   const api = load<Record<string, (request: Record<string, unknown>) => Promise<unknown>>>('api.js');
   expect(Object.keys(api).sort()).toEqual(Object.keys(manifest.api).sort());
-  // never for who Homey does not know
-  for (const route of Object.values(manifest.api)) expect(route).not.toHaveProperty('public');
+  // never for who Homey does not know, except the door for a device away from home, which keeps its own pairing
+  expect(Object.entries(manifest.api).filter(([, route]) => 'public' in route).map(([name, route]) => [name, (route as { public?: unknown }).public])).toEqual([['sync', true]]);
   expect(manifest.api).toMatchObject({ getCode: { method: 'POST', path: '/code' }, setRole: { method: 'PUT', path: '/devices/:id' }, setFlowKey: { method: 'POST', path: '/flow-key' }, removeFlowKey: { method: 'DELETE', path: '/flow-key' } });
 });
 
@@ -56,7 +56,7 @@ test('a key for flows goes to the server, and only what became of it comes back'
   expect(await api['setFlowKey']!({ homey, body: null })).toEqual({ result: 'works' });
   await api['removeFlowKey']!({ homey });
   expect(server.removeFlowKey).toHaveBeenCalledOnce();
-  expect(await api['getState']!({ homey })).toEqual({ running: true, connected: true, devices: [], flowKey: 'works', codes: { scan: 'x' }, buttons: ['Film'], recording: true, appLive: { state: 'on', apps: 2 } });
+  expect(await api['getState']!({ homey })).toEqual({ running: true, connected: true, devices: [], flowKey: 'works', codes: { scan: 'x' }, away: null, buttons: ['Film'], recording: true, appLive: { state: 'on', apps: 2 } });
 });
 
 test('a code is asked for with a slot, a right and whether it has to be a new one', async () => {
@@ -152,6 +152,42 @@ test('the page is one list of sections, without anything folded away, with three
   const levels = [...page.matchAll(/<input[^>]*name="level"[^>]*value="(\w+)"/g)].map((match) => match[1]);
   expect(levels).toEqual(['none', 'flows', 'full']);
   for (const key of ['levelNone', 'levelNoneText', 'levelFlows', 'levelFlowsText', 'levelFull', 'levelFullText', 'flowsStep2Full', 'help', 'helpText']) {
+    expect([key, nl!['settings']![key]?.length ?? 0]).not.toEqual([key, 0]);
+    expect([key, en!['settings']![key]?.length ?? 0]).not.toEqual([key, 0]);
+  }
+});
+
+test('the door passes only the body of a request to the server, and says so when the server is not running', async () => {
+  const seen: unknown[] = [];
+  const server = { door: (body: unknown) => { seen.push(body); return { error: 'not-paired' }; } };
+  const api = load<Record<string, (request: Record<string, unknown>) => Promise<unknown>>>('api.js');
+  expect(manifest.api['sync']).toEqual({ method: 'POST', path: '/sync', public: true });
+  const homey = { app: app(server) };
+  expect(await api['sync']!({ homey, body: { call: 'session', token: 't' }, query: { x: '1' }, params: {} })).toEqual({ error: 'not-paired' });
+  expect(seen).toEqual([{ call: 'session', token: 't' }]);
+  expect(await api['sync']!({ homey: { app: app(null) }, body: { call: 'session' } })).toEqual({ error: 'not-running' });
+  expect(await api['sync']!({ homey: { app: app({ door: () => { throw new Error('geheim'); } }) }, body: {} })).toEqual({ error: 'bad' });
+});
+
+test('a code for a phone away from home is asked for on purpose, with a right; what became of it is in the state', async () => {
+  const server = {
+    awayCode: vi.fn(() => ({ code: '12345678', role: 'use', expiresAt: 1, serial: 's' })), awayCodes: () => ({ open: null, used: { serial: 's', name: 'Telefoon' } }),
+    connected: () => true, devices: () => [{ id: 'd1', name: 'Telefoon', role: 'use', via: 'cloud' }], flowKey: () => 'none', codes: () => ({}), buttons: () => [], recording: () => true, appLive: () => ({}),
+  };
+  const homey = { app: app(server) };
+  const api = load<Record<string, (request: Record<string, unknown>) => Promise<unknown>>>('api.js');
+  expect(await api['getCode']!({ homey, body: { slot: 'away' } })).toEqual({ code: '12345678', role: 'use', expiresAt: 1, serial: 's' });
+  await api['getCode']!({ homey, body: { slot: 'away', role: 'edit' } });
+  expect(server.awayCode.mock.calls).toEqual([[null], ['edit']]);
+  await expect(api['getCode']!({ homey, body: { slot: 'away', role: 'admin' } })).rejects.toThrow();
+  expect(await api['getState']!({ homey })).toMatchObject({ away: { open: null, used: { name: 'Telefoon' } }, devices: [{ via: 'cloud' }] });
+});
+
+test('the settings have a way to pair a phone for away from home, and mark a device paired through the cloud', () => {
+  expect(page).toMatch(/<button[^>]*id="away"[^>]*data-i18n="settings\.away"/);
+  expect(page).toMatch(/id="awayCode"/);
+  expect(page).toContain("t('cloud')");
+  for (const key of ['away', 'awayIntro', 'awayUse', 'awayEdit', 'awayUntil', 'awayUsed', 'awayFresh', 'cloud']) {
     expect([key, nl!['settings']![key]?.length ?? 0]).not.toEqual([key, 0]);
     expect([key, en!['settings']![key]?.length ?? 0]).not.toEqual([key, 0]);
   }

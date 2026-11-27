@@ -69,6 +69,8 @@ import { roomsOf } from '../../rooms/rooms';
 import { dangerQuestion } from '../model/guard-view';
 import type { DangerDetail } from '../parts/ask-danger';
 import { servedEnvironment } from './served';
+import { awayPairing, createSynced, keepAwayPairing, pairAway, type AwayPairResult, type Synced } from './synced';
+import type { AwayState } from '../panels/sync-section';
 import { createWall, type Wall } from './wall';
 import '../parts/button';
 import '../parts/dialog';
@@ -134,6 +136,8 @@ function keptSun(now = Date.now()): boolean | null {
 
 /** Where the brightness of the screen of before is kept while the dashboard dims it. */
 const SCREEN_KEY = 'dashboard.screen.before';
+/** Set just before the page starts anew because the hub took this page's pairing away: said once when it is back. */
+export const AWAY_GONE_KEY = 'dashboard.away.gone';
 
 /** What the app needs from the outside world; the browser's by default, a fake one in tests. */
 export interface AppEnvironment {
@@ -191,13 +195,65 @@ export interface AppEnvironment {
     settled(): boolean;
     reload(): void;
   };
+  /** A page with a key that is paired with the app on its hub: its dashboards, looks and own widgets come from there. */
+  synced?: Synced;
+  /** A page with a key: pairing with the app on its hub, for dashboards that are the same at home and away. */
+  away?: {
+    pair(code: string, name: string): Promise<AwayPairResult>;
+    /** Whether this page is paired with the app on the hub of its key. */
+    paired(): boolean;
+    /** Takes this page off the hub and forgets the pairing. */
+    unpair(): Promise<void>;
+  };
+}
+
+/** The hub of the key kept in this browser; null when there is none. */
+function keptHomeyId(storage: Pick<Storage, 'getItem'>): string | null {
+  try {
+    const id: unknown = (JSON.parse(storage.getItem(STORAGE_KEY) ?? 'null') as { connection?: { homeyId?: unknown } } | null)?.connection?.homeyId;
+    return typeof id === 'string' ? id : null;
+  } catch {
+    return null;
+  }
 }
 
 /** The browser: local storage (or a stand-in when refused), Athom's library, timers and animation frames. */
 export function browserEnvironment(): AppEnvironment {
   if (__SERVED_BY_HOMEY__) return servedEnvironment(createDemoClient);
+  const storage = safeStorage(() => window.localStorage);
+  const homeyId = keptHomeyId(storage);
+  // paired with the app on the hub of the key: the dashboards are the hub's
+  const synced = homeyId !== null && awayPairing(storage, homeyId) !== null
+    ? createSynced(storage, homeyId, { fetch: window.fetch.bind(window), setTimeout: (fn, ms) => window.setTimeout(fn, ms), clearTimeout: (handle) => window.clearTimeout(handle as number), now: () => Date.now() })
+    : undefined;
+  if (synced) {
+    // out of sight it does not look; looked at again, or back online, it looks at once; what waits goes when the page closes
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') {
+        synced.flush();
+        synced.link.sleep();
+      } else {
+        synced.link.wake();
+      }
+    });
+    window.addEventListener('pagehide', () => synced.flush(true));
+    for (const back of ['pageshow', 'online']) window.addEventListener(back, () => synced.link.wake());
+  }
   return {
-    configStore: createLocalConfigStore(safeStorage(() => window.localStorage)),
+    ...(synced ? { synced } : {}),
+    away: {
+      pair: async (code, name) => {
+        const id = keptHomeyId(storage);
+        return id === null ? 'unreachable' : pairAway(storage, window.fetch.bind(window), id, code, name);
+      },
+      paired: () => awayPairing(storage, keptHomeyId(storage)) !== null,
+      unpair: async () => {
+        if (synced) await synced.unpair();
+        const id = keptHomeyId(storage);
+        if (id !== null) keepAwayPairing(storage, id, null);
+      },
+    },
+    configStore: synced?.configStore ?? createLocalConfigStore(storage),
     looksStore: createLooksStore(safeStorage(() => window.localStorage)),
     createRealClient: (settings) => {
       const lib = homeyLib();
@@ -386,16 +442,27 @@ export class MhApp extends LitElement {
       clearTimeout: env.clearTimeout,
       t: translate,
       browserLanguages: env.browserLanguages,
-      mayArrange: () => env.served?.mayArrange() ?? true,
+      mayArrange: () => env.served?.mayArrange() ?? env.synced?.mayArrange() ?? true,
       served: env.served !== undefined,
       ...(env.looksStore ? { looksStore: env.looksStore } : {}),
-      ...(env.served ? { lookRole: () => env.served!.knownRole() } : {}),
-      ...(env.served?.sendLooks ? { sendLooks: (ops: LookOp[]) => env.served!.sendLooks!(ops) } : {}),
+      ...(env.served ? { lookRole: () => env.served!.knownRole() } : env.synced ? { lookRole: () => env.synced!.knownRole() } : {}),
+      ...(env.served?.sendLooks ? { sendLooks: (ops: LookOp[]) => env.served!.sendLooks!(ops) } : env.synced ? { sendLooks: (ops: LookOp[]) => env.synced!.sendLooks(ops) } : {}),
     });
-    env.served?.onLooks?.((doc) => this.controller.adoptHubLooks(doc));
-    env.served?.onLooksRefused?.(() => this.notify({ text: this.ctx.t('notify.looksRefused'), icon: 'info' }));
-    env.served?.onLooksTooBig?.(() => this.notify({ text: this.ctx.t('notify.looksTooBig'), icon: 'warning' }));
-    env.served?.onConflict(() => this.notify({ text: this.ctx.t('notify.conflict'), icon: 'info' }));
+    // what is shared with the app on the hub: on a page the hub served, or on a page with a key that is paired with it
+    const shared = env.served ?? env.synced;
+    shared?.onLooks?.((doc) => this.controller.adoptHubLooks(doc));
+    shared?.onLooksRefused?.(() => this.notify({ text: this.ctx.t('notify.looksRefused'), icon: 'info' }));
+    shared?.onLooksTooBig?.(() => this.notify({ text: this.ctx.t('notify.looksTooBig'), icon: 'warning' }));
+    shared?.onConflict(() => this.notify({ text: this.ctx.t('notify.conflict'), icon: 'info' }));
+    env.synced?.onUnsaved(() => this.notify({ text: this.ctx.t('notify.saveLater'), icon: 'cloud_off' }));
+    // what the door says of the hub shows in the settings
+    for (const type of ['open', 'lost', 'role'] as const) env.synced?.link.on(type, () => this.requestUpdate());
+    env.synced?.onUnpaired((by) => {
+      // the copy here is its own from now on; the page starts anew without the hub's dashboards, and says why when the hub did it
+      if (by === 'hub') try { window.sessionStorage.setItem(AWAY_GONE_KEY, '1'); } catch { /* best effort */ }
+      window.location.reload();
+    });
+    env.synced?.onRefused((why) => this.notify({ text: this.ctx.t(why === 'too-big' ? 'sync.tooBig' : why === 'format' ? 'sync.updateApp' : 'sync.refused'), icon: 'error' }));
     this.scanned = env.served?.scanned() ?? '';
     env.served?.onScanned((code) => {
       if (this.state?.phase === 'dashboard') return;
@@ -431,6 +498,8 @@ export class MhApp extends LitElement {
     this.hearScreen();
     this.ctx = { store: this.store, t: createTranslate(this.state.language.active), actions: this.controller.actions, status: () => this.controller.status(), busy: (id) => this.controller.busy(id), history: this.controller.history,
       widgets: { boards: () => this.places().map(({ id, name, icon }) => ({ id, name, icon })), openBoard: (id) => this.navigate(`board:${id}`), own: () => this.widgetLibrary?.list() ?? [], safe: () => this.safe,
+        // paired from outside: own widgets are only changed at home
+        ownAtHomeOnly: () => env.synced !== undefined,
         ask: (deviceId, capabilityId, value, widgetName) => this.askForWidget(deviceId, capabilityId, value, widgetName),
         ...(env.served?.appWidgets ? {
           apps: () => this.readAppWidgets(env.served!.appWidgets!),
@@ -439,9 +508,10 @@ export class MhApp extends LitElement {
         } : {}),
         ...(env.served?.appLive ? { live: (ref, listener) => env.served!.appLive!(ref, listener) } : {}),
         weather: this.weatherSource, energy: (period) => this.energySources[period] } };
-    this.widgetLibrary = env.served?.widgets ?? createLocalWidgets(safeStorage(() => window.localStorage), () => this.controller.hubId(), window);
+    this.widgetLibrary = env.served?.widgets ?? env.synced?.widgets ?? createLocalWidgets(safeStorage(() => window.localStorage), () => this.controller.hubId(), window);
     this.widgetLibrary.subscribe(() => this.requestUpdate());
     document.documentElement.lang = this.state.language.active;
+    this.sayAwayGone();
     this.controller.subscribe(() => {
       this.state = this.controller.getState();
       // the hub came back: what is shown of it is asked again
@@ -858,6 +928,8 @@ export class MhApp extends LitElement {
 
   protected override updated(): void {
     this.applyScreen();
+    // at rest, as on a wall tablet, a page paired from outside looks at the hub less often
+    if (this.started) this.env.synced?.link.rest(this.wall.shown !== 'none');
     // a question of a widget that went without a yes
     if (this.widgetQuestion && (!this.asking || this.question !== this.widgetQuestion.question)) this.endWidgetQuestion(false);
     if (!this.state) return;
@@ -1054,6 +1126,8 @@ export class MhApp extends LitElement {
   /** An own widget out of the house, after a question that says where it is placed. */
   private askRemoveWidget(widget: WidgetFile): void {
     const { t } = this.ctx;
+    // paired from outside: own widgets are only changed at home
+    if (this.env.synced) { this.notify({ text: t('ownWidgets.atHome'), icon: 'home' }); return; }
     const name = widgetText(widget.name, t.language);
     const ref = `own:${widget.id}`;
     const places = this.state.layout.dashboards.flatMap((d) => d.sections ?? []).flatMap((s) => s.tiles).filter((tile) => tile.spec.kind === 'widget' && tile.spec.widget === ref).length;
@@ -1525,6 +1599,8 @@ export class MhApp extends LitElement {
         @look-remove=${(e: CustomEvent<{ id: string }>) => this.controller.removeTheme(e.detail.id)}
         @close=${() => { this.panel = 'none'; }}></mh-theme-panel>
       <mh-settings-panel .t=${this.ctx.t} .language=${s.language.choice} ?open=${this.panel === 'settings'} .status=${status} .missing=${s.missing} .softwareVersion=${s.softwareVersion} appVersion=${__APP_VERSION__}
+        .away=${this.awayState()} .pairAway=${this.env.away ? (code: string, name: string) => this.env.away!.pair(code, name) : null}
+        @away-paired=${() => window.location.reload()} @away-unpair=${() => { void this.unpairAway(); }}
         ?overviewAutomatic=${s.layout.dashboards.find((d) => d.id === OVERVIEW_ID)?.sections == null} @export=${() => this.saveLayout()} @reset=${() => this.askReset()}
         @import=${(e: CustomEvent<{ name: string; text: string }>) => this.loadLayout(e.detail)}
         @close=${() => { this.panel = 'none'; }} @disconnect=${() => { this.panel = 'none'; void this.controller.disconnect(); }}
@@ -1550,6 +1626,31 @@ export class MhApp extends LitElement {
   private renderPairing() {
     return html`<mh-pair-screen .t=${this.ctx.t} issue=${this.pairIssue} scanned=${this.scanned} kind=${this.env.served?.kind() ?? 'laptop'} ?busy=${this.pairing} ?revoked=${this.state.connectIssue === 'revoked'}
       @pair=${(e: CustomEvent<{ code: string; name: string }>) => { void this.pair(e.detail.code, e.detail.name); }}></mh-pair-screen>`;
+  }
+
+  /** A page with a key: where it stands with the app on its hub, for the settings; null where that does not count. */
+  private awayState(): AwayState | null {
+    const { away, synced } = this.env;
+    if (!away) return null;
+    if (!synced) return { paired: false, role: null, up: false, mismatch: null };
+    return { paired: true, role: synced.knownRole(), up: synced.up(), mismatch: synced.mismatch() };
+  }
+
+  /** Takes this page off the hub; the copy of the dashboards here stays, and the page starts anew without the hub. */
+  private async unpairAway(): Promise<void> {
+    await this.env.away?.unpair();
+    window.location.reload();
+  }
+
+  /** The page started anew because the hub took its pairing away: said once. */
+  private sayAwayGone(): void {
+    let gone = false;
+    try {
+      gone = window.sessionStorage.getItem(AWAY_GONE_KEY) !== null;
+      window.sessionStorage.removeItem(AWAY_GONE_KEY);
+    } catch { /* best effort */ }
+    // once the page has its snackbar
+    if (gone) void this.updateComplete.then(() => this.notify({ text: this.ctx.t('sync.gone'), icon: 'link_off' }));
   }
 
   /** Inside a frame of another website: the default theme on the page and the language of the browser, nothing else. */

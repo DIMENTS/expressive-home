@@ -1,4 +1,8 @@
 {
+  "1.5.0": {
+    "en": "Dashboards that are the same at home and away: pair a phone with a code of eight digits in the settings of the app, and the dashboard with a key keeps the arrangement, themes and widgets of your Homey, through the Homey cloud. Own widgets are only changed at home.",
+    "nl": "Dezelfde dashboards thuis en onderweg: koppel een telefoon met een code van acht cijfers in de instellingen van de app, en het dashboard met een sleutel houdt de indeling, thema’s en widgets van je Homey, via de Homey-cloud. Eigen widgets verander je alleen thuis."
+  },
   "1.4.0": {
     "en": "The weather and the energy of your Homey as widgets, and the weather on the rest screen. Tiles of their own for a fan, a robot vacuum, a washing machine or dishwasher, a charge point and a car. With Fully Kiosk a wall tablet really dims its screen at rest and at night, and light and dark can follow the sun. Widgets of apps change live.",
     "nl": "Het weer en de energie van je Homey als widgets, en het weer op het rustbeeld. Eigen tegels voor een ventilator, een robotstofzuiger, een wasmachine of vaatwasser, een laadpaal en een auto. Met Fully Kiosk dimt een wandtablet echt zijn scherm in rust en ’s nachts, en licht en donker kunnen de zon volgen. Widgets van apps veranderen live mee."

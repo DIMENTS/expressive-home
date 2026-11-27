@@ -187,7 +187,7 @@ test('the dashboards are the same on every device, at once', async ({ browser })
   // the tablet follows the house; the laptop may choose a look of its own
   await laptop.page.getByRole('button', { name: 'Klaar' }).click();
   await laptop.page.locator('mh-rail').getByRole('button', { name: 'Thema' }).click();
-  await laptop.page.getByRole('radio', { name: 'Dit apparaat' }).click();
+  await laptop.page.getByRole('radiogroup', { name: 'Voor wie' }).getByRole('radio', { name: 'Dit apparaat' }).click();
   await laptop.page.getByRole('radio', { name: 'Donker' }).click();
   await expect(laptop.page.locator('html')).toHaveAttribute('data-mode', 'dark');
   await expect(tablet.page.locator('html')).toHaveAttribute('data-mode', 'light');

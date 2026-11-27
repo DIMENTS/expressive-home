@@ -1,7 +1,8 @@
 'use strict';
 
 // For the settings of the app: Homey lets only its own users in. A key goes in and never comes out; a code to pair with only
-// comes out when it is asked for.
+// comes out when it is asked for. One exception, `sync`: the door for a device away from home, open to anyone through the
+// cloud, which keeps to its own pairing and only ever hands out the shared dashboards.
 module.exports = {
   async getState({ homey }) { return homey.app.getState(); },
   async getCode({ homey, body }) { return homey.app.getCode(body); },
@@ -12,4 +13,6 @@ module.exports = {
   async resetLooks({ homey }) { return homey.app.resetLooks(); },
   async setRecording({ homey, body }) { return homey.app.setRecording(body && body.on); },
   async wipeRecording({ homey }) { return homey.app.wipeRecording(); },
+  // Open to anyone, without a key: only the body goes on, never the rest of the request.
+  async sync({ homey, body }) { return homey.app.sync(body); },
 };

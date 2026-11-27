@@ -26,6 +26,7 @@ export class MhOwnWidgets extends LitElement {
     t: { attribute: false },
     widgets: { attribute: false },
     stand: { attribute: false },
+    atHomeOnly: { type: Boolean },
     text: { state: true },
     parsed: { state: true },
   };
@@ -33,6 +34,8 @@ export class MhOwnWidgets extends LitElement {
   declare t: Translate;
   declare widgets: WidgetFile[];
   declare stand: OwnStand;
+  /** A page paired from outside: own widgets are placed and shared here, and only changed at home. */
+  declare atHomeOnly: boolean;
   declare text: string;
   declare parsed: ParsedWidget | null;
 
@@ -41,6 +44,7 @@ export class MhOwnWidgets extends LitElement {
     this.t = dutch;
     this.widgets = [];
     this.stand = { kind: 'list' };
+    this.atHomeOnly = false;
     this.text = '';
     this.parsed = null;
   }
@@ -88,8 +92,8 @@ export class MhOwnWidgets extends LitElement {
     const { t } = this;
     return html`<h3 class="group">${t('ownWidgets.title')}</h3>
       ${this.widgets.length === 0 ? html`<p class="help">${t('ownWidgets.none')}</p>` : html`<div class="list">${this.widgets.map((widget) => this.renderRow(widget))}</div>`}
-      <div class="actions"><mh-button variant="tonal" @click=${() => this.go({ kind: 'import' })}><mh-icon name="download"></mh-icon>${t('ownWidgets.add')}</mh-button></div>
-      <mh-note icon="code">${t('ownWidgets.make')}</mh-note>`;
+      ${this.atHomeOnly ? html`<mh-note icon="home">${t('ownWidgets.atHome')}</mh-note>` : html`<div class="actions"><mh-button variant="tonal" @click=${() => this.go({ kind: 'import' })}><mh-icon name="download"></mh-icon>${t('ownWidgets.add')}</mh-button></div>
+      <mh-note icon="code">${t('ownWidgets.make')}</mh-note>`}`;
   }
 
   // ----- taking one in -----

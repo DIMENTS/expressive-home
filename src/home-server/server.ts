@@ -17,8 +17,7 @@ import type { AppWidgets } from './app-widgets';
 import { parseWants, type HubLive } from './app-live';
 import { slimWeather } from '../widgets/weather';
 import { ENERGY_PERIODS, periodArgs, slimEnergy, type EnergyPeriod } from '../widgets/energy';
-import { parseWidgetOps } from '../widgets/widget-library';
-import { parseLookOps } from '../theme/look-ops';
+import { createDocuments, type Refusal } from './documents';
 
 export interface HomeServerDeps {
   pairing: Pairing;
@@ -182,6 +181,7 @@ const text = (value: unknown): string => (typeof value === 'string' ? value : ''
  */
 export function createHomeServer(deps: HomeServerDeps) {
   const streams = new Set<{ response: ServerResponse; deviceId: string; id: string; missed: Set<string> }>();
+  const documents = createDocuments(deps);
   /** Streams that got their last word; what a browser does not take by the next ping is cut off. */
   const ending = new Set<ServerResponse>();
 
@@ -359,33 +359,37 @@ export function createHomeServer(deps: HomeServerDeps) {
     json(response, 200, answer);
   }
 
+  /** A refusal of the shared documents as an answer of this server. */
+  function refused(refusal: Refusal, bad: string): never {
+    if (refusal.error === 'role') throw new HttpError(403, 'use-only');
+    if (refusal.error === 'too-big') throw new HttpError(413, 'too-big');
+    throw new HttpError(400, bad);
+  }
+
   async function putLayouts(request: IncomingMessage, response: ServerResponse): Promise<void> {
     if (device(request).role !== 'edit') throw new HttpError(403, 'use-only');
     const body = await bodyOf(request, LAYOUT_BODY);
     // the owner can have taken the device away while it was sending, or its right
-    if (device(request).role !== 'edit') throw new HttpError(403, 'use-only');
-    const { ok, doc } = deps.layouts.put(typeof body['base'] === 'number' ? body['base'] : -1, body);
-    json(response, ok ? 200 : 409, doc);
+    const done = documents.putLayouts(device(request).role, body);
+    if ('error' in done) refused(done, 'bad-layouts');
+    json(response, done.ok ? 200 : 409, done.doc);
   }
 
   async function postLooks(request: IncomingMessage, response: ServerResponse): Promise<void> {
     if (device(request).role !== 'edit') throw new HttpError(403, 'use-only');
     const body = await bodyOf(request, LOOKS_BODY);
     // the right can be gone while it was sending
-    if (device(request).role !== 'edit') throw new HttpError(403, 'use-only');
-    const ops = parseLookOps(body['ops']);
-    if (!ops) throw new HttpError(400, 'bad-looks');
-    if (!deps.looks.fits(ops)) throw new HttpError(413, 'too-big');
-    json(response, 200, deps.looks.apply(ops));
+    const done = documents.looksOps(device(request).role, body['ops']);
+    if ('error' in done) refused(done, 'bad-looks');
+    json(response, 200, done.doc);
   }
 
   async function postWidgets(request: IncomingMessage, response: ServerResponse): Promise<void> {
     if (device(request).role !== 'edit') throw new HttpError(403, 'use-only');
     const body = await bodyOf(request, WIDGETS_BODY);
-    if (device(request).role !== 'edit') throw new HttpError(403, 'use-only');
-    const ops = parseWidgetOps(body['ops']);
-    if (!ops) throw new HttpError(400, 'bad-widgets');
-    json(response, 200, deps.widgets.apply(ops));
+    const done = documents.widgetsOps(device(request).role, body['ops']);
+    if ('error' in done) refused(done, 'bad-widgets');
+    json(response, 200, done.doc);
   }
 
   async function appWidgetApi(request: IncomingMessage, response: ServerResponse): Promise<void> {

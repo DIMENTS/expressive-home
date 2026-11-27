@@ -46,6 +46,8 @@ export interface WidgetContext {
   openBoard(id: string): void;
   /** The own widgets of the open house. */
   own?(): WidgetFile[];
+  /** A page paired from outside: own widgets are placed and shared, and only changed at home. */
+  ownAtHomeOnly?(): boolean;
   /** The widgets of other apps on the hub, through the app on the hub (a trial); absent without it. */
   apps?(): Promise<{ state: string; widgets: { ref: string; name: Partial<Record<'en' | 'nl', string>>; app: string }[] }>;
   /** What the list of the hub says of one widget of an app: its settings, devices and texts. */

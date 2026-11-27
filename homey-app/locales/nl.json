@@ -79,7 +79,16 @@
     "levelFullText": "Al je flows, en ook widgets van andere apps op het dashboard. De sleutel mag alles op je Homey; hij blijft op deze Homey.",
     "flowsStep2Full": "Maak een nieuwe sleutel en vink alle rechten aan.",
     "help": "Als er iets mis is",
-    "helpText": "Is een dashboard onleesbaar of onbruikbaar geworden door een thema? Zet dan alles terug: het huis en elk dashboard krijgen Rustig, en elk apparaat volgt het huis weer. De thema’s zelf blijven bewaard. Op één apparaat kan het ook door #veilig achter het adres te zetten."
+    "helpText": "Is een dashboard onleesbaar of onbruikbaar geworden door een thema? Zet dan alles terug: het huis en elk dashboard krijgen Rustig, en elk apparaat volgt het huis weer. De thema’s zelf blijven bewaard. Op één apparaat kan het ook door #veilig achter het adres te zetten.",
+    "away": "Een telefoon voor onderweg koppelen",
+    "awayIntro": "Open op die telefoon het dashboard dat met een API-sleutel verbindt, ga naar Instellingen → Gelijk met je Homey → Koppelen met je Homey, en typ daar deze code. Daarna zijn de dashboards daar en hier gelijk, ook onderweg, via de Homey-cloud.",
+    "awayUse": "Alleen gebruiken",
+    "awayEdit": "Ook bewerken",
+    "awayUntil": "Werkt één keer, tot __time__.",
+    "awayUsed": "__name__ is gekoppeld, via de cloud.",
+    "awayExpired": "Deze code werkt niet meer. Maak een nieuwe als je hem nog nodig hebt.",
+    "awayFresh": "Nieuwe code",
+    "cloud": "Via de cloud"
   },
   "flow": {
     "notRunning": "Het dashboard op de Homey draait nu niet. Herstart de app Expressive Home.",

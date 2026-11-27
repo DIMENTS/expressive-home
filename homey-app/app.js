@@ -56,17 +56,29 @@ class ExpressiveHomeApp extends Homey.App {
     if (this.server) await this.server.close();
   }
 
+  /** The door for a device away from home: the server answers, and never with an error it throws. */
+  async sync(body) {
+    if (!this.server) return { error: 'not-running' };
+    try {
+      return this.server.door(body);
+    } catch {
+      return { error: 'bad' };
+    }
+  }
+
   /** What the settings show; asked every few seconds, so nothing here waits for anything. */
   async getState() {
     if (!this.server) return { running: false, problem: this.problem };
     const { server } = this;
-    return { running: true, connected: server.connected(), devices: server.devices(), flowKey: server.flowKey(), codes: server.codes(), buttons: server.buttons(), recording: server.recording(), appLive: server.appLive() };
+    return { running: true, connected: server.connected(), devices: server.devices(), flowKey: server.flowKey(), codes: server.codes(), away: server.awayCodes ? server.awayCodes() : null, buttons: server.buttons(), recording: server.recording(), appLive: server.appLive() };
   }
 
   /** The code that another device pairs with; a new one when none is open, or when that is asked for. */
   async getCode(body) {
     const { slot = 'scan', role = null, fresh = false } = body || {};
-    if (!this.server || (slot !== 'scan' && slot !== 'here') || (role !== null && !isRole(role))) throw new Error('not-possible');
+    if (!this.server || (slot !== 'scan' && slot !== 'here' && slot !== 'away') || (role !== null && !isRole(role))) throw new Error('not-possible');
+    // a phone away from home: a code of eight digits of its own, made only on purpose
+    if (slot === 'away') return this.server.awayCode(role);
     return this.server.code(slot, role, fresh === true);
   }
 

@@ -32,7 +32,7 @@ There is no account and no server of ours. You can look around without a Homey, 
 |---|---|---|
 | For | Trying it out, and [away from home](#away-from-home) | Every device at home, also without internet |
 | Signing in | One API key of your Homey, which stays in that browser | Scan a code once on every device |
-| Dashboards | Per browser | On the Homey, the same on every device |
+| Dashboards | Per browser, or the same as on the Homey once paired with the app | On the Homey, the same on every device |
 
 ## In the browser
 
@@ -54,6 +54,7 @@ The dashboard is also online, at **https://diments.github.io/expressive-home/**.
 - **Add the page to your home screen first**, then connect from there. On an iPhone a web app on the home screen has storage of its own, which Safari does not clear after seven days.
 - The page comes from GitHub, your key does not: it stays in your browser and only goes to your Homey. Whoever has your unlocked phone can do what your key allows; lock, garage and alarm always ask you to hold or confirm.
 - Inside another website the dashboard does not open; open it in a tab of its own.
+- **The same dashboards as at home**: if you have the app on your Homey, choose **Pair a phone for away from home** in the settings of Expressive Home in the Homey app, and type the eight-digit code on the phone under Settings → Synced with your Homey. From then on the arrangement, themes and widgets are the same here and at home, through the Homey cloud. Own widgets are only changed at home.
 
 ## On the Homey
 

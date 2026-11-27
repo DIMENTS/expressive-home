@@ -7,6 +7,8 @@ import type { IconName } from '../icons/icons';
 import { defaultWall, type WallSettings } from '../../wall/settings';
 import { sharedStyles } from '../parts/shared-styles';
 import { panelStyles, resultListStyles } from './panel-styles';
+import './sync-section';
+import type { AwayState } from './sync-section';
 import '../parts/button';
 import '../parts/choice-group';
 import '../parts/dialog';
@@ -48,6 +50,8 @@ export class MhSettingsPanel extends LitElement {
     grouping: { type: String },
     roomsShown: { type: Boolean },
     overviewAutomatic: { type: Boolean },
+    away: { attribute: false },
+    pairAway: { attribute: false },
   };
 
   /** The texts, in the language of the app; Dutch until the app sets it. */
@@ -55,6 +59,9 @@ export class MhSettingsPanel extends LitElement {
   declare t: Translate;
   /** The Overzicht is not an own layout: there is nothing to reset. */
   declare overviewAutomatic: boolean;
+  /** A page with a key: where it stands with the app on its hub; null where that does not count. */
+  declare away: AwayState | null;
+  declare pairAway: ((code: string, name: string) => Promise<string>) | null;
   /** The dashboards, for the one this device starts with (null: the first). */
   declare boards: { id: string; name: string }[];
   declare startBoard: string | null;
@@ -78,6 +85,8 @@ export class MhSettingsPanel extends LitElement {
   constructor() {
     super();
     this.t = dutch;
+    this.away = null;
+    this.pairAway = null;
     this.language = null;
     this.open = false;
     this.status = { route: null, canControl: true, canStartFlows: true, demo: false };
@@ -222,6 +231,7 @@ export class MhSettingsPanel extends LitElement {
     return html`<mh-sheet .t=${this.t} ?open=${this.open} heading=${this.t('settings.title')} subheading=${this.t('settings.subtitle')} icon="settings"
       @close=${(e: Event) => { e.stopPropagation(); this.emit('close'); }}>
       ${this.renderConnection()}
+      ${this.away && !this.status.demo && !this.status.served ? html`<mh-sync-section .t=${this.t} .away=${this.away} .pairAway=${this.pairAway}></mh-sync-section>` : nothing}
       ${this.renderRights()}
       ${this.renderLanguage()}
       ${this.renderStartBoard()}

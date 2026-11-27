@@ -37,3 +37,11 @@ test('the list places a widget with the plus; nothing is placed by itself', asyn
   inside(part, '[data-own="gauge"] mh-button.add').click();
   expect(places.map((p) => p.widget.id)).toEqual(['gauge']);
 });
+
+test('on a page paired from outside the own widgets are only placed and shared: changing them happens at home', async () => {
+  const part = await mount<HTMLElement & { stand: unknown }>('mh-own-widgets', { t, widgets: [gauge()], stand: { kind: 'list' }, atHomeOnly: true });
+  const text = part.shadowRoot!.textContent!.replace(/\s+/g, ' ');
+  expect(text).toContain('Eigen widgets verander je alleen thuis.');
+  expect([...part.shadowRoot!.querySelectorAll<HTMLElement>('mh-button')].map((b) => b.textContent!.trim())).not.toContain('Widget toevoegen');
+  expect(part.shadowRoot!.querySelector('[data-own="gauge"] mh-button.add')).not.toBeNull();
+});

@@ -386,3 +386,32 @@ test('recording what Homey does not keep is on, can be switched off, and wiped a
   expect(s.problems).toEqual([]);
   await s.context.close();
 });
+
+/** A question to the door of the app, as the cloud brings it from a page with a key elsewhere. */
+async function door<T = Record<string, unknown>>(body: Record<string, unknown>): Promise<T> {
+  const answer = await (await fetch(`http://127.0.0.1:${CONTROL_PORT}/settings-api`, { method: 'POST', body: JSON.stringify({ method: 'POST', path: '/sync', body }) })).json() as { result: T };
+  return answer.result;
+}
+
+test('a phone for away from home: a code of eight digits made on purpose, pairing through the door, and marked as through the cloud', async ({ browser }) => {
+  const s = await settings(browser, { width: 360 });
+  await s.page.getByRole('button', { name: 'Een telefoon voor onderweg koppelen' }).click();
+  const shown = s.page.locator('#awayCode');
+  await expect(shown).toHaveText(/^\d{4} \d{4}$/);
+  const code = (await shown.textContent())!.replace(' ', '');
+  // a wrong code first: nothing is paired, and the code still works
+  expect(await door({ call: 'pair', code: '00000000', name: 'Raden' })).toEqual({ error: 'code' });
+  const paired = await door<{ token: string; device: { role: string } }>({ call: 'pair', code, name: 'Telefoon onderweg' });
+  expect(paired.device.role).toBe('use');
+  await expect(s.page.getByText('Telefoon onderweg is gekoppeld, via de cloud.')).toBeVisible();
+  await expect(s.page.getByText(/^Via de cloud · Laatst gezien/)).toBeVisible();
+  expect(await door({ call: 'session', token: paired.token })).toMatchObject({ device: { name: 'Telefoon onderweg', role: 'use' }, format: 1 });
+  expect(await door({ call: 'layouts', token: paired.token })).toMatchObject({ revision: expect.any(Number) });
+  // controlling never goes through the door
+  expect(await door({ call: 'control', token: paired.token })).toEqual({ error: 'bad' });
+  // taken away in the settings: the door knows it no more
+  await s.page.getByRole('button', { name: 'Telefoon onderweg ontkoppelen' }).click();
+  await expect.poll(() => door({ call: 'session', token: paired.token })).toEqual({ error: 'not-paired' });
+  expect(s.problems).toEqual([]);
+  await s.context.close();
+});

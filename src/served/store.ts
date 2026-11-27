@@ -20,6 +20,14 @@ const PAIRED = 'paired';
 export const PAIRED_KEY = 'dashboard.paired';
 /** Saved at once, but at most this often: the letters of a name go together. */
 export const SAVE_EVERY_MS = 400;
+/** A page with a key saves through the door of the app, often through the cloud: not more often than this. */
+export const KEY_SAVE_EVERY_MS = 2000;
+/** A page with a key: the revision of the hub that the copy here is of, and whether something of it is not on the hub yet. */
+export const AWAY_STATE_KEY = 'dashboard.away.state';
+/** Why the hub will never take a change as it is: too big to keep, another shape of the documents, or not a change it can read. */
+export type Refusal = 'too-big' | 'format' | 'bad';
+/** Who ended the pairing of a page with a key: the owner on the hub, or this page itself. */
+export type Unpaired = 'hub' | 'here';
 /** Saving or reading did not work: how long until it is tried again, when the live stream does not come back earlier. */
 export const SAVE_RETRY_MS = 5000;
 
@@ -66,8 +74,24 @@ function withKnown(theirs: Content, mine: Content, before: Content): Content {
  * the hub has it. As long as something is on its way nothing of the hub is taken over: the hub itself refuses what was
  * not based on its newest version, and only then is looked at whose work it is.
  */
-export function createServedStore(storage: Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>, link: Link) {
+export interface ServedStoreOptions {
+  /**
+   * A page with a key, paired with the app on its hub: the connection is the key, kept in this browser with the settings of
+   * this device; the hub keeps the shared dashboards, and a copy of them stays here for when the hub cannot be reached.
+   * `paired` says whether this page has a pairing with the app here; `forgetPairing` forgets it.
+   */
+  key?: { paired(): boolean; forgetPairing(): void };
+}
+
+/** The part of a link the store uses: the one of a page the hub served, or the door of the app for a page with a key. */
+type StoreLink = Pick<Link, 'request' | 'on' | 'later' | 'now'>;
+
+export function createServedStore(storage: Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>, link: StoreLink, options: ServedStoreOptions = {}) {
   const local = createLocalConfigStore(storage);
+  const keyed = options.key !== undefined;
+  const saveEvery = keyed ? KEY_SAVE_EVERY_MS : SAVE_EVERY_MS;
+  /** A page with a key: the app on the hub knows this device. */
+  let linked = false;
   /** The last version of the hub that what is shown here was made from. */
   let base = nothing();
   /** What is shown here. */
@@ -103,8 +127,17 @@ export function createServedStore(storage: Pick<Storage, 'getItem' | 'setItem' |
   let changed: () => void = () => {};
   let conflict: () => void = () => {};
   let unsaved: () => void = () => {};
+  let gone: (by: Unpaired) => void = () => {};
+  /** That the pairing ended was told: once, the page starts anew. */
+  let ended = false;
+  const end = (by: Unpaired): void => {
+    if (ended) return;
+    ended = true;
+    gone(by);
+  };
+  let refusedWhy: (why: Refusal) => void = () => {};
 
-  const paired = (): boolean => connection !== null && connection.apiKey !== null;
+  const paired = (): boolean => (keyed ? linked : connection !== null && connection.apiKey !== null);
   const read = (raw: unknown): Shared | null => (isRecord(raw) && typeof raw['revision'] === 'number' && isRecord(raw['layouts']) && isRecord(raw['sectionSeeds']) ? raw as unknown as Shared : null);
 
   const remembered = (): string | null => {
@@ -131,7 +164,52 @@ export function createServedStore(storage: Pick<Storage, 'getItem' | 'setItem' |
     stopWaiting();
   }
 
+  /** A page with a key: the connection is the one kept here; the app says whether it knows this device, and what it may. */
+  async function readKeySession(): Promise<AppConfig['connection']> {
+    const session = await link.request('GET', 'api/session').catch(() => null);
+    if (isRecord(session) && session['paired'] === false) {
+      // taken away while this page was closed: the copy here is its own from now on
+      const had = options.key?.paired() ?? false;
+      linked = false;
+      options.key?.forgetPairing();
+      if (had) end('hub');
+    } else {
+      // no answer: the copy here is shown, and the hub is asked again
+      linked = true;
+      const device = isRecord(session) && isRecord(session['device']) ? session['device'] : null;
+      if (device) {
+        role = device['role'] === 'edit' ? 'edit' : 'use';
+        roleKnown = true;
+      }
+    }
+    return (await local.load()).connection;
+  }
+
+  /** A page with a key: what the hub has is kept here too, for when it cannot be reached; a hub without any never empties it. */
+  function mirror(): void {
+    if (!keyed || base.revision < 0) return;
+    keepState();
+    const content = contentOf(mine);
+    if (Object.keys(content.layouts).length === 0) return;
+    void local.load().then((kept) => local.save({ ...kept, layouts: { ...kept.layouts, ...content.layouts }, sectionSeeds: content.sectionSeeds })).catch(() => {});
+  }
+
+  /** A page with a key: the revision the copy here is of, and whether something of it waits for the hub. */
+  function keepState(): void {
+    if (!keyed) return;
+    try { storage.setItem(AWAY_STATE_KEY, JSON.stringify({ revision: base.revision, dirty })); } catch { /* best effort */ }
+  }
+  function keptState(): { revision: number; dirty: boolean } | null {
+    try {
+      const raw: unknown = JSON.parse(storage.getItem(AWAY_STATE_KEY) ?? 'null');
+      return isRecord(raw) && typeof raw['revision'] === 'number' && typeof raw['dirty'] === 'boolean' ? { revision: raw['revision'], dirty: raw['dirty'] } : null;
+    } catch {
+      return null;
+    }
+  }
+
   async function readSession(): Promise<AppConfig['connection']> {
+    if (keyed) return readKeySession();
     const none = { homeyId: null, localAddress: null, apiKey: null };
     const session = await link.request('GET', 'api/session').catch(() => null);
     if (!isRecord(session) || typeof session['paired'] !== 'boolean') {
@@ -158,6 +236,7 @@ export function createServedStore(storage: Pick<Storage, 'getItem' | 'setItem' |
     told = false;
     unsure = [];
     mine = contentOf(doc);
+    mirror();
     if (tell) changed();
   }
 
@@ -192,9 +271,9 @@ export function createServedStore(storage: Pick<Storage, 'getItem' | 'setItem' |
     try {
       while (worker === own && paired()) {
         if (dirty && base.revision >= 0 && role === 'edit') {
-          const left = sentAt + SAVE_EVERY_MS - link.now();
+          const left = sentAt + saveEvery - link.now();
           // more than that: the clock of this device was set back
-          if (left > 0 && left <= SAVE_EVERY_MS) { wait(left); return; }
+          if (left > 0 && left <= saveEvery) { wait(left); return; }
           if (!(await put())) return;
         } else if (base.revision !== heard || base.revision < 0) {
           if (!(await get())) return;
@@ -230,6 +309,7 @@ export function createServedStore(storage: Pick<Storage, 'getItem' | 'setItem' |
       // what is shown stays as it is here, also where the hub keeps it a little differently
       dirty = mine !== sent;
       told = false;
+      keepState();
       return true;
     } catch (error) {
       if (mark !== epoch) return true;
@@ -240,6 +320,15 @@ export function createServedStore(storage: Pick<Storage, 'getItem' | 'setItem' |
       if (status === 403 && error instanceof RequestError && isRecord(error.body) && error.body['error'] === 'use-only') {
         mayOnlyUse();
         return true;
+      }
+      // a page with a key: what the hub will never take is said for what it is, not promised for later
+      const why: Refusal | null = keyed ? (status === 413 ? 'too-big' : status === 412 ? 'format' : status === 400 ? 'bad' : null) : null;
+      if (why !== null) {
+        if (!told) {
+          told = true;
+          refusedWhy(why);
+        }
+        return false;
       }
       if (!told) {
         told = true;
@@ -335,6 +424,14 @@ export function createServedStore(storage: Pick<Storage, 'getItem' | 'setItem' |
     void work();
   });
   link.on('role', (now) => { if (paired()) become(now); });
+  // a page with a key taken away on the hub: the copy here stays, as its own
+  link.on('unpaired', () => {
+    if (!keyed || !linked) return;
+    linked = false;
+    options.key?.forgetPairing();
+    forget();
+    end('hub');
+  });
 
   /** Who this device is and what the hub has, once for everyone who asks at the same time. */
   async function begin(): Promise<void> {
@@ -344,13 +441,37 @@ export function createServedStore(storage: Pick<Storage, 'getItem' | 'setItem' |
     if (mark !== epoch) return;
     connection = found;
     if (!paired()) return;
+    // a page with a key: what was here before the hub's comes in, and whether some of it never reached the hub
+    const here = keyed ? contentOf(await local.load()) : null;
+    const before = keyed ? keptState() : null;
     const own = {};
     worker = own;
     await get(false);
     if (worker !== own) return;
     worker = null;
-    // a newer one was heard of while it was being read
-    if (base.revision >= 0 && base.revision !== heard) void work();
+    if (here && base.revision >= 0) carryOver(here, before);
+    // a newer one was heard of while it was being read, or something here waits for the hub
+    if (base.revision >= 0 && (base.revision !== heard || dirty)) void work();
+  }
+
+  /**
+   * A page with a key that opened: a change that did not reach the hub before the page closed goes there now, unless another
+   * device saved in between (then that is said); and a hub without any dashboards gets those of a device that may arrange.
+   */
+  function carryOver(here: Content, before: { revision: number; dirty: boolean } | null): void {
+    const differs = arranged(here) !== arranged(mine);
+    if (before?.dirty && before.revision >= 0 && differs) {
+      if (role === 'edit' && before.revision === base.revision) {
+        mine = contentOf(here);
+        dirty = true;
+      } else {
+        conflict();
+      }
+    } else if (role === 'edit' && Object.keys(base.layouts).length === 0 && Object.keys(here.layouts).length > 0) {
+      mine = contentOf(here);
+      dirty = true;
+    }
+    keepState();
   }
 
   const store: ConfigStore = {
@@ -363,11 +484,34 @@ export function createServedStore(storage: Pick<Storage, 'getItem' | 'setItem' |
         if (loading === own) loading = null;
         // paired while that was being read: it is read anew
       }
-      const own = ownOf(refused ?? await local.load());
       given = epoch;
+      if (keyed) {
+        // the hub's dashboards once they were read; until then the copy here
+        const kept = await local.load();
+        return base.revision >= 0 && linked ? { ...kept, ...contentOf(mine) } : kept;
+      }
+      const own = ownOf(refused ?? await local.load());
       return { ...createDefaultConfig(), ...own, connection: { ...connection ?? createDefaultConfig().connection }, ...contentOf(mine) };
     },
     async save(config) {
+      if (keyed) {
+        if (given === epoch && config.connection.apiKey === null && linked) {
+          // the key is gone: the pairing with the app goes with it, and the page starts anew without it
+          linked = false;
+          await link.request('POST', 'api/unpair', {}).catch(() => {});
+          options.key?.forgetPairing();
+          forget();
+          end('here');
+        } else if (given === epoch && paired() && role === 'edit' && base.revision >= 0 && !same(config, mine)) {
+          mine = contentOf(config);
+          dirty = true;
+          keepState();
+          void work();
+        }
+        // everything stays here: the key, the settings of this device, and a copy of the hub's dashboards
+        await local.save(paired() && base.revision >= 0 ? { ...config, ...contentOf(mine) } : config);
+        return;
+      }
       if (given === epoch) {
         if (config.connection.apiKey === null && paired()) {
           // the owner took this device away: only that it was paired is forgotten too
@@ -395,6 +539,17 @@ export function createServedStore(storage: Pick<Storage, 'getItem' | 'setItem' |
       refused = null;
     },
     async clearConnection() {
+      if (keyed) {
+        if (linked) await link.request('POST', 'api/unpair', {}).catch(() => {});
+        linked = false;
+        options.key?.forgetPairing();
+        forget();
+        connection = null;
+        loading = null;
+        const cleared = await local.clearConnection();
+        end('here');
+        return cleared;
+      }
       try {
         await link.request('POST', 'api/unpair', {});
       } catch (error) {
@@ -423,6 +578,10 @@ export function createServedStore(storage: Pick<Storage, 'getItem' | 'setItem' |
     onConflict(listener: () => void): void { conflict = listener; },
     /** A change could not be saved on the hub now; it is tried again by itself. */
     onUnsaved(listener: () => void): void { unsaved = listener; },
+    /** A page with a key is no longer paired: taken away on the hub, or here; the copy here is its own from now on. */
+    onUnpaired(listener: (by: Unpaired) => void): void { gone = listener; },
+    /** A page with a key: the hub will never take a change as it is. */
+    onRefused(listener: (why: Refusal) => void): void { refusedWhy = listener; },
     /** The page may be closed, or closes: what is waiting is sent now. */
     flush(closing = false): void {
       if (!dirty || told) return;

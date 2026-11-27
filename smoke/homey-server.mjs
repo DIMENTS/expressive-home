@@ -90,6 +90,8 @@ class FakeApi {
     };
     this.zones = { getZones: async () => raw.zones };
     this.system = { getInfo: async () => ({}) };
+    // the weather of a hub with internet, in the shape that was measured on a real one
+    this.weather = { getWeather: async () => ({ when: new Date().toISOString(), iconId: 'partly-cloudy-day', state: 'Half bewolkt', temperature: 7, temperatureCelsius: 7, temperatureMax: 9, temperatureMin: 3, temperatureUnits: '°C', humidity: 0.8, pressure: 1.01 }) };
     this.flow = { getFlows: async () => raw.flows, getAdvancedFlows: async () => raw.advancedFlows, triggerFlow: async () => { throw new Error('missing scopes'); }, triggerAdvancedFlow: async () => { throw new Error('missing scopes'); } };
     this.insights = {
       getLogs: async () => Object.fromEntries([...ownLogs].map(([id, log]) => [id, { id: `${OWN_URI}:${id}`, ownerUri: OWN_URI, type: log.type }])),
@@ -210,6 +212,12 @@ createServer(async (request, response) => {
   let body = '';
   for await (const part of request) body += part;
   const url = new URL(request.url, 'http://localhost');
+  // the Homey app shows the settings without an icon of the page; a browser asks for one all the same
+  if (url.pathname === '/favicon.ico') {
+    response.writeHead(204);
+    response.end();
+    return;
+  }
   if (url.pathname === '/settings/') {
     response.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
     response.end(readFileSync(at('../homey-app/settings/index.html'), 'utf8').replace('/homey.js', `/homey.js?lang=${url.searchParams.get('lang') ?? 'nl'}`));

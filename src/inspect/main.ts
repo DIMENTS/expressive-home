@@ -16,6 +16,7 @@ import { renderDashboard } from './dashboard';
 import { describeShore, probeHistory } from './history-probe';
 import { probeWeatherEnergy } from './weather-energy-probe';
 import { insightsText, measureInsights } from './insights';
+import { probeAppDoor } from './app-door-probe';
 import { addRouteChange, structureText } from './structure';
 import { applyTheme } from './theme';
 
@@ -334,6 +335,16 @@ function setupCopy(): void {
       const text = await probeWeatherEnergy(measured.rawManagers!, new Date(), WEATHER_ENERGY_LISTEN_MS);
       if (measured !== client) return;
       insightsResult = text;
+      showResult();
+    })();
+  });
+  $('measure-app-door').addEventListener('click', () => {
+    const area = $<HTMLTextAreaElement>('structure');
+    if (source === 'connecting') { area.value = 'nog bezig met verbinden'; return; }
+    area.value = 'De deur van het appje meten… met mobiel internet kan dit een paar minuten duren (tot 4 MiB heen).';
+    void (async () => {
+      const { homeyId, localAddress } = config.connection;
+      insightsResult = await probeAppDoor({ homeyId, localAddress }, (url, init) => window.fetch(url, init), () => performance.now());
       showResult();
     })();
   });

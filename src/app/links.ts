@@ -4,6 +4,10 @@ import { GALLERY_CODE_LIMIT } from '../theme/theme-file';
 export const GALLERY_URL = 'https://github.com/DIMENTS/expressive-home-themes';
 /** The gallery's address as people can type it over. */
 export const GALLERY_TEXT = 'github.com/DIMENTS/expressive-home-themes';
+/** The dashboard on the internet, for looking in from away: only opened in a new tab, never fetched. */
+export const PAGES_URL = 'https://diments.github.io/expressive-home/';
+/** That address as people can type it over. */
+export const PAGES_TEXT = 'diments.github.io/expressive-home';
 /** The longest code that still goes into the address of the form: longer addresses are not opened everywhere. */
 export const FORM_CODE_LIMIT = 6000;
 

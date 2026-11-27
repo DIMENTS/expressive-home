@@ -4,6 +4,7 @@ import { t as dutch, type Translate } from '../../i18n';
 import { LIMITS, ROOMS_ID } from '../../layout/types';
 import type { IconName } from '../icons/icons';
 import { sharedStyles } from '../parts/shared-styles';
+import '../parts/button';
 import '../parts/icon';
 
 /** Where a tap in the rail goes: a dashboard, or a panel. */
@@ -27,6 +28,7 @@ export class MhRail extends LitElement {
     editBlocked: { type: Boolean },
     useOnly: { type: Boolean },
     ownCss: { type: Boolean, attribute: 'own-css', reflect: true },
+    pointEdit: { type: Boolean, attribute: 'point-edit', reflect: true },
   };
   /** The texts, in the language of the app; Dutch until the app sets it. */
   declare t: Translate;
@@ -40,6 +42,8 @@ export class MhRail extends LitElement {
   declare useOnly: boolean;
   /** Own CSS is on: Thema and Instellingen keep a ground and colour of their own, whatever it did to the bar. */
   declare ownCss: boolean;
+  /** After the first start: a pointer beside "Bewerken", until it is understood. */
+  declare pointEdit: boolean;
 
   constructor() {
     super();
@@ -51,6 +55,7 @@ export class MhRail extends LitElement {
     this.editBlocked = false;
     this.useOnly = false;
     this.ownCss = false;
+    this.pointEdit = false;
   }
 
   static override styles = [sharedStyles, css`
@@ -88,9 +93,25 @@ export class MhRail extends LitElement {
       border-radius: 50%; background: var(--rail-badge-bg);
     }
     .name { max-width: calc(var(--rail-width) - var(--space-12)); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    /* a sticky bar is a layer of its own: while the pointer stands beside it, that layer lies over the page */
+    :host([point-edit]) nav { z-index: var(--layer-pointer); }
+    .pointed { position: relative; display: grid; }
+    .pointer {
+      position: absolute; z-index: var(--layer-pointer); top: 50%; left: calc(100% + var(--pointer-gap) + var(--pointer-arrow)); width: var(--pointer-width);
+      display: grid; gap: var(--space-8); padding: var(--space-12) var(--space-12) var(--space-8) var(--space-16); border-radius: var(--pointer-radius);
+      background: var(--pointer-bg); color: var(--pointer-fg); box-shadow: var(--shadow-overlay);
+      font-size: var(--type-label-m-size); line-height: var(--type-body-l-line); transform: translateY(-50%);
+      animation: point var(--motion-spatial) both;
+    }
+    .pointer::before {
+      content: ''; position: absolute; top: 50%; right: 100%; width: var(--pointer-arrow); height: calc(2 * var(--pointer-arrow)); margin-top: calc(-1 * var(--pointer-arrow));
+      background: var(--pointer-bg); clip-path: polygon(100% 0, 100% 100%, 0 50%);
+    }
+    .pointer mh-button { justify-self: end; --button-text-fg: var(--c-inverse-primary); }
+    @keyframes point { from { opacity: 0; transform: translate(calc(-1 * var(--pointer-gap)), -50%); } }
   `];
 
-  private emit(type: 'navigate' | 'toggle-edit' | 'new-board', detail?: { to: RailTarget }): void {
+  private emit(type: 'navigate' | 'toggle-edit' | 'new-board' | 'pointer-ok', detail?: { to: RailTarget }): void {
     this.dispatchEvent(new CustomEvent(type, { detail, bubbles: true, composed: true }));
   }
 
@@ -122,7 +143,9 @@ export class MhRail extends LitElement {
       <div class="boards">${repeat(this.boards, (board) => board.id, (board) => this.board(board))}</div>
       ${this.editing && this.boards.filter((board) => board.id !== ROOMS_ID).length < LIMITS.dashboards ? html`<button class="new" @click=${() => this.emit('new-board')}>${this.face('add', t('nav.newBoard'), false)}</button>` : nothing}
       <span class="grow"></span>
-      ${this.useOnly ? nothing : html`<button class="edit ${editing ? 'active' : ''}" ?disabled=${this.editBlocked} aria-pressed=${this.editing ? 'true' : 'false'} @click=${() => this.emit('toggle-edit')}>${this.face('edit', t('nav.edit'), editing)}</button>`}
+      ${this.useOnly ? nothing : html`<span class="pointed"><button class="edit ${editing ? 'active' : ''}" ?disabled=${this.editBlocked} aria-pressed=${this.editing ? 'true' : 'false'}
+        aria-describedby=${this.pointEdit && !this.editBlocked && !this.editing ? 'pointer' : nothing} @click=${() => this.emit('toggle-edit')}>${this.face('edit', t('nav.edit'), editing)}</button>
+        ${this.pointEdit && !this.editBlocked && !this.editing ? html`<div class="pointer" id="pointer" role="note">${t('pointer.edit')}<mh-button variant="text" small @click=${() => this.emit('pointer-ok')}>${t('pointer.ok')}</mh-button></div>` : nothing}</span>`}
       ${this.panelItem('theme', 'palette', t('nav.theme'))}${this.panelItem('settings', 'settings', t('nav.settings'))}
     </nav>`;
   }

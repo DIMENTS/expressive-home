@@ -121,6 +121,8 @@ export function createServedStore(storage: Pick<Storage, 'getItem' | 'setItem' |
   let connection: AppConfig['connection'] | null = null;
   /** Every time this device is paired or taken away it begins anew; an older answer is ignored. */
   let epoch = 0;
+  /** The hub said, when this device paired on this page, that it is the first start of the hub. */
+  let fresh = false;
   /** The epoch of the settings that the app was given last: only what was made from those says something about the hub. */
   let given = -1;
   let loading: Promise<void> | null = null;
@@ -568,6 +570,8 @@ export function createServedStore(storage: Pick<Storage, 'getItem' | 'setItem' |
     mayArrange: (): boolean => role === 'edit' && base.revision >= 0,
     /** What the hub says this device may; null until it said so. */
     knownRole: (): Role | null => (roleKnown ? role : null),
+    /** This device paired on this page as the first of a hub that nobody arranged yet: the first start of that hub. */
+    fresh: (): boolean => fresh,
     /** Everything that was arranged here is on the hub. */
     settled: (): boolean => !dirty,
     onChanged(listener: () => void): () => void {
@@ -594,8 +598,9 @@ export function createServedStore(storage: Pick<Storage, 'getItem' | 'setItem' |
       void work();
     },
     async pair(code: string, name: string): Promise<PairResult> {
+      let answer: unknown;
       try {
-        await link.request('POST', 'api/pair', { code, name });
+        answer = await link.request('POST', 'api/pair', { code, name });
       } catch (error) {
         const reason = error instanceof RequestError && isRecord(error.body) ? error.body['error'] : null;
         return reason === 'code' || reason === 'locked' || reason === 'full' ? reason : 'unreachable';
@@ -603,6 +608,7 @@ export function createServedStore(storage: Pick<Storage, 'getItem' | 'setItem' |
       epoch += 1;
       loading = null;
       connection = null;
+      fresh = isRecord(answer) && answer['first'] === true;
       return 'ok';
     },
   };

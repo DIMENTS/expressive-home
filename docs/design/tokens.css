@@ -65,7 +65,7 @@
 
   /* stacking layers: what floats above what (round 1C) */
   --layer-sheet-scrim: 60; --layer-sheet: 61; --layer-snackbar: 80; --layer-dialog-scrim: 89; --layer-dialog: 90; --layer-menu: 30;
-  --layer-edit-bar: 20; --layer-drag: 70; --layer-nav-bar: 35; --layer-dimmer: 71; --layer-rest: 100;
+  --layer-edit-bar: 20; --layer-drag: 70; --layer-nav-bar: 35; --layer-dimmer: 71; --layer-rest: 100; --layer-pointer: 40;
 
   /* the rest screen of a wall tablet: a number is so many units */
   --rest-unit: min(100vw / 1280, 100dvh / 800); --rest-unit-portrait: min(100vw / 800, 100dvh / 1280); --rest-pad-x: 64; --rest-pad-top: 56; --rest-pad-bottom: 48;
@@ -284,6 +284,22 @@
   --news-bg: var(--c-surface); --news-fg: var(--c-on-surface); --news-radius: var(--shape-xl);
   --news-icon-bg: var(--c-primary); --news-icon-fg: var(--c-on-primary); --news-icon-box: 40px;
   --rail-badge-size: 8px; --rail-badge-bg: var(--c-primary);
+
+  /* the first start after pairing: the steps, the little dashboard that moves with the choices, practising */
+  --onboarding-stage-height: 440px; --onboarding-stage-phone: 208px; --onboarding-board-max: 480px; --onboarding-panel-min: 600px;
+  --onboarding-dot-size: 10px; --onboarding-dot-current: 22px; --onboarding-badge-size: 28px; --onboarding-art-size: 112px; --onboarding-art-icon: 56px;
+  --onboarding-option-min: 150px; --onboarding-pick-height: 56px; --onboarding-check-size: 32px;
+  --onboarding-check-bg: var(--c-primary); --onboarding-check-fg: var(--c-on-primary); --onboarding-todo-bg: var(--c-surface-container-highest);
+  --onboarding-shift: 24px; --onboarding-rise: 20px; --onboarding-arrive-scale: .92; --onboarding-stagger: 60ms;
+  --mini-board-radius: var(--shape-xl); --mini-tile-height: 30px; --mini-tile-compact: 22px; --mini-hero-height: 84px;
+  --mini-dot-size: 12px; --mini-mark-height: 6px; --mini-icon-box: 18px;
+
+  /* the card with what can be done next, and the pointer at Bewerken */
+  --next-bg: var(--section-bg); --next-fg: var(--section-fg); --next-radius: var(--shape-xl); --next-row-height: 56px; --next-step-min: 200px;
+  --next-icon-bg: var(--c-secondary-container); --next-icon-fg: var(--c-on-secondary-container); --next-icon-box: 40px;
+  --next-done-bg: var(--c-primary); --next-done-fg: var(--c-on-primary);
+  --pointer-bg: var(--c-inverse-surface); --pointer-fg: var(--c-inverse-on-surface); --pointer-radius: var(--shape-lg);
+  --pointer-width: 260px; --pointer-arrow: 8px; --pointer-gap: 12px;
 
   /* own labels in the header */
   --chip-add-border: var(--c-outline); --chip-add-fg: var(--c-on-surface-variant);

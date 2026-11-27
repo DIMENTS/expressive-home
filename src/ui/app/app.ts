@@ -100,6 +100,13 @@ import type { LiveHandle, LiveListener } from '../../widgets/app-live';
 import { createReadSource, type ReadSource, type ReadState } from '../../widgets/live-reads';
 import { readWeather, type Weather } from '../../widgets/weather';
 import { energyPeriodClock, readEnergyReport, type EnergyPeriod, type EnergyReport } from '../../widgets/energy';
+import { PROGRESS_KEY, defaultChoices, readProgress, stepsFor, writeProgress, type Choices, type Extra, type Progress, type StepId } from '../../onboarding/choices';
+import { arrangeOverview } from '../../onboarding/arrange';
+import { NEXT_KEY, hasWidget, nextSteps, readNext, startNext, withDone, writeNext, type NextState, type NextStep } from '../../onboarding/next-steps';
+import { hasRooms } from '../../rooms/zones';
+import { PAGES_TEXT, PAGES_URL } from '../../app/links';
+import { richText } from '../parts/rich-text';
+import '../onboarding/onboarding';
 
 /** The rest screen waits this long for a theme that is being tried out. */
 const TRY_OUT_REST_MS = 10 * 60_000;
@@ -194,6 +201,8 @@ export interface AppEnvironment {
     /** Everything that was arranged here is on the hub. */
     settled(): boolean;
     reload(): void;
+    /** This device paired on this page as the first of a hub that nobody arranged yet; absent is no. */
+    fresh?(): boolean;
   };
   /** A page with a key that is paired with the app on its hub: its dashboards, looks and own widgets come from there. */
   synced?: Synced;
@@ -300,6 +309,10 @@ export const SURE_MS = 600;
 export const ASK_MS = 30_000;
 /** How long it is not told again how a slider is held. */
 const HOLD_HINT_EVERY_MS = 3_600_000;
+/** How long the dashboard comes in after the first start. */
+export const ARRIVE_MS = 2400;
+/** The hubs this browser did the first start of, or skipped it: it never comes again for them here. */
+export const ONBOARDED_KEY = 'dashboard.onboarded';
 
 /**
  * The app: makes the live state, the controller and the theme on the document, and shows
@@ -307,7 +320,7 @@ const HOLD_HINT_EVERY_MS = 3_600_000;
  * before the element is attached to replace the browser's (tests do).
  */
 export class MhApp extends LitElement {
-  static override properties = { state: { state: true }, panel: { state: true }, editPanel: { state: true }, freshTiles: { state: true }, sectionDialog: { state: true }, boardDialog: { state: true }, pairIssue: { state: true }, pairing: { state: true }, scanned: { state: true }, phone: { state: true }, question: { state: true }, asking: { state: true }, draftLook: { state: true }, boardLook: { state: true } };
+  static override properties = { state: { state: true }, panel: { state: true }, editPanel: { state: true }, freshTiles: { state: true }, sectionDialog: { state: true }, boardDialog: { state: true }, pairIssue: { state: true }, pairing: { state: true }, scanned: { state: true }, phone: { state: true }, question: { state: true }, asking: { state: true }, draftLook: { state: true }, boardLook: { state: true }, onboarding: { state: true }, reads: { state: true }, arriving: { state: true }, pointing: { state: true }, next: { state: true }, nextDialog: { state: true } };
   declare state: AppState;
   /** The panel opened from the rail or a header label. */
   declare panel: 'none' | 'theme' | 'settings' | 'wall';
@@ -334,6 +347,23 @@ export class MhApp extends LitElement {
   declare draftLook: ThemeFile | null;
   /** The panel with the look of the open dashboard. */
   declare boardLook: boolean;
+  /** The first start of the hub, while it goes on; null: the dashboard. */
+  declare onboarding: Progress | null;
+  /** What the first start knows of the hub: the widgets it can fill, and whether it is dark there. */
+  declare reads: { extras: Extra[]; sunDark: boolean | null };
+  /** The dashboard comes in after the first start. */
+  declare arriving: boolean;
+  /** The pointer beside "Bewerken", after the first start. */
+  declare pointing: boolean;
+  /** The card "Verder inrichten"; null: this device has none. */
+  declare next: NextState | null;
+  /** The window of a step of that card. */
+  declare nextDialog: 'pair' | 'away' | null;
+  /** Whether a first start under way was looked for, after the page was loaded. */
+  private progressRead = false;
+  /** Paired on this page: whether it is the first start is decided as soon as the hub is known. */
+  private justPaired = false;
+  private arriveTimer: ReturnType<typeof setTimeout> | null = null;
   /** The tiles that were just added. */
   declare freshTiles: readonly string[];
   private freshTimer: unknown = null;
@@ -385,6 +415,12 @@ export class MhApp extends LitElement {
     this.draftLook = null;
     this.boardLook = false;
     this.asking = false;
+    this.onboarding = null;
+    this.reads = { extras: [], sunDark: null };
+    this.arriving = false;
+    this.pointing = false;
+    this.next = null;
+    this.nextDialog = null;
     // The system turned light or dark: the document follows, and so do the sections with their own colour.
     if (this.media) watchSystemDark(this.media, () => { if (this.framed) { this.showFramed(); return; } this.appliedTheme = null; this.applyTheme(); this.requestUpdate(); });
   }
@@ -510,6 +546,7 @@ export class MhApp extends LitElement {
         weather: this.weatherSource, energy: (period) => this.energySources[period] } };
     this.widgetLibrary = env.served?.widgets ?? env.synced?.widgets ?? createLocalWidgets(safeStorage(() => window.localStorage), () => this.controller.hubId(), window);
     this.widgetLibrary.subscribe(() => this.requestUpdate());
+    if (env.served) this.next = readNext(this.kept(NEXT_KEY));
     document.documentElement.lang = this.state.language.active;
     this.sayAwayGone();
     this.controller.subscribe(() => {
@@ -524,6 +561,7 @@ export class MhApp extends LitElement {
       this.hadRoute = route;
       // a device that is paired has no use for it
       if (this.state.phase === 'dashboard') this.scanned = '';
+      this.followOnboarding();
       this.followLanguage(this.state.language.active);
       // Leaving the dashboard (a rejected key, another key or hub) closes its panels too.
       if (this.state.phase === 'connect') {
@@ -578,6 +616,9 @@ export class MhApp extends LitElement {
     if (this.framed) return;
     if (this.draftTimer !== null) clearTimeout(this.draftTimer);
     this.draftTimer = null;
+    if (this.arriveTimer !== null) clearTimeout(this.arriveTimer);
+    this.arriveTimer = null;
+    this.arriving = false;
     this.wall.stop();
     this.stopWatching?.();
     this.stopWatching = null;
@@ -657,7 +698,7 @@ export class MhApp extends LitElement {
   private mayRest(): boolean {
     const { state } = this;
     const trying = this.draftLook !== null && Date.now() - this.draftSince < TRY_OUT_REST_MS;
-    return state.phase !== 'connect' && !this.phone && !state.editing && !this.asking && !trying && this.sectionDialog === null && this.boardDialog === null
+    return state.phase !== 'connect' && this.onboarding === null && !this.phone && !state.editing && !this.asking && !trying && this.sectionDialog === null && this.boardDialog === null
       && !this.renderRoot.querySelector<MhSettingsPanel>('mh-settings-panel')?.confirming;
   }
 
@@ -894,10 +935,20 @@ export class MhApp extends LitElement {
 
   static override styles = [sharedStyles, css`
     :host { display: block; }
+    /* the steps in the windows of the card "Verder inrichten", numbered in a cookie as on the pair screen */
+    .next-steps { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-14); counter-reset: step; color: var(--c-on-surface); }
+    .next-steps > li { display: grid; grid-template-columns: var(--connect-step-size) minmax(0, 1fr); gap: var(--space-12); align-items: start; }
+    .next-steps > li > div { padding-top: var(--space-6); overflow-wrap: break-word; }
+    .next-steps > li::before {
+      counter-increment: step; content: counter(step); width: var(--connect-step-size); height: var(--connect-step-size); display: grid; place-items: center;
+      background: var(--c-primary); color: var(--c-on-primary); clip-path: var(--shape-cookie); font-weight: var(--weight-strong);
+    }
+    .next-steps b { font-weight: var(--weight-strong); }
+    @media (prefers-reduced-motion: reduce) { .next-steps > li::before { clip-path: var(--shape-circle); } }
   `];
 
   /** The screen shown last: when it changes, the focus moves into the new screen so it never gets lost. */
-  private shownScreen: 'connect' | 'dashboard' | null = null;
+  private shownScreen: 'connect' | 'onboarding' | 'dashboard' | null = null;
   /** The dashboard shown last: another one begins at the top of the page, as a page does. */
   private shownBoard: string | null = null;
 
@@ -934,14 +985,14 @@ export class MhApp extends LitElement {
     if (this.widgetQuestion && (!this.asking || this.question !== this.widgetQuestion.question)) this.endWidgetQuestion(false);
     if (!this.state) return;
     this.keepSafe();
-    const screen = this.state.phase === 'connect' ? 'connect' : 'dashboard';
+    const screen = this.state.phase === 'connect' ? 'connect' : this.onboarding ? 'onboarding' : 'dashboard';
     const board = screen === 'dashboard' ? this.state.boardId : null;
     if (board !== this.shownBoard) window.scrollTo(0, 0);
     this.shownBoard = board;
     const previous = this.shownScreen;
     this.shownScreen = screen;
     if (previous === null || previous === screen) return;
-    const target = this.renderRoot.querySelector<HTMLElement & { updateComplete?: Promise<unknown>; focusContent?: () => void }>(screen === 'connect' ? 'mh-connect-screen, mh-pair-screen' : 'mh-dashboard');
+    const target = this.renderRoot.querySelector<HTMLElement & { updateComplete?: Promise<unknown>; focusContent?: () => void }>(screen === 'connect' ? 'mh-connect-screen, mh-pair-screen' : screen === 'onboarding' ? 'mh-onboarding' : 'mh-dashboard');
     void (target?.updateComplete ?? Promise.resolve()).then(() => {
       if (screen === 'dashboard') target?.focusContent?.();
       else target?.focus({ preventScroll: true });
@@ -1584,7 +1635,9 @@ export class MhApp extends LitElement {
       @open-hero=${(e: CustomEvent<{ sectionId: string }>) => this.openEditPanel({ kind: 'hero', sectionId: e.detail.sectionId })}
       @open-tile=${(e: CustomEvent<{ tileId: string }>) => this.openEditPanel({ kind: 'tile', tileId: e.detail.tileId })}
       @layout-edit=${(e: CustomEvent<{ edit: LayoutEdit }>) => this.onEdit(e.detail.edit)}
-      @toggle-edit=${() => { if (!this.phone) this.controller.setEditing(!this.state.editing); }} @done=${() => this.controller.setEditing(false)} @undo=${() => this.undo()}
+      @toggle-edit=${() => { if (this.phone) return; if (!this.state.editing) { this.pointing = false; this.markNext('edit'); } this.controller.setEditing(!this.state.editing); }} @done=${() => this.controller.setEditing(false)} @undo=${() => this.undo()}
+      .next=${this.nextView()} ?arriving=${this.arriving} ?pointEdit=${this.pointing} @pointer-ok=${() => { this.pointing = false; }}
+      @next-step=${(e: CustomEvent<{ step: NextStep }>) => this.onNextStep(e.detail.step)} @next-dismiss=${() => this.dismissNext()}
       @retry=${() => this.controller.retry()} @reload=${() => this.env.served?.reload()} @change-connection=${() => this.controller.changeConnection()}></mh-dashboard>
       ${this.renderEditPanels(open ? this.boardName(open) : '')}
       ${this.renderSectionDialog()}${this.renderBoardDialog()}${this.renderBoardLook()}${this.renderQuestion()}
@@ -1608,9 +1661,9 @@ export class MhApp extends LitElement {
         ?hasRooms=${s.hasRooms} grouping=${s.layout.grouping ?? 'type'} .roomsShown=${s.roomsShown}
         @grouping=${(e: CustomEvent<{ grouping: Grouping }>) => this.controller.setGrouping(e.detail.grouping)} @rooms-shown=${(e: CustomEvent<{ shown: boolean }>) => this.controller.setRooms(e.detail.shown)}
         .boards=${this.places()} .startBoard=${s.startBoard} @start-board=${(e: CustomEvent<{ id: string }>) => this.controller.setStartBoard(e.detail.id)}
-        .wall=${s.wall} ?phone=${this.phone} @open-wall=${() => { this.panel = 'wall'; }}
+        .wall=${s.wall} ?phone=${this.phone} @open-wall=${() => { this.panel = 'wall'; this.markNext('wall'); }}
         @language=${(e: CustomEvent<{ choice: Language | null }>) => this.controller.setLanguage(e.detail.choice)}></mh-settings-panel>
-      ${this.renderWallPanel()}`;
+      ${this.renderWallPanel()}${this.renderNextDialog()}`;
   }
 
   /** Pairs this device with the code; then the app starts as it does with a saved connection. */
@@ -1620,7 +1673,196 @@ export class MhApp extends LitElement {
     const result = await this.env.served.pair(code, name);
     this.pairing = false;
     this.pairIssue = result === 'ok' ? 'none' : result;
-    if (result === 'ok') await this.controller.start();
+    if (result !== 'ok') return;
+    // a first start that was left under way is not this one's
+    if (!this.env.served.fresh?.()) this.keep(PROGRESS_KEY, null);
+    this.justPaired = true;
+    await this.controller.start();
+    this.followOnboarding();
+  }
+
+  // ----- the first start of a hub -----
+
+  private kept(key: string): string | null {
+    try { return safeStorage(() => window.localStorage).getItem(key); } catch { return null; }
+  }
+
+  private keep(key: string, value: string | null): void {
+    const storage = safeStorage(() => window.localStorage);
+    try { if (value === null) storage.removeItem(key); else storage.setItem(key, value); } catch { /* best effort: it lasts as long as the page */ }
+  }
+
+  /** The hubs this browser did or skipped the first start of. */
+  private onboarded(): string[] {
+    try {
+      const list: unknown = JSON.parse(this.kept(ONBOARDED_KEY) ?? '[]');
+      return Array.isArray(list) ? list.filter((id): id is string => typeof id === 'string') : [];
+    } catch { return []; }
+  }
+
+  /** May this device arrange the hub, as far as is known now. */
+  private mayArrangeHub(): boolean {
+    return this.env.served?.knownRole() === 'edit' && this.env.served.mayArrange();
+  }
+
+  /**
+   * The first start follows the app: it begins or goes on as soon as the hub is known, before the dashboard is drawn;
+   * it ends quietly when this device is taken away or may only use.
+   */
+  private followOnboarding(): void {
+    if (!this.env.served || this.safe) return;
+    if (this.state.phase === 'connect') {
+      if (this.onboarding) this.keep(PROGRESS_KEY, null);
+      this.onboarding = null;
+      return;
+    }
+    if (this.onboarding && this.env.served.knownRole() === 'use') {
+      this.keep(PROGRESS_KEY, null);
+      this.onboarding = null;
+      return;
+    }
+    if (this.justPaired && this.beginOnboarding()) this.justPaired = false;
+    this.resumeOnboarding();
+  }
+
+  /** Just paired here: the first device of a hub that nobody arranged gets the first start. False until the hub is known. */
+  private beginOnboarding(): boolean {
+    const hub = this.controller.hubId();
+    if (hub === null) return false;
+    // what the page kept from before is not looked for again
+    this.progressRead = true;
+    if (!this.env.served?.fresh?.() || this.env.served.knownRole() !== 'edit' || this.onboarded().includes(hub)) return true;
+    this.onboarding = { hub, step: 'welcome', choices: defaultChoices(this.state.look.house?.seed ?? rustigExpressive.color.defaultSeed), since: Date.now() };
+    this.keep(PROGRESS_KEY, writeProgress(this.onboarding));
+    void this.readForOnboarding();
+    return true;
+  }
+
+  /** Loaded anew halfway: it goes on where it was, with the choices of then. What is of another hub, or too old, goes. */
+  private resumeOnboarding(): void {
+    if (this.progressRead || !this.env.served) return;
+    const hub = this.controller.hubId();
+    if (hub === null) return;
+    this.progressRead = true;
+    const text = this.kept(PROGRESS_KEY);
+    if (text === null) return;
+    const progress = readProgress(text, hub, Date.now());
+    if (!progress || this.env.served.knownRole() !== 'edit') { this.keep(PROGRESS_KEY, null); return; }
+    this.onboarding = progress;
+    void this.readForOnboarding();
+    // the choices were being applied when the page went: once more, which changes nothing that is there already
+    if (progress.step === 'build' || progress.step === 'practice') this.applyOnboarding(progress.choices);
+  }
+
+  /** Whether the hub has weather and energy to fill their widgets, and whether it is dark there. */
+  private async readForOnboarding(): Promise<void> {
+    const [weatherRaw, energyRaw] = await Promise.all([this.controller.readWeather().catch(() => null), this.controller.readEnergy('day').catch(() => null)]);
+    const weather = readWeather(weatherRaw);
+    const energy = readEnergyReport(energyRaw);
+    this.reads = { extras: [...(weather ? ['weather' as const] : []), ...(energy ? ['energy' as const] : [])], sunDark: weather?.daylight == null ? null : !weather.daylight };
+  }
+
+  private onOnboardingChange({ step, choices }: { step: StepId; choices: Choices }): void {
+    if (!this.onboarding) return;
+    const before = this.onboarding.step;
+    // the choices are applied when the dashboard is made: not without the right to arrange, or before the hub answered
+    if (step === 'build' && before !== 'build' && (!this.mayArrangeHub() || this.store.getSnapshot() === null)) return;
+    this.onboarding = { ...this.onboarding, step, choices };
+    this.keep(PROGRESS_KEY, writeProgress(this.onboarding));
+    if (step === 'build' && before !== 'build') this.applyOnboarding(choices);
+  }
+
+  /** The choices, through the ways the theme panel and the settings use; the Overzicht only while it is automatic. */
+  private applyOnboarding(choices: Choices): void {
+    const { controller } = this;
+    controller.setHouse({ theme: choices.theme, seed: choices.seed, mode: choices.mode });
+    controller.followHouse();
+    if (!this.phone && choices.density !== this.state.theme.density) controller.setTheme({ ...this.state.theme, density: choices.density });
+    controller.setGrouping(choices.grouping);
+    controller.setRooms(choices.rooms);
+    const snapshot = this.store.getSnapshot();
+    const automatic = this.state.layout.dashboards.find((d) => d.id === OVERVIEW_ID)?.sections == null;
+    if (!snapshot || !automatic) return;
+    const arranged = arrangeOverview(snapshot, choices, { locale: this.ctx.t.locale, today: this.ctx.t('onboarding.today'), newId: (prefix) => controller.newId(prefix) });
+    if (arranged) controller.arrangeOverview(arranged);
+  }
+
+  /** Done or skipped: never again on this device for this hub; the dashboard comes in, with the pointer and the card. */
+  private endOnboarding(): void {
+    const progress = this.onboarding;
+    if (!progress) return;
+    this.keep(PROGRESS_KEY, null);
+    this.keep(ONBOARDED_KEY, JSON.stringify([...new Set([...this.onboarded(), progress.hub])]));
+    this.next ??= startNext();
+    this.keep(NEXT_KEY, writeNext(this.next));
+    this.onboarding = null;
+    this.pointing = !this.phone && this.controller.status().canArrange !== false;
+    this.arriving = true;
+    if (this.arriveTimer !== null) clearTimeout(this.arriveTimer);
+    this.arriveTimer = setTimeout(() => { this.arriveTimer = null; this.arriving = false; }, ARRIVE_MS);
+  }
+
+  private renderOnboarding(progress: Progress) {
+    const snapshot = this.store.getSnapshot();
+    const steps = stepsFor({ hasRooms: snapshot !== null && hasRooms(snapshot) });
+    // a step this house has not, such as the rooms, is passed over
+    const step = steps.includes(progress.step) ? progress.step : 'first';
+    const touch = typeof window.matchMedia === 'function' && window.matchMedia('(pointer: coarse)').matches;
+    return html`<mh-onboarding .t=${this.ctx.t} .snapshot=${snapshot} .steps=${steps} step=${step} .choices=${progress.choices} .presets=${rustigExpressive.color.presets}
+      .extras=${this.reads.extras} .sunDark=${this.reads.sunDark} ?phone=${this.phone} ?systemDark=${this.media?.matches ?? false} ?touch=${touch} ?ready=${snapshot !== null && this.mayArrangeHub()}
+      @onboarding-change=${(e: CustomEvent<{ step: StepId; choices: Choices }>) => this.onOnboardingChange(e.detail)}
+      @onboarding-skip=${() => this.endOnboarding()} @onboarding-finish=${() => this.endOnboarding()}></mh-onboarding>`;
+  }
+
+  // ----- the card "Verder inrichten" -----
+
+  /** What the card shows on this device now; null without one. */
+  private nextView(): { steps: NextStep[]; done: NextStep[] } | null {
+    const { next } = this;
+    if (!next || next.dismissed) return null;
+    const steps = nextSteps({ phone: this.phone, mayArrange: this.controller.status().canArrange !== false });
+    const done = [...next.done, ...(hasWidget(this.state.layout) ? ['widget' as const] : [])];
+    return { steps, done: steps.filter((step) => done.includes(step)) };
+  }
+
+  private markNext(step: NextStep): void {
+    if (!this.next || this.next.dismissed) return;
+    const next = withDone(this.next, step);
+    if (next === this.next) return;
+    this.next = next;
+    this.keep(NEXT_KEY, writeNext(next));
+  }
+
+  private dismissNext(): void {
+    if (!this.next) return;
+    this.next = { ...this.next, dismissed: true };
+    this.keep(NEXT_KEY, writeNext(this.next));
+  }
+
+  private onNextStep(step: NextStep): void {
+    if (step === 'pair' || step === 'away') { this.nextDialog = step; return; }
+    if (step === 'wall') { this.panel = 'wall'; this.markNext('wall'); return; }
+    this.pointing = false;
+    this.controller.setEditing(true);
+    this.markNext('edit');
+    if (step !== 'widget') return;
+    const blocks = this.state.board ? [...this.state.board.left, ...this.state.board.right] : [];
+    const first = blocks.find((block) => block.type === 'section');
+    if (first?.type === 'section') this.openEditPanel({ kind: 'add', sectionId: first.section.id });
+  }
+
+  private renderNextDialog() {
+    const { t } = this.ctx;
+    const which = this.nextDialog;
+    const close = (done: boolean) => { if (done && which) this.markNext(which); this.nextDialog = null; };
+    const lines = which === 'away'
+      ? [t('next.awayDialog.step1'), t('next.awayDialog.step2', { address: PAGES_TEXT }), t('next.awayDialog.step3')]
+      : [t('next.pairDialog.step1', { address: location.host }), t('next.pairDialog.step2'), t('next.pairDialog.step3')];
+    return html`<mh-dialog class="next" form ?open=${which !== null} heading=${which === null ? '' : t(which === 'away' ? 'next.awayDialog.title' : 'next.pairDialog.title')}
+      @cancel=${() => close(false)}><ol class="next-steps">${lines.map((line) => html`<li><div>${richText(line)}</div></li>`)}</ol>
+      ${which === 'away' ? html`<mh-button slot="actions" variant="text" @click=${() => { window.open(PAGES_URL, '_blank', 'noopener'); }}>${t('next.awayDialog.open')}</mh-button>` : nothing}
+      <mh-button slot="actions" data-autofocus @click=${() => close(true)}>${t('next.ok')}</mh-button>
+    </mh-dialog>`;
   }
 
   private renderPairing() {
@@ -1675,7 +1917,7 @@ export class MhApp extends LitElement {
           @continue=${() => this.controller.continueWithMissingRights()} @other-key=${() => { void this.controller.useOtherKey(); }}
           @demo=${(e: CustomEvent<{ which?: Demo } | null>) => { void this.controller.startDemo(e.detail?.which ?? 'camper'); }}
           @cancel=${() => { this.controller.cancelConnect(); }}></mh-connect-screen>`
-      : this.renderDashboard();
+      : this.onboarding ? this.renderOnboarding(this.onboarding) : this.renderDashboard();
     return html`${body}<mh-snackbar></mh-snackbar>${this.renderRest()}`;
   }
 }

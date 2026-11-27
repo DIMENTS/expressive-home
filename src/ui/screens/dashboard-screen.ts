@@ -43,6 +43,8 @@ import './header';
 import './hero';
 import './news-card';
 import type { PlaceOption } from './news-card';
+import type { NextStep } from '../../onboarding/next-steps';
+import './next-card';
 import './nav-bar';
 import './rail';
 import './room-card';
@@ -91,6 +93,9 @@ export class MhDashboard extends LitElement {
     news: { attribute: false },
     gone: { attribute: false },
     nameOfBoard: { attribute: false },
+    next: { attribute: false },
+    arriving: { type: Boolean, reflect: true },
+    pointEdit: { type: Boolean },
     tileMenu: { state: true },
     drag: { state: true },
     dragging: { type: Boolean, reflect: true },
@@ -137,6 +142,12 @@ export class MhDashboard extends LitElement {
   declare gone: GoneItem[];
   /** The name of a dashboard by its id, for the notices. */
   declare nameOfBoard: (id: string) => string;
+  /** The card "Verder inrichten" after a first start; null: none. */
+  declare next: { steps: NextStep[]; done: NextStep[] } | null;
+  /** The first time after the first start: the sections come in one after the other. */
+  declare arriving: boolean;
+  /** A pointer beside "Bewerken" in the rail. */
+  declare pointEdit: boolean;
   /** The tiles that were just added: they light up for a moment (5.4). */
   declare freshTiles: readonly string[];
   /** What is being dragged, its height, and where it would land. */
@@ -178,6 +189,9 @@ export class MhDashboard extends LitElement {
     this.tileMenu = null;
     this.announcement = '';
     this.dim = null;
+    this.next = null;
+    this.arriving = false;
+    this.pointEdit = false;
     this.freshTiles = [];
     this.news = [];
     this.gone = [];
@@ -201,6 +215,9 @@ export class MhDashboard extends LitElement {
     :host { display: block; }
     /* the rest screen lies over it: nothing of it is drawn, and nothing in it moves */
     :host([resting]) { content-visibility: hidden; }
+    /* after the first start the sections come in one after the other, the two columns side by side */
+    :host([arriving]) .col > * { animation: arrive var(--motion-spatial) both; animation-delay: calc(var(--i, 0) * var(--onboarding-stagger)); }
+    @keyframes arrive { from { opacity: 0; transform: translateY(var(--onboarding-rise)) scale(var(--onboarding-arrive-scale)); } }
     .app { display: grid; grid-template-columns: var(--rail-width) minmax(0, 1fr); max-width: var(--page-max-width); margin: 0 auto; padding: 0 env(safe-area-inset-right) 0 env(safe-area-inset-left); }
     main { padding: var(--page-pad) var(--page-pad) calc(var(--space-40) + var(--space-32)) var(--space-8); min-width: 0; outline: none; position: relative; }
     .col > .placeholder { border-radius: var(--section-radius); }
@@ -275,6 +292,11 @@ export class MhDashboard extends LitElement {
   }
 
   protected override updated(changed: PropertyValues<this>): void {
+    if (changed.has('arriving') && this.arriving) {
+      for (const column of this.shadowRoot?.querySelectorAll('.col') ?? []) {
+        [...column.children].forEach((block, index) => (block as HTMLElement).style.setProperty('--i', String(index * 2 + (column.getAttribute('data-column') === 'right' ? 1 : 0))));
+      }
+    }
     if (changed.has('room') && this.room !== null && this.room.id === this.leftRoom) {
       void this.updateComplete.then(() => this.shadowRoot?.querySelector('mh-room-head')?.updateComplete).then(() => this.shadowRoot?.querySelector('mh-room-head')?.focus({ preventScroll: true }));
     }
@@ -603,6 +625,12 @@ export class MhDashboard extends LitElement {
     return !this.phone && this.ctx.status().canArrange !== false;
   }
 
+  private renderNext() {
+    const { next } = this;
+    if (!next || this.editing || this.phase !== 'ready' || this.board?.id !== OVERVIEW_ID || this.room !== null) return nothing;
+    return html`<mh-next-card .t=${this.ctx.t} .steps=${next.steps} .done=${next.done} ?phone=${this.phone}></mh-next-card>`;
+  }
+
   private renderNews() {
     if (this.editing || !this.mayArrange || this.phase !== 'ready' || this.board?.id !== OVERVIEW_ID || this.news.length + this.gone.length === 0) return nothing;
     return html`<mh-news-card .t=${this.ctx.t} .news=${this.news} .gone=${this.gone} .sections=${this.placeOptions()} .sectionName=${this.sectionNameOf} .boardName=${this.nameOfBoard}></mh-news-card>`;
@@ -774,13 +802,14 @@ export class MhDashboard extends LitElement {
     const chips = headerChips({ devices: this.ctx.store.getDevices(), route: status.route, connecting: this.connecting, canControl: status.canControl, demo: status.demo }, this.ctx.t);
     const editing = this.editing && this.phase === 'ready';
     return html`<div class="app" part="page" @dim=${(e: CustomEvent<DimDetail>) => this.onDim(e)}>
-      ${this.phone ? html`<mh-nav-bar exportparts=${NAV_PARTS} ?own-css=${this.ownCss} .t=${this.ctx.t} .boards=${this.boards} activeBoard=${this.isRooms ? ROOMS_ID : this.board?.id ?? ''} panel=${this.activePanel}></mh-nav-bar>` : html`<mh-rail exportparts=${RAIL_PARTS} ?own-css=${this.ownCss} .t=${this.ctx.t} .boards=${this.boards} activeBoard=${this.isRooms ? ROOMS_ID : this.board?.id ?? ''} panel=${this.activePanel} ?editing=${editing} ?editBlocked=${this.phase !== 'ready' || this.isRooms} ?useOnly=${status.canArrange === false}></mh-rail>`}
+      ${this.phone ? html`<mh-nav-bar exportparts=${NAV_PARTS} ?own-css=${this.ownCss} .t=${this.ctx.t} .boards=${this.boards} activeBoard=${this.isRooms ? ROOMS_ID : this.board?.id ?? ''} panel=${this.activePanel}></mh-nav-bar>` : html`<mh-rail exportparts=${RAIL_PARTS} ?own-css=${this.ownCss} .t=${this.ctx.t} .boards=${this.boards} activeBoard=${this.isRooms ? ROOMS_ID : this.board?.id ?? ''} panel=${this.activePanel} ?editing=${editing} ?editBlocked=${this.phase !== 'ready' || this.isRooms} ?useOnly=${status.canArrange === false} .pointEdit=${this.pointEdit}></mh-rail>`}
       <main tabindex="-1">
         ${this.renderBanner()}
         ${editing ? html`<mh-edit-bar .t=${this.ctx.t} boardName=${this.boardName} ?canUndo=${this.canUndo} ?firstTime=${this.firstTime} .menu=${this.boardMenu}
           @focusin=${() => { this.barFocused = true; }} @focusout=${() => { this.barFocused = false; }}></mh-edit-bar>` : nothing}
         <mh-header exportparts=${HEADER_PARTS} .chips=${chips} .ctx=${this.ctx} ?phone=${this.phone}></mh-header>
         ${this.renderNews()}
+        ${this.renderNext()}
         ${this.room && this.phase === 'ready' ? html`<mh-room-head .ctx=${this.ctx} .room=${this.room} @back=${(e: Event) => { e.stopPropagation(); this.goingBack = true; this.goTo(ROOMS_ID); }}></mh-room-head>` : nothing}
         ${this.renderContent()}
         ${this.renderTileMenu()}

@@ -6,7 +6,8 @@ import { flowRef, heroSectionId, OVERVIEW_ID, type Column, type SectionLayout, t
 
 const tileOf = (spec: TileSpec): TileLayout => ({ id: spec.id, spec, size: spec.size, label: null, icon: null, source: 'device' });
 
-const sectionOf = (section: Section, column: Column): SectionLayout =>
+/** A section of the automatic Overzicht as it is stored, in a column. */
+export const sectionOf = (section: Section, column: Column): SectionLayout =>
   ({
     id: section.id, kind: section.kind, column, name: section.name ?? null, icon: section.icon ?? null, tiles: section.tiles.map(tileOf), hero: null,
     ...(section.zone === undefined ? {} : { zone: section.zone }),

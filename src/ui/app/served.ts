@@ -106,6 +106,7 @@ export function servedEnvironment(createDemoClient: AppEnvironment['createDemoCl
       onNight: (listener) => { link.on('night', (word) => listener(word ? { night: word.night, at: Date.now() - word.age } : null)); },
       onNewBuild: (listener) => { newBuild = listener; },
       settled: () => served.settled(),
+      fresh: () => served.fresh(),
       reload: () => window.location.reload(),
       scanned: () => scanned,
       onScanned: (listener) => {

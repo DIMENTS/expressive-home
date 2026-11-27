@@ -194,7 +194,10 @@ const actions = {
   '/unflow': () => { delete raw.flows['smoke-flow']; return true; },
   '/buttons': ({ names }) => { buttons = names; onUpdate(); return true; },
   '/pressed': () => pressed,
-  '/reset': () => { buttons = []; pressed = []; settings.delete('dashboardButtons'); settings.delete('sharedLayouts'); settings.delete('sharedLooks'); settings.delete('wallNight'); settings.delete('flowKey'); revoked = false; started = []; return true; },
+  // a hub on which a dashboard was kept once, as after a first start: the first device that pairs gets no onboarding
+  '/reset': () => { buttons = []; pressed = []; settings.delete('dashboardButtons'); settings.set('sharedLayouts', { revision: 1, layouts: {}, sectionSeeds: {} }); settings.delete('sharedLooks'); settings.delete('wallNight'); settings.delete('flowKey'); revoked = false; started = []; return true; },
+  // a hub nobody arranged yet, as after installing the app: before the next start
+  '/fresh': () => { settings.delete('sharedLayouts'); settings.delete('sharedLooks'); return true; },
   '/flowkey': async ({ key }) => ({ result: await app.setFlowKey(key ?? FLOW_KEY) }),
   '/unflowkey': () => { app.removeFlowKey(); return true; },
   '/widekey': async () => ({ result: await app.setFlowKey(WIDE_KEY) }),

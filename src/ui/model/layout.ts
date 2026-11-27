@@ -18,12 +18,13 @@ const order = (s: Section) => SECTION_ORDER.indexOf(s.kind as SectionKind);
 
 /** So many tiles stand beside each other in the two columns. */
 const ACROSS = { left: 4, right: 2 } as const;
-type Side = keyof typeof ACROSS;
+export type Side = keyof typeof ACROSS;
 /** In rows of tiles: the head of a section, a hero, and a row of flows, which are lower. */
-const [HEAD_ROWS, HERO_ROWS, FLOW_ROW] = [0.7, 2.2, 0.6];
+const [HEAD_ROWS, FLOW_ROW] = [0.7, 0.6];
+export const HERO_ROWS = 2.2;
 
 /** About how high a section is in a column, in rows of tiles. */
-function heightOf(section: Section, side: Side): number {
+export function heightOf(section: Section, side: Side): number {
   const flows = section.tiles.filter((tile) => tile.kind === 'flow').length;
   const places = section.tiles.reduce((sum, tile) => sum + (tile.kind === 'flow' ? 0 : tile.size === 'wide' ? 2 : 1), 0);
   return HEAD_ROWS + Math.ceil(places / ACROSS[side]) + Math.ceil(flows / 2) * FLOW_ROW;

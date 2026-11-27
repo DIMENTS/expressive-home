@@ -100,3 +100,15 @@ test('the Overzicht back to automatic keeps the choice', () => {
   s.layouts.resetOverview();
   expect(s.sections().some((x) => x.zone === 'hall')).toBe(true);
 });
+
+test('the arrangement of a first start goes only onto an automatic Overzicht, and is no step to undo', () => {
+  const s = setup();
+  const arranged = { sections: [{ id: 'own:s-1', kind: 'own' as const, column: 'left' as const, name: 'Vandaag', icon: null, tiles: [], hero: null }], known: ['a'], names: { a: 'A' } };
+  expect(s.layouts.arrangeOverview(arranged)).toBe(true);
+  expect([s.kept[HUB]!.dashboards[0]!.sections!.map((x) => x.id), s.layouts.state().canUndo]).toEqual([['own:s-1'], false]);
+  // another device arranged it first: what it did stays
+  expect(s.layouts.arrangeOverview({ ...arranged, sections: [] })).toBe(false);
+  expect(s.kept[HUB]!.dashboards[0]!.sections!.map((x) => x.id)).toEqual(['own:s-1']);
+  const own = setup(hubLayout([overview([])]));
+  expect(own.layouts.arrangeOverview(arranged)).toBe(false);
+});

@@ -126,6 +126,31 @@ test('pairing with a code gives a cookie that a script cannot read and no other 
   expect((await s.call('GET', '/api/session', undefined, { cookie })).body).toEqual({ paired: true, device: { name: 'Tablet', role: 'use' }, homeyId: HOMEY_ID });
 });
 
+test('the first device that may arrange, on a hub nobody arranged or gave a look, hears it is the first; no device after it does', async () => {
+  const s = await setup();
+  const pair = async (role: 'use' | 'edit', name: string) => {
+    const { code } = s.pairing.newCode(role);
+    return (await s.call('POST', '/api/pair', { code, name })).body;
+  };
+  // a device that may only use is no first start, and makes the next one none either
+  const only = await setup();
+  const { code } = only.pairing.newCode('use');
+  expect((await only.call('POST', '/api/pair', { code, name: 'Telefoon' })).body).toMatchObject({ first: false });
+  const after = only.pairing.newCode('edit');
+  expect((await only.call('POST', '/api/pair', { code: after.code, name: 'Tablet' })).body).toMatchObject({ first: false });
+  expect(await pair('edit', 'Tablet')).toMatchObject({ device: { name: 'Tablet' }, first: true });
+  expect(await pair('edit', 'Laptop')).toMatchObject({ first: false });
+  // all devices gone, but the hub was arranged once: no first start either
+  for (const device of s.pairing.list()) s.pairing.remove(device.id);
+  s.layouts.put(0, { layouts: {}, sectionSeeds: { 'type:lights': '#a6422a' } });
+  expect(await pair('edit', 'Tablet')).toMatchObject({ first: false });
+  // or a look was chosen for the house
+  const looked = await setup();
+  looked.looks.apply([{ house: { theme: 'glas' } }]);
+  const again = looked.pairing.newCode('edit');
+  expect((await looked.call('POST', '/api/pair', { code: again.code, name: 'Tablet' })).body).toMatchObject({ first: false });
+});
+
 test('a page on the internet cannot reach it: the address must be of the own network, writing only from its own page', async () => {
   const s = await setup();
   const { cookie } = await s.paired();

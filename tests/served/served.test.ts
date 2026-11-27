@@ -717,6 +717,49 @@ test('pairing tells what went wrong, and afterwards the settings are read again'
   expect((await s.served.store.load()).connection.apiKey).not.toBeNull();
 });
 
+test('a device the hub calls the first when it pairs on this page is the first start; saving afterwards does not change that', async () => {
+  const s = storeSetup();
+  s.answers.set('GET api/session', () => ({ paired: false }));
+  await s.served.store.load();
+  expect(s.served.fresh()).toBe(false);
+  s.answers.set('POST api/pair', () => ({ device: {}, first: true }));
+  s.answers.set('GET api/session', () => ({ paired: true, device: { name: 'x', role: 'edit' }, homeyId: HOMEY_ID }));
+  expect(await s.served.pair('123456', 'x')).toBe('ok');
+  expect(s.served.fresh()).toBe(true);
+  const config = await s.served.store.load();
+  await s.save({ ...config, layouts: layouts('Binnen') });
+  expect(s.sent.some(([method]) => method === 'PUT')).toBe(true);
+  expect(s.served.fresh()).toBe(true);
+});
+
+test('a device the hub does not call the first, one of an older app, or one that was paired already, is no first start', async () => {
+  for (const answer of [{ device: {}, first: false }, { device: {} }, { device: {}, first: 'yes' }]) {
+    const s = storeSetup();
+    s.answers.set('GET api/session', () => ({ paired: false }));
+    await s.served.store.load();
+    s.answers.set('POST api/pair', () => answer);
+    expect(await s.served.pair('123456', 'x')).toBe('ok');
+    expect(s.served.fresh()).toBe(false);
+  }
+  const paired = storeSetup();
+  await paired.served.store.load();
+  expect(paired.served.fresh()).toBe(false);
+});
+
+test('pairing again on the same page asks anew', async () => {
+  const s = storeSetup();
+  s.answers.set('GET api/session', () => ({ paired: false }));
+  await s.served.store.load();
+  s.answers.set('POST api/pair', () => ({ device: {}, first: true }));
+  expect(await s.served.pair('123456', 'x')).toBe('ok');
+  s.answers.set('POST api/pair', () => ({ device: {}, first: false }));
+  expect(await s.served.pair('123456', 'x')).toBe('ok');
+  expect(s.served.fresh()).toBe(false);
+  s.answers.set('POST api/pair', refuse(403, { error: 'code' }));
+  expect(await s.served.pair('1', 'x')).toBe('code');
+  expect(s.served.fresh()).toBe(false);
+});
+
 test('unpairing this device forgets everything of the hub', async () => {
   const s = storeSetup();
   await s.served.store.load();

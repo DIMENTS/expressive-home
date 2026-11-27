@@ -332,6 +332,19 @@ export function createLayouts(deps: LayoutsDeps) {
       commit(applyEdit(layout, { type: 'forget-gone', refs: gone.map((g) => g.ref) }));
       deps.publish();
     },
+    /**
+     * The Overzicht of a first start, as an own layout: the first one, so no step to undo. Only while it is still
+     * automatic: what another device arranged meanwhile stays.
+     */
+    arrangeOverview(arranged: { sections: SectionLayout[]; known: string[]; names: Record<string, string> }): boolean {
+      if (overviewIsOwn() || hubId === null) return false;
+      keep({ ...layout, dashboards: layout.dashboards.map((d) => (d.id === OVERVIEW_ID ? { ...d, sections: arranged.sections } : d)), known: arranged.known, names: { ...layout.names, ...arranged.names } });
+      undoSteps.clear();
+      lastGroup = null;
+      refresh();
+      deps.publish();
+      return true;
+    },
     resetOverview(): void {
       if (!overviewIsOwn()) return;
       commit({ ...layout, dashboards: layout.dashboards.map((d) => (d.id === OVERVIEW_ID ? { ...d, sections: null } : d)) });

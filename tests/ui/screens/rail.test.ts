@@ -101,3 +101,35 @@ test('Bewerken cannot be pressed while there is no dashboard yet', async () => {
   named(host, 'Bewerken').click();
   expect(toggles).toHaveLength(1);
 });
+
+test('after the first start a pointer stands beside Bewerken, until it is understood; never without Bewerken', async () => {
+  const host = await rail({ t: createTranslate('nl'), pointEdit: true });
+  const pointer = host.shadowRoot!.querySelector<HTMLElement>('.pointer')!;
+  expect([pointer.getAttribute('role'), pointer.textContent!.trim().startsWith('Hier pas je je dashboard aan')]).toEqual(['note', true]);
+  expect(pointer.closest('.pointed')!.querySelector('button.edit')).not.toBeNull();
+  const ok = record(host, 'pointer-ok');
+  pointer.querySelector<HTMLElement>('mh-button')!.click();
+  expect(ok).toHaveLength(1);
+  const none = await rail({ t: createTranslate('nl'), pointEdit: true, useOnly: true });
+  expect(none.shadowRoot!.querySelector('.pointer')).toBeNull();
+  const blocked = await rail({ t: createTranslate('nl'), pointEdit: true, editBlocked: true });
+  expect(blocked.shadowRoot!.querySelector('.pointer')).toBeNull();
+});
+
+test('while the pointer stands there the bar lies over the page, so the pointer can be reached', async () => {
+  const host = await rail({ t: createTranslate('nl'), pointEdit: true });
+  expect(host.hasAttribute('point-edit')).toBe(true);
+  host.pointEdit = false;
+  await settle(host);
+  expect(host.hasAttribute('point-edit')).toBe(false);
+});
+
+test('the pointer describes Bewerken, so a screen reader hears it with the button', async () => {
+  const host = await rail({ t: createTranslate('nl'), pointEdit: true });
+  const edit = host.shadowRoot!.querySelector<HTMLElement>('button.edit')!;
+  const pointer = host.shadowRoot!.getElementById(edit.getAttribute('aria-describedby')!)!;
+  expect(pointer.textContent!.trim()).toContain('Hier pas je je dashboard aan');
+  host.pointEdit = false;
+  await settle(host);
+  expect(edit.hasAttribute('aria-describedby')).toBe(false);
+});

@@ -8,7 +8,7 @@ const shared = { locale: 'nl-NL', timezoneId: 'Europe/Amsterdam' };
 
 export default defineConfig({
   testDir: 'smoke',
-  testMatch: ['**/homey-app.smoke.ts', '**/app-settings.smoke.ts'],
+  testMatch: ['**/homey-app.smoke.ts', '**/app-settings.smoke.ts', '**/onboarding.smoke.ts'],
   workers: 1,
   reporter: 'list',
   timeout: 60_000,

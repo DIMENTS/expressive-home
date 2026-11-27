@@ -456,7 +456,9 @@ export function createHomeServer(deps: HomeServerDeps) {
     const body = await bodyOf(request, SMALL_BODY);
     const result = deps.pairing.redeem(text(body['code']), text(body['name']));
     if (!result.ok) throw new HttpError(result.reason === 'locked' ? 429 : 403, result.reason);
-    json(response, 200, { device: result.device }, { 'set-cookie': cookie(result.token) });
+    // the first start of this hub: the only device, one that may arrange, and nobody ever saved a dashboard or chose a look
+    const first = result.device.role === 'edit' && deps.pairing.list().length === 1 && deps.layouts.get().revision === 0 && deps.looks.get().revision === 0;
+    json(response, 200, { device: result.device, first }, { 'set-cookie': cookie(result.token) });
   }
 
   function session(request: IncomingMessage, response: ServerResponse): void {

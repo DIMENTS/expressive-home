@@ -11,6 +11,7 @@ import { missingFeatures, type Feature } from '../../homey/permissions';
 import type { CapabilityValue, Route } from '../../homey/types';
 import { resolveLanguage, type Language, type Translate } from '../../i18n/index';
 import { newLayoutId, type LayoutEdit } from '../../layout/edit';
+import type { SectionLayout } from '../../layout/types';
 import type { Store } from '../../state/store';
 import type { Demo } from './demo';
 import { lampsCommands } from './lamps';
@@ -865,6 +866,8 @@ export function createController(deps: ControllerDeps) {
     dismissNew: (ref: string) => layouts.dismissNew(ref),
     acknowledgeGone: () => layouts.acknowledgeGone(),
     resetOverview: () => layouts.resetOverview(),
+    /** The Overzicht that a first start made; false when it was not automatic any more or this device may not arrange. */
+    arrangeOverview: (arranged: { sections: SectionLayout[]; known: string[]; names: Record<string, string> }): boolean => mayArrange() && layouts.arrangeOverview(arranged),
     exportLayout: (now: Date) => layouts.exportLayout(now),
     importLayout: (text: string): ImportResult => layouts.importLayout(text),
     newId: (prefix: 't' | 's' | 'd') => newLayoutId(prefix),

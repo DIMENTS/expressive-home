@@ -18,6 +18,8 @@ export const EXCEPTIONS = [
   { file: 'src/ui/panels/panel-styles.ts', declaration: 'transform: rotate(90deg)', reason: 'The arrow of an open group turns a quarter: geometry, not a design value.' },
   { file: 'src/ui/panels/device-list.ts', declaration: 'transform: rotate(90deg)', reason: 'The arrow of an open row turns a quarter: geometry, not a design value.' },
   { file: 'src/ui/screens/connect-card.ts', declaration: 'min-height: 100vh', reason: VIEWPORT },
+  { file: 'src/ui/onboarding/onboarding.ts', declaration: 'transform: rotate(360deg)', reason: FULL_TURN },
+  { file: 'src/ui/onboarding/onboarding.ts', declaration: 'min-height: 100vh', reason: VIEWPORT },
   { file: 'src/ui/screens/rail.ts', declaration: 'height: 100vh', reason: VIEWPORT },
   { file: 'src/ui/parts/dialog.ts', declaration: 'width: min(var(--dialog-width), calc(100vw - var(--space-32)))', reason: VIEWPORT },
   { file: 'src/ui/parts/dialog.ts', declaration: 'max-height: calc(100vh - var(--space-32))', reason: VIEWPORT },
